@@ -24,6 +24,7 @@ state.functions = {
                     // Returns true as soon as a match is found.
                     if (keyWords.some(word => new RegExp(`\\b${word}\\b`,"gi").test(historyTracker)))
                     {
+
                         if (!contextString.includes(`${wEntry["entry"]}`) && (contextString.length + wEntry["entry"].length) <= 1000) // Check for duplicate entries and limit the length as to not cause memory errors
                         {
                             contextString += `\n${wEntry["entry"]}`;
@@ -35,7 +36,7 @@ state.functions = {
             // Add the appended string to context
             if (contextString)
             {
-                state.memory = {context: memory + contextString, frontMemory: newFrontMemory}; // Set the context to not override user memory and frontMemory to the latest discovered worldEntry
+                state.memory = {context: memory + contextString}; // frontMemory: newFrontMemory // Set the context to not override user memory and frontMemory to the latest discovered worldEntry
             }
 
         },
@@ -50,7 +51,7 @@ const modifier = (text) => {
     injectContext();
 
     // Debug to check that it's working.
-    state.message = JSON.stringify(state.memory);
+    //state.message = JSON.stringify(state.memory);
     return {text};
 }
 modifier(text);
