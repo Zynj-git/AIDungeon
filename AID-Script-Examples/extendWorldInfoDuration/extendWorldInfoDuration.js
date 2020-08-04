@@ -4,7 +4,25 @@ if (!state.setup) {
     state.setup = true;
 }
 
-let contextString = "";
+//https://stackoverflow.com/questions/273789/is-there-a-version-of-javascripts-string-indexof-that-allows-for-regular-expr#273810
+String.prototype.regexLastIndexOf = function (regex, startpos) { // Function to be able to search for the lastIndexOf a word / character based on RegEx
+    regex = (regex.global) ? regex : new RegExp(regex.source, "g" + (regex.ignoreCase ? "i" : "") + (regex.multiLine ? "m" : ""));
+    if(typeof (startpos) == "undefined") {
+        startpos = this.length;
+    } else if(startpos < 0) {
+        startpos = 0;
+    }
+    let stringToWorkWith = this.substring(0, startpos + 1);
+    let lastIndexOf = -1;
+    let nextStop = 0;
+    while((result = regex.exec(stringToWorkWith)) != null) {
+        lastIndexOf = result.index;
+        regex.lastIndex = ++nextStop;
+    }
+    return lastIndexOf;
+}
+
+let discoveredElements = []; // Holds pairs of the index it was last discovered at plus the corresponding entry text. [index, entry]
 state.functions = {
 
     injectContext:
@@ -21,22 +39,32 @@ state.functions = {
                 {
                     // Split the keywords of the entry into an array we can loop through (max 50 characters)
                     const keyWords = wEntry["keys"].split(',');
+                    let keywordIndex = -1; // Keeps track of the last mention of the keyword as to order them by relevancy
                     // Returns true as soon as a match is found.
-                    if (keyWords.some(word => new RegExp(`\\b${word}\\b`,"gi").test(historyTracker)))
-                    {
-
-                        if (!contextString.includes(`${wEntry["entry"]}`) && (contextString.length + wEntry["entry"].length) <= 1000) // Check for duplicate entries and limit the length as to not cause memory errors
+                    if (keyWords.some(word =>
                         {
-                            contextString += `\n${wEntry["entry"]}`;
-                            //newFrontMemory = `\n${wEntry["entry"]}\n`; // Testing to see if using only one entry as frontMemory at the time functions better (seems to be irrelevant)
+                            const regEx = new RegExp(`\\b${word}\\b`,"gi"); // Wholeword, case- insensitve RegEx match.
+                            if (historyTracker.regexLastIndexOf(regEx) > keywordIndex) {keywordIndex = historyTracker.regexLastIndexOf(regEx); return true} // Find the highest value of any of the matching keywords
+                            //if (regEx.test(historyTracker)) { keywordIndex = historyTracker.regexLastIndexOf(regEx); return true}
+                        }))
+                    { // This block belongs to the above if statement
+
+                        if (!discoveredElements.some(element => element.includes(`\n${wEntry["entry"]}`))) // It's the first time the element is discovered, push it to the discoveredElements array.
+                        {
+                            discoveredElements.push([keywordIndex, `\n${wEntry["entry"]}`]); // We're interested in the keywordIndex for sorting purposes
+                        }
+                        else // Find and update the keywordIndex of the element. if it already exists then update the keywordIndex of the element. This if / else statement is probably not the best approach
+                        {
+                            discoveredElements.forEach(element => {if (element.includes(`\n${wEntry["entry"]}`)) {element[0] = keywordIndex}})
                         }
                     }
                 })
             }
             // Add the appended string to context
-            if (contextString)
+            if (discoveredElements)
             {
-                state.memory = {context: memory + contextString}; // frontMemory: newFrontMemory // Set the context to not override user memory and frontMemory to the latest discovered worldEntry
+                const contextString = discoveredElements.sort(function(a, b){return a[0]-b[0]}).flatMap(element => element[1]); // Sort it based on the keywordIndex value then flatmap the elements of the pairs (entry text)
+                state.memory = {context: memory + contextString}; // Attach the discovered worldEntries to the context
             }
 
         },
@@ -51,7 +79,7 @@ const modifier = (text) => {
     injectContext();
 
     // Debug to check that it's working.
-    //state.message = JSON.stringify(state.memory);
+    state.message = JSON.stringify(state.memory);
     return {text};
 }
 modifier(text);
