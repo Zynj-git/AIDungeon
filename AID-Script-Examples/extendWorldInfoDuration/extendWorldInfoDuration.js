@@ -63,7 +63,11 @@ state.functions = {
             // Add the appended string to context
             if (discoveredElements)
             {
-                const contextString = discoveredElements.sort(function(a, b){return a[0]-b[0]}).flatMap(element => element[1]); // Sort it based on the keywordIndex value then flatmap the elements of the pairs (entry text)
+                let tempArray = [] // Unshift the elements after sorting here to stay within character recommendations
+                discoveredElements = discoveredElements.sort(function(a, b){return b[0]-a[0]}); // Sort it based on the keywordIndex value then flatmap the elements of the pairs (entry text)
+                discoveredElements.forEach(element => {if ((tempArray.join(',').length + element[1].length) < 1000) {tempArray.unshift(element[1])}})
+
+                const contextString = tempArray.join(',');
                 state.memory = {context: memory + contextString}; // Attach the discovered worldEntries to the context
             }
 
