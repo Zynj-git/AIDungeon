@@ -68,7 +68,7 @@ state.functions = {
                 discoveredElements.forEach(element => {if ((tempArray.join(',').length + element[1].length) < 1000) {tempArray.unshift(element[1])}})
 
                 const contextString = tempArray.join(',');
-                state.memory = {context: memory + contextString}; // Attach the discovered worldEntries to the context
+                state.memory = {context: memory.split(0, 1000) + contextString}; // Attach the discovered worldEntries to the context
             }
 
         },
