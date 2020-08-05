@@ -44,7 +44,8 @@ state.functions = {
                     if (keyWords.some(word =>
                         {
                             const regEx = new RegExp(`\\b${word}\\b`,"gi"); // Wholeword, case- insensitve RegEx match.
-                            if (historyTracker.regexLastIndexOf(regEx) > keywordIndex) {keywordIndex = historyTracker.regexLastIndexOf(regEx); return true} // Find the highest value of any of the matching keywords
+                            const lastMentionIndex = historyTracker.regexLastIndexOf(regEx)
+                            if (lastMentionIndex > keywordIndex) {keywordIndex = lastMentionIndex; return true} // Find the highest value of any of the matching keywords
                             //if (regEx.test(historyTracker)) { keywordIndex = historyTracker.regexLastIndexOf(regEx); return true}
                         }))
                     { // This block belongs to the above if statement
