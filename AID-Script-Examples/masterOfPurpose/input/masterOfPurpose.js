@@ -70,12 +70,12 @@ const modifier = (text) => {
         textToConvert = textToConvert.replace(new RegExp("\\b" + state.conversions["you"][1][0] + "\\b", 'gi'), state.conversions["you"][1][1])
         textToConvert = textToConvert.replace(new RegExp("\\b" + state.conversions["you"][2][0] + "\\b", 'gi'), state.conversions["you"][2][1])
 
-        state.purpose = textToConvert;
+        state.purpose = textToConvert.trim();
         return textToConvert
     }
 
 
-    const triggerPhrase = "your purpose is to"
+    const triggerPhrase = "your purpose is"
 
     if (modifiedText.includes(triggerPhrase)) { // Phrase to not have it trigger all the time, can expand with multiple phrases / phrasings, especially on the output part.
 
@@ -91,8 +91,8 @@ const modifier = (text) => {
         // Also phrases in present tense as to have it seem that it is something they are currently considering.
         // Using words that the AI usually throws at me when someone is described as being "obsessed", "intent", "focused" about something and you end up in those situations that it's difficult to pull it away from wanting to continue with whatever they're doing regardless of the circumstances.
         convertPronouns(firstOption);
-        state.contextMessage = `\n${state.conversions[state.targetPronoun][3][1]} is inexplicably pursuing ${state.conversions[state.targetPronoun][2][1]} purpose;${state.purpose}`;
-        state.memory = {frontMemory: state.contextMessage}
+        state.contextMessage = `\n${state.conversions[state.targetPronoun][2][1]} mind is ingrained with a singular purpose which is '${state.purpose}' and ${state.conversions[state.targetPronoun][3][1]}'s transfixed with fulfilling it.`;
+        state.memory = {context: memory + state.contextMessage, frontMemory: state.contextMessage}
         state.clearFrontMemory = true;
 
     }
@@ -106,7 +106,7 @@ const modifier = (text) => {
             return '';
         }
     }
-    if (state.contextMessage) {state.memory = {context: memory + state.contextMessage};}
+    if (state.contextMessage && !state.clearFrontMemory) {state.memory = {context: memory + state.contextMessage};}
     state.message = JSON.stringify(state.memory); // Display the current context for debug purposes to check that it's somewhat working as intended.
     return {text}
 }
