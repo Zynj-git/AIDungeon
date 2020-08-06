@@ -82,10 +82,11 @@ const modifier = (text) => {
 
     // After each output check if the history contains keywords for entries and prolong their lifetime,
     // as brought up there's no need to check input because that's the default functionality of AID
-    injectContext();
+    if (worldEntries) {injectContext();}
+
 
     // Debug to check that it's working.
-    //state.message = JSON.stringify(state.memory);
+    state.message = JSON.stringify(state.memory);
     return {text};
 }
 modifier(text);
