@@ -22,16 +22,17 @@ String.prototype.regexLastIndexOf = function (regex, startpos) { // Function to 
     return lastIndexOf;
 }
 
-let discoveredElements = []; // Holds pairs of the index it was last discovered at plus the corresponding entry text. [index, entry]
+
 state.functions = {
 
     injectContext:
         () => {
             // Hold a string of the latest history elements.
+            let discoveredElements = []; // Holds pairs of the index it was last discovered at plus the corresponding entry text. [index, entry]
             let historyTracker = ``;
             let newFrontMemory = ``;
             // Check the last X amount of entries in the history
-            history.slice(-5).forEach(hStory => historyTracker += `\n${hStory["text"]}`);
+            history.slice(-2).forEach(hStory => historyTracker += `\n${hStory["text"]}`);
             if (historyTracker)
             {
                 // Loop through all world entries to check if their keyword is mentioned in history
@@ -84,7 +85,7 @@ const modifier = (text) => {
     injectContext();
 
     // Debug to check that it's working.
-    state.message = JSON.stringify(state.memory);
+    //state.message = JSON.stringify(state.memory);
     return {text};
 }
 modifier(text);
