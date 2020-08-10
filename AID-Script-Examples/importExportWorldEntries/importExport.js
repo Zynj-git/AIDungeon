@@ -3,13 +3,14 @@
 // Utilized in the worldEntryManager
 const modifier = (text) => {
 
-    let modifiedText = text
+    let modifiedText = text.toLowerCase();
     state.message = ""; // This clears the wall of text upon the player's next input.
     let messageString = "";
-    if (modifiedText.includes("exportEntries")) {messageString += JSON.stringify(worldEntries)} // Input exportEntries to be provided a message to put in your clipboard.
+    if (modifiedText.includes("exportentries")) {messageString += JSON.stringify(worldEntries)} // Input exportEntries to be provided a message to put in your clipboard.
     if (modifiedText.includes("[{")) // Handle the importing of the exportEntries string
     {
-        entriesToImport = JSON.parse(modifiedText);
+        let entriesAdded = 0;
+        entriesToImport = JSON.parse(text);
 
         entriesToImport.forEach(iEntry =>
         {
@@ -22,16 +23,22 @@ const modifier = (text) => {
                 if (iEntryKeys[0] === wEntryKeys[0])
                 {
                     updateWorldEntry(worldEntries.indexOf(wEntry), iEntry["keys"], iEntry["entry"]);
-                    messageString += `Updated World Entry: ${iEntry["entry"]}\nKeywords: ${iEntry["keys"]}\n|There are ${worldEntries.length} entries.|\n\n`;
+                    entriesAdded++;
+                    if (entriesAdded < 5) {messageString += `Updated World Entry: ${iEntry["entry"]}\nKeywords: ${iEntry["keys"]}\n|There are ${worldEntries.length} entries.|\n\n`;}
                     skipEntry = true;
                 }
             })
             if (!skipEntry) // It did not already find the entry in worldEntries, so we add instead of updating.
             {
                 addWorldEntry(iEntry["keys"], iEntry["entry"]);
-                messageString += `New World Entry: ${iEntry["entry"]}\nKeywords: ${iEntry["keys"]}\n|There are ${worldEntries.length} entries.|\n\n`;
+                entriesAdded++;
+                if (entriesAdded < 5) {messageString += `New World Entry: ${iEntry["entry"]}\nKeywords: ${iEntry["keys"]}\n|There are ${worldEntries.length} entries.|\n\n`;}
             }
         })
+
+        if (entriesAdded >= 5) {messageString += `\nPlus an additional ${entriesAdded} entries!`}
+        worldEntries.forEach(wEntry => wEntry["isNotHidden"] = true) // For now reveal all entries.
+        return "";
     }
 
     state.message = `${messageString}`
