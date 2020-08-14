@@ -5,7 +5,7 @@
 // frontMemory is a hidden string appended to the end of the input.
 
 if (!state.setup) {
-    state.setup = true;
+    state.setup = true; 
     state.durationTimer = 5; // Change this to how many turns you want the discovered entries to stay in context.
 }
 
