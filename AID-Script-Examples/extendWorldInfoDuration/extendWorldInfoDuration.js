@@ -6,7 +6,8 @@
 
 if (!state.setup) {
     state.setup = true;
-    state.durationTimer = 5; // Change this to how many turns you want the discovered entries to stay in context.
+    // NOTE: Duration timer currently does not work for some reason, it can be manually altered at line 68 by changing historytracker.slice(-5) to another value ( use negative values)
+    //state.durationTimer = -5; // Change this to how many turns you want the discovered entries to stay in context, use negative values, max -100
 }
 
 //https://stackoverflow.com/questions/273789/is-there-a-version-of-javascripts-string-indexof-that-allows-for-regular-expr#273810
@@ -64,7 +65,7 @@ const injectContext = () =>
             let discoveredFrontMemory = []; //
             let frontMemoryTracker = ``; //
             // Check the last X amount of entries in the history
-            history.slice(-state.durationTimer).forEach(hStory => historyTracker += `\n${hStory["text"]}`);
+            history.slice(-5).forEach(hStory => historyTracker += `\n${hStory["text"]}`);
             history.slice(-1).forEach(hStory => frontMemoryTracker += `\n${hStory["text"]}`); // frontMemoryTracker checks last input 'cus it's a one time thing.
 
             if (historyTracker) {discoveredHistoryElements = discoverWorldEntries(historyTracker)}
