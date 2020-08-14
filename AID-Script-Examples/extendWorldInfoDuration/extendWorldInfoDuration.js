@@ -23,68 +23,77 @@ String.prototype.regexLastIndexOf = function (regex, startpos) { // Function to 
 }
 
 
-state.functions = {
-
-    injectContext:
-        () => {
-            // Hold a string of the latest history elements.
-            let discoveredElements = []; // Holds pairs of the index it was last discovered at plus the corresponding entry text. [index, entry]
-            let historyTracker = ``;
-            let newFrontMemory = ``;
-            // Check the last X amount of entries in the history
-            history.slice(-2).forEach(hStory => historyTracker += `\n${hStory["text"]}`);
-            if (historyTracker)
+const discoverWorldEntries = (text) =>  // Searches the string for world entries and returns an array with an index of its latest occurrence plus the corresponding entryText
+        {
+            const textToSearch = text;
+            let discoveredElements = [];
+            // Loop through all world entries to check if their keyword is mentioned in history
+            worldEntries.forEach(wEntry =>
             {
-                // Loop through all world entries to check if their keyword is mentioned in history
-                worldEntries.forEach(wEntry =>
-                {
-                    // Split the keywords of the entry into an array we can loop through (max 50 characters)
-                    const keyWords = wEntry["keys"].split(',');
-                    let keywordIndex = -1; // Keeps track of the last mention of the keyword as to order them by relevancy
-                    // Returns true as soon as a match is found.
-                    if (keyWords.some(word =>
-                        {
-                            const regEx = new RegExp(`\\b${word}\\b`,"gi"); // Wholeword, case- insensitve RegEx match.
-                            const lastMentionIndex = historyTracker.regexLastIndexOf(regEx)
-                            if (lastMentionIndex > keywordIndex) {keywordIndex = lastMentionIndex; return true} // Find the highest value of any of the matching keywords
-                            //if (regEx.test(historyTracker)) { keywordIndex = historyTracker.regexLastIndexOf(regEx); return true}
-                        }))
-                    { // This block belongs to the above if statement
-
-                        if (!discoveredElements.some(element => element.includes(`\n${wEntry["entry"]}`))) // It's the first time the element is discovered, push it to the discoveredElements array.
-                        {
-                            discoveredElements.push([keywordIndex, `\n${wEntry["entry"]}`]); // We're interested in the keywordIndex for sorting purposes
-                        }
-                        else // Find and update the keywordIndex of the element. if it already exists then update the keywordIndex of the element. This if / else statement is probably not the best approach
-                        {
-                            discoveredElements.forEach(element => {if (element.includes(`\n${wEntry["entry"]}`)) {element[0] = keywordIndex}})
-                        }
+                // Split the keywords of the entry into an array we can loop through (max 50 characters)
+                const keyWords = wEntry["keys"].split(',');
+                let keywordIndex = -1; // Keeps track of the last mention of the keyword as to order them by relevancy
+                // Returns true as soon as a match is found.
+                if (keyWords.some(word =>
+                    {
+                        const regEx = new RegExp(`\\b${word.trim()}(s+)?\\b`,"gi"); // Wholeword, case- insensitve RegEx match, alternative s for common plural(s).
+                        const lastMentionIndex = textToSearch.regexLastIndexOf(regEx)
+                        if (lastMentionIndex > keywordIndex) {keywordIndex = lastMentionIndex; return true} // Find the highest value of any of the matching keywords
+                        //if (regEx.test(historyTracker)) { keywordIndex = historyTracker.regexLastIndexOf(regEx); return true}
+                    }))
+                    {
+                        // We're interested in the keywordIndex for sorting purposes
+                        // It's the first time the element is discovered, push it to the discoveredElements array.
+                        if (!discoveredElements.some(element => element.includes(`\n${wEntry["entry"]}`))) {discoveredElements.push([keywordIndex, `\n${wEntry["entry"]}`, wEntry["keys"].startsWith('_') ? true : false]);}
+                        // Find and update the keywordIndex of the element. if it already exists then update the keywordIndex of the element. This if / else statement is probably not the best approach
+                        else {discoveredElements.forEach(element => {if (element.includes(`\n${wEntry["entry"]}`)) {element[0] = keywordIndex}})}
                     }
-                })
-            }
+            })
+            console.log(discoveredElements)
+            return discoveredElements // Return an list of arrays containing [lastIndex, entryText]
+        }
+
+const injectContext = () =>
+        {
+            // Hold a string of the latest history elements.
+            let discoveredHistoryElements = []; // Holds pairs of the index it was last discovered at plus the corresponding entry text. [index, entry]
+            let historyTracker = ``;
+            let discoveredFrontMemory = [];
+            let frontMemoryTracker = ``;
+            // Check the last X amount of entries in the history
+            history.slice(-5).forEach(hStory => historyTracker += `\n${hStory["text"]}`);
+            history.slice(-1).forEach(hStory => frontMemoryTracker += `\n${hStory["text"]}`); // frontMemoryTracker checks last input 'cus it's a one time thing.
+
+            if (historyTracker) {discoveredHistoryElements = discoverWorldEntries(historyTracker)}
+            if (frontMemoryTracker) {discoveredFrontMemory = discoverWorldEntries(frontMemoryTracker)}
             // Add the appended string to context
-            if (discoveredElements)
+            if (discoveredHistoryElements || discoveredFrontMemory)
             {
-                let tempArray = [] // Unshift the elements after sorting here to stay within character recommendations
-                discoveredElements = discoveredElements.sort(function(a, b){return b[0]-a[0]}); // Sort it based on the keywordIndex value then flatmap the elements of the pairs (entry text)
-                discoveredElements.forEach(element => {if ((tempArray.join(',').length + element[1].length) < 1000) {tempArray.unshift(element[1])}})
+                let holdDiscoveredWorldEntries = [] // Unshift the elements after sorting here to stay within character recommendations
 
-                const contextString = tempArray.join(',');
-                state.memory = {context: memory.split(0, 1000) + contextString}; // Attach the discovered worldEntries to the context
+                discoveredHistoryElements = discoveredHistoryElements.sort(function(a, b){return b[0]-a[0]}); // Sort it based on the keywordIndex value then flatmap the elements of the pairs (entry text)
+                discoveredHistoryElements.forEach(element => {if ((holdDiscoveredWorldEntries.join(',').length + element[1].length) < 1000 && element[2] == false) {holdDiscoveredWorldEntries.unshift(element[1])}})
+
+                let holdDiscoveredFrontMemory = [] // Duplicate code handling entries tagged as frontMemory
+                discoveredFrontMemory = discoveredFrontMemory.sort(function(a, b){return b[0]-a[0]}); // Sort it based on the keywordIndex value then flatmap the elements of the pairs (entry text)
+                discoveredFrontMemory.forEach(element => {if ((holdDiscoveredFrontMemory.join(',').length + element[1].length) < 1000 && element[2]) {holdDiscoveredFrontMemory.unshift(element[1])}})
+
+
+                const contextString = holdDiscoveredWorldEntries.join(',');
+                const frontMemoryString = holdDiscoveredFrontMemory.join(',');
+
+                state.memory["context"] = memory.split(0, 1000) + contextString; // Attach the discovered worldEntries to the context
+                state.memory["frontMemory"] = frontMemoryString;
             }
 
-        },
-    };
+        }
 
-const { injectContext } = state.functions // Shortcuts
 const modifier = (text) => {
     let modifiedText = text;
-
     // After each output check if the history contains keywords for entries and prolong their lifetime,
     // as brought up there's no need to check input because that's the default functionality of AID
     if (worldEntries) {injectContext();}
-
-
+    else (state.message += "worldEntries is not defined! Create at least one (1) entry!")
     // Debug to check that it's working.
     state.message = JSON.stringify(state.memory);
     return {text};
