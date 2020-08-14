@@ -84,8 +84,8 @@ const injectContext = () =>
                 const contextString = holdDiscoveredWorldEntries.join(' '); // Join it into a string
                 const frontMemoryString = holdDiscoveredFrontMemory.join(' ');
 
-                state.memory["context"] =  memory.split(0, 1000) + contextString; // Attach the discovered worldEntries to the context memory.split(0, 1000)
-                state.memory["frontMemory"] = frontMemoryString;
+                if (contextString) {state.memory["context"] =  memory.split(0, 1000) + contextString;} else {delete state.memory["context"]} // Attach the discovered worldEntries to the context memory.split(0, 1000)
+                if (frontMemoryString) {state.memory["frontMemory"] = frontMemoryString;} else {delete state.memory["frontMemory"]}
             }
             return
         }
