@@ -48,7 +48,7 @@ const discoverWorldEntries = (text) =>  // Searches the string for world entries
                         // We're interested in the keywordIndex for sorting purposes
                         // It's the first time the element is discovered, push it to the discoveredElements array.
                         // The pushed array includes [keyWordIndex, wEntry["entry"], frontMemoryTag]
-                        if (!discoveredElements.some(element => element.includes(`\n${wEntry["entry"]}`))) {discoveredElements.push([keywordIndex, `\n${wEntry["entry"]}`, wEntry["keys"].startsWith('_') ? true : false]);}
+                        if (!discoveredElements.some(element => element.includes(`\n${wEntry["entry"]}`))) {discoveredElements.push([keywordIndex, `${wEntry["entry"]}`, wEntry["keys"].startsWith('_') ? true : false]);}
                         // Find and update the keywordIndex of the element. if it already exists then update the keywordIndex of the element.
                         else {discoveredElements.forEach(element => {if (element.includes(`\n${wEntry["entry"]}`)) {element[0] = keywordIndex}})}
                     }
@@ -81,13 +81,13 @@ const injectContext = () =>
                 discoveredFrontMemory = discoveredFrontMemory.sort(function(a, b){return b[0]-a[0]}); // Sort it based on the keywordIndex value
                 discoveredFrontMemory.forEach(element => {if ((holdDiscoveredFrontMemory.join(',').length + element[1].length) < 1000 && element[2]) {holdDiscoveredFrontMemory.unshift(element[1])}})
 
-                const contextString = holdDiscoveredWorldEntries.join(','); // Join it into a string
-                const frontMemoryString = holdDiscoveredFrontMemory.join(',');
+                const contextString = holdDiscoveredWorldEntries.join(' '); // Join it into a string
+                const frontMemoryString = holdDiscoveredFrontMemory.join(' ');
 
-                state.memory["context"] = memory.split(0, 1000) + contextString; // Attach the discovered worldEntries to the context
+                state.memory["context"] =  memory.split(0, 1000) + contextString; // Attach the discovered worldEntries to the context memory.split(0, 1000)
                 state.memory["frontMemory"] = frontMemoryString;
             }
-
+            return
         }
 
 const modifier = (text) => {
