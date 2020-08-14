@@ -64,7 +64,7 @@ const injectContext = () =>
             let discoveredFrontMemory = [];
             let frontMemoryTracker = ``;
             // Check the last X amount of entries in the history
-            history.slice(-5).forEach(hStory => historyTracker += `\n${hStory["text"]}`);
+            history.slice(-state.durationTimer).forEach(hStory => historyTracker += `\n${hStory["text"]}`);
             history.slice(-1).forEach(hStory => frontMemoryTracker += `\n${hStory["text"]}`); // frontMemoryTracker checks last input 'cus it's a one time thing.
 
             if (historyTracker) {discoveredHistoryElements = discoverWorldEntries(historyTracker)}
