@@ -31,10 +31,10 @@ const discoverWorldEntries = (text) =>  // Searches the string for world entries
         {
             const textToSearch = text;
             let discoveredElements = [];
-            // Loop through all world entries to check if their keyword is mentioned in history
+            // Loop through all world entries to check if their keyword is mentioned in textToSearch
             worldEntries.forEach(wEntry =>
             {
-                // Split the keywords of the entry into an array we can loop through (max 50 characters)
+                // Split the keywords of the entry into an array we can loop through.
                 const keyWords = wEntry["keys"].split(',');
                 let keywordIndex = -1; // Keeps track of the last mention of the keyword as to order them by relevancy
                 // Returns true as soon as a match is found.
@@ -49,20 +49,20 @@ const discoverWorldEntries = (text) =>  // Searches the string for world entries
                         // It's the first time the element is discovered, push it to the discoveredElements array.
                         // The pushed array includes [keyWordIndex, wEntry["entry"], frontMemoryTag]
                         if (!discoveredElements.some(element => element.includes(`\n${wEntry["entry"]}`))) {discoveredElements.push([keywordIndex, `\n${wEntry["entry"]}`, wEntry["keys"].startsWith('_') ? true : false]);}
-                        // Find and update the keywordIndex of the element. if it already exists then update the keywordIndex of the element. This if / else statement is probably not the best approach
+                        // Find and update the keywordIndex of the element. if it already exists then update the keywordIndex of the element.
                         else {discoveredElements.forEach(element => {if (element.includes(`\n${wEntry["entry"]}`)) {element[0] = keywordIndex}})}
                     }
             })
-            return discoveredElements // Return an list of arrays containing [lastIndex, entryText]
+            return discoveredElements // Return an list of arrays containing [lastIndex, entryText, frontMemoryTag]
         }
 
 const injectContext = () =>
         {
             // Hold a string of the latest history elements.
             let discoveredHistoryElements = []; // Holds pairs of the index it was last discovered at plus the corresponding entry text. [index, entry]
-            let historyTracker = ``;
-            let discoveredFrontMemory = [];
-            let frontMemoryTracker = ``;
+            let historyTracker = ``; // Assemble a singular string for includes()
+            let discoveredFrontMemory = []; //
+            let frontMemoryTracker = ``; //
             // Check the last X amount of entries in the history
             history.slice(-state.durationTimer).forEach(hStory => historyTracker += `\n${hStory["text"]}`);
             history.slice(-1).forEach(hStory => frontMemoryTracker += `\n${hStory["text"]}`); // frontMemoryTracker checks last input 'cus it's a one time thing.
@@ -81,8 +81,7 @@ const injectContext = () =>
                 discoveredFrontMemory = discoveredFrontMemory.sort(function(a, b){return b[0]-a[0]}); // Sort it based on the keywordIndex value
                 discoveredFrontMemory.forEach(element => {if ((holdDiscoveredFrontMemory.join(',').length + element[1].length) < 1000 && element[2]) {holdDiscoveredFrontMemory.unshift(element[1])}})
 
-
-                const contextString = holdDiscoveredWorldEntries.join(',');
+                const contextString = holdDiscoveredWorldEntries.join(','); // Join it into a string
                 const frontMemoryString = holdDiscoveredFrontMemory.join(',');
 
                 state.memory["context"] = memory.split(0, 1000) + contextString; // Attach the discovered worldEntries to the context
