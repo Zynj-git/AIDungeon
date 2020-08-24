@@ -36,7 +36,7 @@ const modifier = (text) => {
             }
         })
 
-        if (entriesAdded >= 5) {messageString += `\nPlus an additional ${entriesAdded} entries!`}
+        if (entriesAdded >= 5) {messageString += `\nPlus an additional ${entriesAdded - 5} entries!`}
         worldEntries.forEach(wEntry => wEntry["isNotHidden"] = true) // For now reveal all entries.
         modifiedText = "";
     }
