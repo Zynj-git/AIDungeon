@@ -27,6 +27,7 @@ const modifier = (text) =>
         state.blockOutput = true; // Signal that the output should be blocked.
         return {text: ""}; // Return an empty input.
     }
+    state.blockOutput = false;
     return {text}
 }
 modifier(text)
