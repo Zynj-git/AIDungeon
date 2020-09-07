@@ -24,7 +24,7 @@ const modifier = (text) =>
         })
     }
 
-    if (getHistoryType(-1) == 'continue' && state.blockOutput) {state.blockOutput = false; delete state.message; state.manageEntries = []} // Permit a continue action to unblock.
+    if (getHistoryType(-1) == 'continue' && state.blockOutput) {state.blockOutput = false; delete state.message; state.manageEntries = []; state.copyWorldEntries = worldEntries.slice(); } // Permit a continue action to unblock.
     if (state.blockOutput) {return {text: ""}} // Empty the output until the input releases the condition.
     return {text}
 }

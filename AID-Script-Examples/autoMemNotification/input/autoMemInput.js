@@ -32,7 +32,7 @@ const modifier = (text) =>
     }
 
     
-    if (state.blockOutput) {state.copyWorldEntries = worldEntries.slice(); state.blockOutput = false;} // Only refresh the comparison after we release ourselves from the above block. This happens either on invalid input or once state.manageEntries is emptied.
+    if (state.blockOutput) {state.blockOutput = false;} // Only refresh the comparison after we release ourselves from the above block. This happens either on invalid input or once state.manageEntries is emptied.
     return {text}
 }
 modifier(text)
