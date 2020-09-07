@@ -14,7 +14,7 @@ const modifier = (text) =>
 
     if (state.manageEntries && /[0-9]+ ?/gi.test(text)) // Only process this type of input if there are entries to manage and input begins with a valid number.
     {
-        const indexes = text.split(' ').sort() // Expected format is an unsorted, numerical order '1 2 3', sort it in ascending order to permit free-form order.
+        const indexes = text.split(' ').sort(function(a, b) {return b-a}) // Expected format is an unsorted, numerical order '1 2 3', sort it in ascending order to permit free-form order.
         indexes.forEach(index => // Match the inputs against state.manageEntries to find the real index of the associated worldEntry in worldEntries, then delete it.
             {
                 const value = (index - 1) // Correct the value to match the index of array.
@@ -25,7 +25,6 @@ const modifier = (text) =>
                     const indexToRemove = worldEntries.indexOf(entryToIndex) // Check worldEntries for the index of the entry element to index, this should be a positive value since entryToIndex is an exact copy.
                     removeWorldEntry(indexToRemove); // Finally, once the entryToIndex has been found in worldEntries, remove the corresponding index from worldEntries.
                     state.manageEntries.splice(value, 1); // The last step is to manipulate state.manageEntries to reflect the changes made and allow the output modifier to re-assign numbers that correspond with the correct indexes.
-                     // NOTE: The above splicing handles itself incorrectly since I don't account for the adjusted order of the array!
                 } 
             })
         state.blockOutput = true; // Signal that the output should be blocked.
