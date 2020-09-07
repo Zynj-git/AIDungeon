@@ -22,10 +22,12 @@ const modifier = (text) =>
             state.message += `\n${assignNumber}) [Keys: ${entry["keys"]} | Entry: ${entry["entry"]}]`; // Inform the player of the new entry with its keys and entry content.
             assignNumber++; // Increment the value.
         })
+
+        state.blockOutput = true; // Also switch this to true on the output modifier in-case no input is made; intention is no longer to actually block the output - this is just a patchwork.
     }
 
-    if (getHistoryType(-1) == 'continue' && state.blockOutput) {state.blockOutput = false; delete state.message; state.manageEntries = []; state.copyWorldEntries = worldEntries.slice(); } // Permit a continue action to unblock.
-    if (state.blockOutput) {return {text: ""}} // Empty the output until the input releases the condition.
+    if (getHistoryType(-1) == 'continue' && state.blockOutput) {state.blockOutput = false; delete state.message; state.manageEntries = []; state.copyWorldEntries = worldEntries.slice();} // Permit a continue action to unblock.
+    //if (state.blockOutput) {return {text: ""}} // Empty the output until the input releases the condition.
     return {text}
 }
 modifier(text)
