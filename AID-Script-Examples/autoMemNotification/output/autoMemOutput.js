@@ -15,16 +15,16 @@ const modifier = (text) =>
     
     if (state.manageEntries.length > 0) // Once and if a list has been assembled, present the array until it's emptied or the user continues.
     {
-        state.message = `Input the corresponding value to delete the entry.`
+        state.message = `NOTE: Write down each of the values, separated by a space, that you wish to delete before sending the input!`
         let assignNumber = 1;
         state.manageEntries.forEach(entry => 
         {
-            state.message += `\n[${assignNumber})] [Keys: ${entry["keys"]}] [Entry: ${entry["entry"]}]`; // Inform the player of the new entry with its keys and entry content.
+            state.message += `\n${assignNumber}) [Keys: ${entry["keys"]} | Entry: ${entry["entry"]}]`; // Inform the player of the new entry with its keys and entry content.
             assignNumber++; // Increment the value.
         })
     }
 
-    //if (getHistoryType(-1) == 'continue' && state.blockOutput && !(/[0-9]+ ?/gi.test(text))) {state.blockOutput = false; delete state.message; state.manageEntries = []} // Permit a continue action to unblock.
+    if (getHistoryType(-1) == 'continue' && state.blockOutput) {state.blockOutput = false; delete state.message; state.manageEntries = []} // Permit a continue action to unblock.
     if (state.blockOutput) {return {text: ""}} // Empty the output until the input releases the condition.
     return {text}
 }
