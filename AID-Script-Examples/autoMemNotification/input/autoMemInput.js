@@ -25,6 +25,7 @@ const modifier = (text) =>
                     const indexToRemove = worldEntries.indexOf(entryToIndex) // Check worldEntries for the index of the entry element to index, this should be a positive value since entryToIndex is an exact copy.
                     removeWorldEntry(indexToRemove); // Finally, once the entryToIndex has been found in worldEntries, remove the corresponding index from worldEntries.
                     state.manageEntries.splice(value, 1); // The last step is to manipulate state.manageEntries to reflect the changes made and allow the output modifier to re-assign numbers that correspond with the correct indexes.
+                     // NOTE: The above splicing handles itself incorrectly since I don't account for the adjusted order of the array!
                 } 
             })
         state.blockOutput = true; // Signal that the output should be blocked.
