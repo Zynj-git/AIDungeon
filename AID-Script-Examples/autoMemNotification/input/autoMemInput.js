@@ -22,7 +22,7 @@ const modifier = (text) =>
                 {
                     // This has been a mess to debug so I'm going to write out the code step-by-step.
                     const entryToIndex = state.manageEntries[value] // Checks the element on the value index which is the provided number - 1 e.g 1 === 0, 2 === 1
-                    const indexToRemove = worldEntries.indexOf(entryToIndex) // Check worldEntries for the index of the entry element to index, this should be a positive value since entryToIndex is an exact copy.
+                    const indexToRemove = worldEntries.findIndex(entry => entry["keys"] == entryToIndex["keys"] && entry["entry"] == entryToIndex["entry"]) // Check worldEntries for the index of the entry element to index, this should be a positive value since entryToIndex is an exact copy.
                     removeWorldEntry(indexToRemove); // Finally, once the entryToIndex has been found in worldEntries, remove the corresponding index from worldEntries.
                     state.manageEntries.splice(value, 1); // The last step is to manipulate state.manageEntries to reflect the changes made and allow the output modifier to re-assign numbers that correspond with the correct indexes.
                 } 
