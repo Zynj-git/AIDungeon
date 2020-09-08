@@ -8,7 +8,7 @@ const modifier = (text) =>
     {
         state.setup = true;
         state.blockOutput = false; // Switches to true to signal that the ouput should be emptied. We also do not display the input.
-        state.copyWorldEntries = worldEntries.slice(); // Store a copy of the worldEntries for comparison. Ensure that it's a copy and not a direct reference.
+        state.copyWorldEntriesLength = worldEntries.length; // Store a copy of the worldEntries for comparison. Ensure that it's a copy and not a direct reference.
         state.manageEntries = [] // Store the deletable entries and its corresponding numerical value that's used for the user's input to signal deletion.
     }
 
