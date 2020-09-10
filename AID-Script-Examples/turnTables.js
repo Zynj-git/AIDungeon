@@ -53,7 +53,7 @@ const modifier = (text) => {
             'her': 'their',
             'is': 'are',
             'his': 'their',
-            'him': 'them'
+            'him': 'them',
             'you': 'they',
             'himself': 'themselves',
             'yourself': 'themselves'
