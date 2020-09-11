@@ -3,6 +3,9 @@
 // The worldEntries are sorted by relevancy in the order of most recent appearance, e.g the latest keyword in the output is considered the most relevant one.
 // worldEntries whose keys is starting with _ becomes placed in frontMemory once discovered, this can be used to drastically improve the chance of it being relevant.
 // frontMemory is a hidden string appended to the end of the input.
+// authorsNote:
+// The first worldEntry that has authorsNote as a keyword will have its entry utilized as state.memory.authorsNote
+// Additional entries marked with authorsNote will be set as a temporary authorsNote until it expires at which point the default authorsNote becomes reinstated.
 
 if (!state.setup) {
     state.setup = true;
@@ -27,6 +30,8 @@ String.prototype.regexLastIndexOf = function (regex, startpos) { // Function to 
     return lastIndexOf;
 }
 
+const getAuthorsNote = () => { return worldEntries.findIndex(entry => entry["keys"].includes('authorsNote')) } // Find the first index of an entry whose keys include 'authorsNote' This is a default fall-back incase the automatic detection hasn't found any.
+const getHistoryText = (turns) => { return history.slice(turns).flatMap(elem => elem["text"]).join() } // Fetches the textc ontained in the specified amount of most recent turns as a string.
 const discoverWorldEntries = (text) =>  // Searches the string for world entries and returns an array with an index of its latest occurrence plus the corresponding entryText
         {
             const textToSearch = text;
@@ -47,8 +52,8 @@ const discoverWorldEntries = (text) =>  // Searches the string for world entries
                     {
                         // We're interested in the keywordIndex for sorting purposes
                         // It's the first time the element is discovered, push it to the discoveredElements array.
-                        // The pushed array includes [keyWordIndex, wEntry["entry"], frontMemoryTag]
-                        if (!discoveredElements.some(element => element.includes(`\n${wEntry["entry"]}`))) {discoveredElements.push([keywordIndex, `${wEntry["entry"]}`, wEntry["keys"].startsWith('_') ? true : false]);}
+                        // The pushed array includes [keyWordIndex, wEntry["entry"], frontMemoryTag, authorsNoteTag]
+                        if (!discoveredElements.some(element => element.includes(`\n${wEntry["entry"]}`))) {discoveredElements.push([keywordIndex, `${wEntry["entry"]}`, wEntry["keys"].startsWith('_') ? true : false, wEntry["keys"].includes('authorsNote') ? true : false]);}
                         // Find and update the keywordIndex of the element. if it already exists then update the keywordIndex of the element.
                         else {discoveredElements.forEach(element => {if (element.includes(`\n${wEntry["entry"]}`)) {element[0] = keywordIndex}})}
                     }
@@ -60,12 +65,11 @@ const injectContext = () =>
         {
             // Hold a string of the latest history elements.
             let discoveredHistoryElements = []; // Holds pairs of the index it was last discovered at plus the corresponding entry text. [index, entry]
-            let historyTracker = ``; // Assemble a singular string for includes()
+            let historyTracker = getHistoryText(-5); // Assemble a singular string for includes()
             let discoveredFrontMemory = []; //
-            let frontMemoryTracker = ``; //
+            let frontMemoryTracker = getHistoryText(-1); // Same, but only check the previous turn.
             // Check the last X amount of entries in the history
-            history.slice(-5).forEach(hStory => historyTracker += `\n${hStory["text"]}`);
-            history.slice(-1).forEach(hStory => frontMemoryTracker += `\n${hStory["text"]}`); // frontMemoryTracker checks last input 'cus it's a one time thing.
+            
 
             if (historyTracker) {discoveredHistoryElements = discoverWorldEntries(historyTracker)}
             if (frontMemoryTracker) {discoveredFrontMemory = discoverWorldEntries(frontMemoryTracker)}
@@ -74,8 +78,16 @@ const injectContext = () =>
             {
                 let holdDiscoveredWorldEntries = [] // Unshift the elements after sorting here to stay within character recommendations
 
+                let foundAuthorsNote = false; // Toggles to true if a note is found, if it remains false use the default authorsNote.
                 discoveredHistoryElements = discoveredHistoryElements.sort(function(a, b){return b[0]-a[0]}); // Sort it based on the keywordIndex value
-                discoveredHistoryElements.forEach(element => {if ((holdDiscoveredWorldEntries.join(',').length + element[1].length) < 1000 && element[2] == false) {holdDiscoveredWorldEntries.unshift(element[1])}})
+                discoveredHistoryElements.forEach(element => {if ((holdDiscoveredWorldEntries.join(',').length + element[1].length) < 1000 && element[2] == false) 
+                {
+                    holdDiscoveredWorldEntries.unshift('\n' + element[1]); // Linebreaks to better separate entry information.
+                    if (element[3] == true)  // Check if it passed the authorsNote check.
+                    {state.memory.authorsNote = element[1]; foundAuthorsNote = true;} // Add it as an authorsNote.
+                }})
+
+                if (!foundAuthorsNote) {state.memory.authorsNote = worldEntries[getAuthorsNote()]["entry"]}
 
                 let holdDiscoveredFrontMemory = [] // Duplicate code handling entries tagged as frontMemory
                 discoveredFrontMemory = discoveredFrontMemory.sort(function(a, b){return b[0]-a[0]}); // Sort it based on the keywordIndex value
@@ -85,7 +97,7 @@ const injectContext = () =>
                 const frontMemoryString = holdDiscoveredFrontMemory.join(' ');
 
                 if (contextString) {state.memory["context"] =  memory.split(0, 1000) + contextString;} else {delete state.memory["context"]} // Attach the discovered worldEntries to the context memory.split(0, 1000)
-                if (frontMemoryString) {state.memory["frontMemory"] = frontMemoryString;} else {delete state.memory["frontMemory"]}
+                if (frontMemoryString) {state.memory["frontMemory"] = `\n> ` + frontMemoryString;} else {delete state.memory["frontMemory"]}
             }
             return
         }
