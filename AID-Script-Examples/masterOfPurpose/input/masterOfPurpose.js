@@ -91,22 +91,14 @@ const modifier = (text) => {
         // Also phrases in present tense as to have it seem that it is something they are currently considering.
         // Using words that the AI usually throws at me when someone is described as being "obsessed", "intent", "focused" about something and you end up in those situations that it's difficult to pull it away from wanting to continue with whatever they're doing regardless of the circumstances.
         convertPronouns(firstOption);
-        state.contextMessage = `\n${state.conversions[state.targetPronoun][2][1]} mind is ingrained with a singular purpose which is '${state.purpose}' and ${state.conversions[state.targetPronoun][3][1]}'s transfixed with fulfilling it.`;
-        state.memory = {context: memory + state.contextMessage, frontMemory: state.contextMessage}
+        state.contextMessage = `\n> ${state.conversions[state.targetPronoun][3][1]} becomes transfixed with fulfilling ${state.conversions[state.targetPronoun][2][1]} assigned purpose.`;
+        state.authorsNote = `${state.conversions[state.targetPronoun][3][1]} is transfixed with fulfilling ${state.conversions[state.targetPronoun][2][1]} purpose: ${state.purpose}`
+        state.memory = {authorsNote: state.authorsNote, frontMemory: state.contextMessage}
         state.clearFrontMemory = true;
 
     }
-
-    if (modifiedText.includes("/purpose")) // Test a refresh command
-    {
-        if (state.contextMessage)
-        {
-            state.memory = {context: memory + state.contextMessage, frontMemory: state.contextMessage}
-            state.clearFrontMemory = true;
-            return '';
-        }
-    }
-    if (state.contextMessage && !state.clearFrontMemory) {state.memory = {context: memory + state.contextMessage};}
+    
+    if (state.contextMessage && !state.clearFrontMemory) {state.memory = {authorsNote: state.authorsNote};}
     state.message = JSON.stringify(state.memory); // Display the current context for debug purposes to check that it's somewhat working as intended.
     return {text}
 }
