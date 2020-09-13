@@ -103,6 +103,10 @@
     {
       "keys": "new, keys",
       "entry": "new entry"
+    },
+    {
+      "keys": "new, keys",
+      "entry": "new entry"
     }
   ],
   "history": [
@@ -203,6 +207,10 @@
     {
       "text": "hellO",
       "type": "start"
+    },
+    {
+      "text": "hellO",
+      "type": "do"
     },
     {
       "text": "hellO",
