@@ -8,6 +8,12 @@ const updateState = () => {const formatData = {"state": {"memory":{"context": st
 const text = process.argv.slice(2)[0] // Pass a string as the text argument e.g node interface.mjs "Hello World!"
 // Don't include the above section in your scripts. It's just here to emulate the native functionality of AI Dungeon's scripting.
 
+// Execute the script through the command line, the first argument becomes 'text'.
+// e.g node interface.mjs "Hello World!"
+// 'text' then becomes "Hello World!"
+// If you intend to repeatedly test the same string, then just replace the const text declaration.
+// Native functions are found in nativeFunctions.mjs
+
 const modifier = (text) =>
 {
 
