@@ -3,14 +3,22 @@
     "memory": {
       "context": "",
       "frontMemory": "",
-      "authorsNote": "1239112313231"
+      "authorsNote": "12391121231231313231"
     }
   },
   "memory": "This is the memory",
   "worldEntries": [
     {
-      "keys": "these, are, your, keys",
-      "entry": "This is your entry!"
+      "keys": "HellO?",
+      "entry": "Can you hear me?"
+    },
+    {
+      "keys": "new, keys",
+      "entry": "new entry"
+    },
+    {
+      "keys": "new, keys",
+      "entry": "new entry"
     }
   ],
   "history": ""
