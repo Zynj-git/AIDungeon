@@ -13,7 +13,8 @@ const modifier = (text) =>
     state.memory.authorsNote = "12391121231231313231"
     addWorldEntry("new, keys", "new entry")
     updateWorldEntry(0, "HellO?", "Can you hear me?")
-    updateState(); // Store the persistent state in-between executions.
+    
     return {text}
 }
-modifier(text)
+modifier(text) // Don't change this line.
+updateState(); // Remove this line to prevent stored/persistent changes.
