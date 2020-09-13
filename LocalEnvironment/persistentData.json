@@ -15,11 +15,16 @@
     {
       "keys": "new, keys",
       "entry": "new entry"
-    },
-    {
-      "keys": "new, keys",
-      "entry": "new entry"
     }
   ],
-  "history": ""
+  "history": [
+    {
+      "text": "Hello, what's going on here?",
+      "type": "do"
+    },
+    {
+      "text": "Hello, what's going on here?",
+      "type": "continue"
+    }
+  ]
 }
