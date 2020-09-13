@@ -1,0 +1,17 @@
+{
+  "state": {
+    "memory": {
+      "context": "",
+      "frontMemory": "",
+      "authorsNote": "1239112313231"
+    }
+  },
+  "memory": "This is the memory",
+  "worldEntries": [
+    {
+      "keys": "these, are, your, keys",
+      "entry": "This is your entry!"
+    }
+  ],
+  "history": ""
+}
