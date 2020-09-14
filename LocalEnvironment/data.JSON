@@ -1,0 +1,28 @@
+{
+  "state": {
+    "memory": {
+      "context": "",
+      "frontMemory": "",
+      "authorsNote": ""
+    }
+  },
+  "memory": "",
+  "worldEntries": [],
+  "history": [
+    {
+      "type": "continue"
+    },
+    {
+      "text": "HellO",
+      "type": "continue"
+    },
+    {
+      "text": "Output",
+      "type": "continue"
+    },
+    {
+      "text": "Input",
+      "type": "continue"
+    }
+  ]
+}

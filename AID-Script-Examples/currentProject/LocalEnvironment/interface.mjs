@@ -1,6 +1,6 @@
 import fs from 'fs' 
 const persistentData = JSON.parse(fs.readFileSync('persistentData.json')) // Read data
-import { processInput, updateHistory, updateState, clearState} from './background.mjs' // Ignore
+import { processInput, updateHistory, updateState, clearState} from './dependencies/background.mjs' // Ignore
 import { updateWorldEntry, addWorldEntry, removeWorldEntry} from './nativeFunctions.mjs' // Import native functions.
 export let {worldEntries, state} = persistentData // Give native functions access.
 export const {history, memory} = persistentData
