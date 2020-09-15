@@ -1,0 +1,67 @@
+{
+  "state": {
+    "memory": {
+      "context": "",
+      "frontMemory": "\n> Your entry?\n> Your entry?\n> Your mother is a slut.",
+      "authorsNote": "Your entry?"
+    },
+    "message": ""
+  },
+  "memory": "",
+  "worldEntries": [
+    {
+      "keys": "[af=100], you",
+      "entry": "Your entry?"
+    },
+    {
+      "keys": "[af=100], you",
+      "entry": "Your entry?"
+    },
+    {
+      "keys": "[f], $mother",
+      "entry": "Your mother is a slut."
+    }
+  ],
+  "history": [
+    {
+      "text": "you head outside",
+      "type": "say"
+    },
+    {
+      "text": "you head outside",
+      "type": "say"
+    },
+    {
+      "text": "you head outside",
+      "type": "say"
+    },
+    {
+      "text": "you head outside",
+      "type": "say"
+    },
+    {
+      "text": "you head outside",
+      "type": "say"
+    },
+    {
+      "text": "you head outside",
+      "type": "say"
+    },
+    {
+      "text": "Your mother.",
+      "type": "continue"
+    },
+    {
+      "text": "Your mother.",
+      "type": "continue"
+    },
+    {
+      "text": "Your mother.",
+      "type": "continue"
+    },
+    {
+      "text": "Your mother.",
+      "type": "continue"
+    }
+  ]
+}
