@@ -2,7 +2,7 @@
   "state": {
     "memory": {
       "context": "",
-      "frontMemory": "\n> Your entry?\n> Your entry?\n> Your mother is a slut.",
+      "frontMemory": "\n> Your entry?\n> Your entry?\n>",
       "authorsNote": "Your entry?"
     },
     "message": ""
@@ -18,8 +18,8 @@
       "entry": "Your entry?"
     },
     {
-      "keys": "[f], $mother",
-      "entry": "Your mother is a slut."
+      "keys": "[f]",
+      "entry": ""
     }
   ],
   "history": [
@@ -48,19 +48,19 @@
       "type": "say"
     },
     {
-      "text": "Your mother.",
+      "text": "",
       "type": "continue"
     },
     {
-      "text": "Your mother.",
+      "text": "",
       "type": "continue"
     },
     {
-      "text": "Your mother.",
+      "text": "",
       "type": "continue"
     },
     {
-      "text": "Your mother.",
+      "text": "",
       "type": "continue"
     }
   ]
