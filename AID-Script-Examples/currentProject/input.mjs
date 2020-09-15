@@ -74,4 +74,4 @@ modifier(text)
 
 // Do not include the below code in your scripts. It handles local persistent storage.
 updateState(input) // Stores persistent data in data.json
-//clearState() // Clear persistent data in data.json
+clearState() // Clear persistent data in data.json
