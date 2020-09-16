@@ -14,11 +14,11 @@ const revealWorldEntry = (entry, value = 0) => entry.isNotHidden = true
 const addContext = (entry, value = 0) => storeContext += ' ' + entry["entry"]
 
 const entryFunctions = {
-    'a': addAuthorsNote,
-    'f': addFrontMemory,
-    'r': revealWorldEntry,
-    'c': addContext,
-    'e': () => {} // Dummy function to keep attribute checking in order.
+    'a': addAuthorsNote, // [a] adds it as authorsNote, only one authorsNote at a time.
+    'f': addFrontMemory, // [f] adds it to the frontMemory stack, multiple can be added at a time, but only the latest one becomes an action.
+    'r': revealWorldEntry, // [r] reveals the entry once mentioned, used in conjuction with [e] to only reveal if all keywords are mentioned at once.
+    'c': addContext, // [c] adds it to context, recommended to pre-fix keywords with $ to avoid duplicates from normal processing.
+    'e': () => {} // [e] tells the custom keyword check to only run the above functions if every keyword of the entry matches.
 
 }
 
@@ -60,6 +60,9 @@ const modifier = (text) =>
     return {text}
 }
 modifier(text)
+
+
+
 
 
 
