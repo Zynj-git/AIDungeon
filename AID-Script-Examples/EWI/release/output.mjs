@@ -23,7 +23,7 @@ String.prototype.sliceString = function(a, b) {return this.slice(this.indexOf(a)
 // Pass the worldEntries list and check attributes, then process them.
 const processWorldEntries = (entries) =>
 {
-    const lastTurnString = getHistoryString(-1).toLowerCase() // What we check the keywords against.
+    const lastTurnString = text.toLowerCase() // What we check the keywords against.
     entries.forEach(wEntry => // Take a quick sprint through the worldEntries list and process its elements.
     {
         // Only process attributes of entries detected on the previous turn. (Using the presumed native functionality of substring acceptance instead of RegEx wholeword match)
