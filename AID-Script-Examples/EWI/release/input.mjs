@@ -1,9 +1,10 @@
+// Ignore the above and do not include it in your AI Dungeon script, it enables the use of native functions and imitates AI Dungeon's behavior.
 const getHistoryString = (turns) => history.slice(turns).map(element => element["text"]).join(' ') // Returns a single string of the text.
 const getHistoryText = (turns) => history.slice(turns).map(element => element["text"]) // Returns an array of text.
 const getActionTypes = (turns) => history.slice(turns).map(element => element["type"]) // Returns the action types of the previous turns in an array.
 const hasAttributes = (keys) => {const attrib = keys.match(/([a-z](=\d+)?)/g); if(attrib) {return attrib.map(attrib => attrib.split('='))}} // Pass it a bracket-encapsulated string and it returns an array of [attribute, value] pairs if possible.
 
-const addFrontMemory = (entry, value = 0) => { state.memory.frontMemory = state.memory.frontMemory.replace(/> /gm, '').trim(); state.memory.frontMemory += `\n> ${entry["entry"]}`} // Last entry in the stack becomes actionized wheras the prior ones are cannonical.
+const addFrontMemory = (entry, value = 0) => { state.memory.frontMemory = state.memory.frontMemory.replace(/\n>/gm, '').trim(); state.memory.frontMemory += `\n> ${entry["entry"]}`} // Last entry in the stack becomes actionized wheras the prior ones are cannonical.
 const addAuthorsNote = (entry, value = 0) => state.memory.authorsNote = `${entry["entry"]}`
 const revealWorldEntry = (entry, value = 0) => entry.isNotHidden = true 
 const addContext = (entry, value = 0) => storeContext += ' ' + entry["entry"]
