@@ -11,7 +11,7 @@ const getContext = (text) => {return info.memoryLength ? text.slice(info.memoryL
 
 const addDescription = (entry, value = 0) =>
 {
-    const searchKeys = entry["keys"].split(',')
+    const searchKeys = entry["keys"].replace(/\$/g, '').split(',')
     let finalIndex = null;
     let keyPhrase = null;
     searchKeys.forEach(key => { if(!assignedDescriptors.includes(key)) {const keyIndex = context.lastIndexOf(key); if (keyIndex > finalIndex) {finalIndex = keyIndex; keyPhrase = key; assignedDescriptors.push(key)}}}) // Find the last mention of a valid key from the entry.
