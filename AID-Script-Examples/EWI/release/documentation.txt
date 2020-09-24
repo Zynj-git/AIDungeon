@@ -1,14 +1,14 @@
 Extended World Information (EWI) aims at providing the user with more flexible interactions with World Information.
 To achieve this, the user is instructed to place bracket-encapsulated attribute short-hands into the keys of a worldEntries element.
 
-A quick example of what that looks like, if convoluting it as far as possible, the keys can be: '$you, $wield|equip|unsheathe, $branch|stick|staff|wand|sceptre, [f=3armcedw=100]'
+A quick example of what that looks like, if convoluting it as far as possible, the keys can be: '$you, $wield|equip|unsheathe, $branch|stick|staff|wand|scepter, [f=3armcedw=100]'
 The '$' symbol is to prevent the native world information processing from duplicating the entry whilst '|' is a symbol signifying 'OR' (Used with the 'e' tag)
 
 In this initial example, the entry would activate if the context contains 'you' in addition to either of 'branch/stick/staff'.
 It would then process the content of the entry in the following manner:
 
 [f] - frontMemory, a transient string appended to the end of every output.
-    [f] takes an integer value for its assignment that determines how often it can be activated, e.g [f=3] means that it can at max be activated once every three turns.
+    [f] takes an optional integer value for its assignment that determines how often it can be activated, e.g [f=3] means that it can at max be activated once every three turns.
 
 [a] - authorsNote, a transient, bracket-encapsulated notation roughly three line-breaks into context.
 [r] - revealEntry, if the entry was hidden it would now be revealed to the user.
