@@ -59,7 +59,7 @@ const modifier = (text) =>
     Object.keys(contextStacks).forEach(key => {contextStacks[key][2](contextStacks[key][0], contextStacks[key][1])})
     contextMemory = contextMemory.join('\n')
     const combinedLines = lines.join("\n").slice(-(info.maxChars - contextMemory.length)) // Account for additional context added to memory
-    const finalText = [contextMemory, combinedLines].join("\n")
+    const finalText = [contextMemory, combinedLines].join("")
     return {text: finalText}
 }
 modifier(text)
