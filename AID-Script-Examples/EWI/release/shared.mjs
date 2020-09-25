@@ -1,3 +1,5 @@
+//https://stackoverflow.com/questions/273789/is-there-a-version-of-javascripts-string-indexof-that-allows-for-regular-expr#273810
+String.prototype.regexLastIndexOf = function (regex, startpos) { regex = (regex.global) ? regex : new RegExp(regex.source, "g" + (regex.ignoreCase ? "i" : "") + (regex.multiLine ? "m" : "")); if (typeof (startpos) == "undefined") { startpos = this.length; } else if (startpos < 0) { startpos = 0; } let stringToWorkWith = this.substring(0, startpos + 1); let lastIndexOf = -1; let nextStop = 0; while ((result = regex.exec(stringToWorkWith)) != null) { lastIndexOf = result.index; regex.lastIndex = ++nextStop; } return lastIndexOf; }
 const getHistoryString = (turns) => history.slice(turns).map(element => element["text"]).join(' ') // Returns a single string of the text.
 const getHistoryText = (turns) => history.slice(turns).map(element => element["text"]) // Returns an array of text.
 const getActionTypes = (turns) => history.slice(turns).map(element => element["type"]) // Returns the action types of the previous turns in an array.
@@ -28,7 +30,7 @@ const addDescription = (entry, value = 0) =>
     const searchKeys = entry["keys"].replace(/\$/g, '').split(',')
     let finalIndex = null;
     let keyPhrase = null;
-    searchKeys.forEach(key => { if(!assignedDescriptors.includes(key)) {const keyIndex = context.toLowerCase().lastIndexOf(key.toLowerCase()); if (keyIndex > finalIndex) {finalIndex = keyIndex; keyPhrase = key; assignedDescriptors.push(key)}}}) // Find the last mention of a valid key from the entry.
+    searchKeys.forEach(key => { if(!assignedDescriptors.includes(key)) {const regEx = new RegExp(`\\b${key.trim()}(s+)?\\b`,"gi"); const keyIndex = context.toLowerCase().regexLastIndexOf(regEx); if (keyIndex > finalIndex) {finalIndex = keyIndex; keyPhrase = key; assignedDescriptors.push(key)}}}) // Find the last mention of a valid key from the entry.
 
     if (finalIndex)
     {
