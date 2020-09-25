@@ -5,14 +5,18 @@ const getHistoryText = (turns) => history.slice(turns).map(element => element["t
 const getActionTypes = (turns) => history.slice(turns).map(element => element["type"]) // Returns the action types of the previous turns in an array.
 const hasAttributes = (keys) => {const attrib = keys.match(/([a-z](=\d+)?)/g); if(attrib) {return attrib.map(attrib => attrib.split('='))}} // Pass it a bracket-encapsulated string and it returns an array of [attribute, value] pairs if possible.
 const everyCheck = (entry, string) => // an AND/OR check for keywords. Not foolproof, but should be fine as long as proper syntax is abided.
-{
+  {
     string = string.toLowerCase().trim()
     const keys = entry["keys"].replace(/\$/g, '').replace(/\[(.+)?\]/g, '').toLowerCase().trim().split(',')
-    const anyArray = keys.filter(element => element.includes('|')).join('|').split('|').some(key => string.includes(key.trim()))
+    let anyArray = keys.filter(element => element.includes('|'))
+    const anyCheck = anyArray.every(element => element.split('|').some(key => string.includes(key.trim())))
+   
     const everyArray = keys.filter(element => !element.includes('|')).every(key => string.includes(key.trim()))
     console.log(`Keys: ${keys}, Any: ${anyArray}, Every: ${everyArray}`)
-    if (everyArray && anyArray) {return true}
-}
+    if (everyArray && anyCheck) {
+      return true
+    }
+  }
 String.prototype.extractString = function(a, b) {return this.slice(this.indexOf(a), this.indexOf(b) +1)} // Slightly cleaner to read and write than doing the indexing yourself.
 
 const spliceLines = (string, pos, req = 1) => { if (lines.length > req) {lines.splice(pos, 0, string)}} // This is run on each of the additional context to position them accordingly.
