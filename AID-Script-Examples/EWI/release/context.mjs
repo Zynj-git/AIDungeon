@@ -25,12 +25,12 @@ let assignedDescriptors = [] // Assemble a list of descriptors that have already
 const processWorldEntries = (entries) =>
 {
     entries = [...entries] // Copy the entries to avoid in-place manipulation.
-    const lastTurnString = getHistoryString(-1).toLowerCase().trim() // What we check the keywords against, this time around we basically check where in the context the last history element is then slice forward.
+    const lastTurnString = getHistoryString(-4).toLowerCase().trim() // What we check the keywords against, this time around we basically check where in the context the last history element is then slice forward.
     entries.sort((a, b) => a["keys"].match(/(?<=w=)\d+/) - b["keys"].match(/(?<=w=)\d+/)).forEach(wEntry => // Take a quick sprint through the worldEntries list and process its elements.
     {
         // Only process attributes of entries detected on the previous turn. (Using the presumed native functionality of substring acceptance instead of RegEx wholeword match)
         // During the custom check we also (temporarily) remove the '$' prefix as to not need special processing of that later, a trim is also done.
-        if (wEntry["keys"].replace(/\$/g, '').split(',').some(keyword => lastTurnString.includes(keyword.toLowerCase().trim()))) 
+        if (wEntry["keys"].replace(/\$/g, '').replace('|', ',').split(',').some(keyword => lastTurnString.includes(keyword.toLowerCase().trim()))) 
         
         {
             try // We try to do something. If code goes kaboom then we just catch the error and proceed. This is to deal with non-attribute assigned entries e.g those with empty bracket-encapsulations []
@@ -59,7 +59,7 @@ const modifier = (text) =>
     Object.keys(contextStacks).forEach(key => {contextStacks[key][2](contextStacks[key][0], contextStacks[key][1])})
     contextMemory = contextMemory.join('\n')
     const combinedLines = lines.join("\n").slice(-(info.maxChars - contextMemory.length)) // Account for additional context added to memory
-    const finalText = [contextMemory, combinedLines].join("")
+    const finalText = [contextMemory, combinedLines].join("\n")
     return {text: finalText}
 }
 modifier(text)

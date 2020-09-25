@@ -5,9 +5,10 @@ const hasAttributes = (keys) => {const attrib = keys.match(/([a-z](=\d+)?)/g); i
 const everyCheck = (entry, string) => // an AND/OR check for keywords. Not foolproof, but should be fine as long as proper syntax is abided.
 {
     string = string.toLowerCase().trim()
-    const keys = entry["keys"].replace(/\$/g, '').replace(/\[(.+)?\]/g, '').toLowerCase().split(',')
+    const keys = entry["keys"].replace(/\$/g, '').replace(/\[(.+)?\]/g, '').toLowerCase().trim().split(',')
     const anyArray = keys.filter(element => element.includes('|')).join('|').split('|').some(key => string.includes(key.trim()))
     const everyArray = keys.filter(element => !element.includes('|')).every(key => string.includes(key.trim()))
+    console.log(`Keys: ${keys}, Any: ${anyArray}, Every: ${everyArray}`)
     if (everyArray && anyArray) {return true}
 }
 String.prototype.extractString = function(a, b) {return this.slice(this.indexOf(a), this.indexOf(b) +1)} // Slightly cleaner to read and write than doing the indexing yourself.
@@ -27,7 +28,7 @@ const addDescription = (entry, value = 0) =>
     const searchKeys = entry["keys"].replace(/\$/g, '').split(',')
     let finalIndex = null;
     let keyPhrase = null;
-    searchKeys.forEach(key => { if(!assignedDescriptors.includes(key)) {const keyIndex = context.lastIndexOf(key); if (keyIndex > finalIndex) {finalIndex = keyIndex; keyPhrase = key; assignedDescriptors.push(key)}}}) // Find the last mention of a valid key from the entry.
+    searchKeys.forEach(key => { if(!assignedDescriptors.includes(key)) {const keyIndex = context.toLowerCase().lastIndexOf(key.toLowerCase()); if (keyIndex > finalIndex) {finalIndex = keyIndex; keyPhrase = key; assignedDescriptors.push(key)}}}) // Find the last mention of a valid key from the entry.
 
     if (finalIndex)
     {
@@ -56,6 +57,6 @@ const addFrontMemory = (entry, value = 0) =>
         entry.fLastSeen = info.actionCount;
     }
 }
-const addBackMemory = (entry, value = 0) => contextStacks["backMemory"][0] += entry["entry"] + ' '
-const addMiddleMemory = (entry, value = 0) => contextStacks["middleMemory"][0] += entry["entry"] + ' '
+const addBackMemory = (entry, value = 0) => contextStacks["backMemory"][0] += entry["entry"]
+const addMiddleMemory = (entry, value = 0) => contextStacks["middleMemory"][0] += entry["entry"]
 
