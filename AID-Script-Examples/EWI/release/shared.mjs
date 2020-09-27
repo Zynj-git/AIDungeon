@@ -31,7 +31,7 @@ const getContext = (text) => {return info.memoryLength ? text.slice(info.memoryL
 // Though with the intended use- case (short descriptors) it shouldn't be too much of an issue e.g John (the hero) or David (party member); this is one of the reason why I've placed a limiter of utilizing the first sentence only.
 const addDescription = (entry, value = 0) => 
 {
-    const searchKeys = entry["keys"].replace(/\$/g, '').split(',')
+    const searchKeys = entry["keys"].replace(/\$/g, '').replace(/\[(.+)?\]/g, '').split(',').filter(element => element.trim().length >= 1)
     let finalIndex = null;
     let keyPhrase = null;
     searchKeys.forEach(key => { if(!assignedDescriptors.includes(key)) {const regEx = new RegExp(`\\b${key.trim()}(s+)?\\b`,"gi"); const keyIndex = context.toLowerCase().regexLastIndexOf(regEx); if (keyIndex > finalIndex) {finalIndex = keyIndex; keyPhrase = key; assignedDescriptors.push(key)}}}) // Find the last mention of a valid key from the entry.
@@ -58,8 +58,8 @@ const addFrontMemory = (entry, value = 0) =>
     if (info.actionCount - entry.fLastSeen >= value) {entry.fLastSeen = info.actionCount;}
     if ((info.actionCount % entry.fLastSeen) == value || (info.actionCount - entry.fLastSeen == 0))
     {  
-        contextStacks["frontMemory"][0] = contextStacks["frontMemory"][0].replace(/\n>/gm, '').trim(); 
-        contextStacks["frontMemory"][0] += `\n> ${entry["entry"]}`; 
+        contextStacks["frontMemory"][0] = contextStacks["frontMemory"][0].replace(/\n\n>/gm, '').trim(); 
+        contextStacks["frontMemory"][0] += `\n\n> ${entry["entry"]}`; 
         entry.fLastSeen = info.actionCount;
     }
 }
