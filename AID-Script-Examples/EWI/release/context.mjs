@@ -18,14 +18,14 @@ const entryFunctions = {
 let contextStacks = { // Handle the positioning of the various additional contexts in a formated list to have an easier overview of what's going on.
     'frontMemory': ["", lines.length, spliceLines], // Splice it at the end of the array, push would naturally be easier, but /shrug
     'middleMemory': ["", -3, spliceLines], // Splice it one line back.
-    'backMemory': ["", contextMemory.length, spliceMemory] // Splice it at the end of memory
+    'backMemory': ["", contextMemory.length, spliceMemory] // Splice it at the end of memory contextMemory.length
 }
 let assignedDescriptors = [] // Assemble a list of descriptors that have already been assigned (in an attempt) to avoid duplicates.
 // Pass the worldEntries list and check attributes, then process them.
 const processWorldEntries = (entries) =>
 {
     entries = [...entries] // Copy the entries to avoid in-place manipulation.
-    const lastTurnString = getHistoryString(-2).toLowerCase().trim() // What we check the keywords against, this time around we basically check where in the context the last history element is then slice forward.
+    const lastTurnString = getHistoryString(-4).toLowerCase().trim() // What we check the keywords against, this time around we basically check where in the context the last history element is then slice forward.
     entries.sort((a, b) => a["keys"].match(/(?<=w=)\d+/) - b["keys"].match(/(?<=w=)\d+/)).forEach(wEntry => // Take a quick sprint through the worldEntries list and process its elements.
     {
         const basicCheck = wEntry["keys"].replace(/\$/g, '').replace(/\|/g, ',').split(',').some(keyword => lastTurnString.includes(keyword.toLowerCase().trim()))
@@ -60,7 +60,7 @@ const modifier = (text) =>
     Object.keys(contextStacks).forEach(key => {contextStacks[key][2](contextStacks[key][0], contextStacks[key][1])})
     contextMemory = contextMemory.join('\n')
     const combinedLines = lines.join("\n").slice(-(info.maxChars - contextMemory.length)) // Account for additional context added to memory
-    const finalText = [contextMemory, combinedLines].join("")
+    const finalText = [contextMemory, combinedLines].join("\n")
     return {text: finalText}
 }
 modifier(text)
