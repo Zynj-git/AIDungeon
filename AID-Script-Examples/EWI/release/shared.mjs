@@ -21,8 +21,8 @@ String.prototype.extractString = function(a, b) {return this.slice(this.indexOf(
 
 const spliceLines = (string, pos, req = 1) => { if (lines.length > req) {lines.splice(pos, 0, string)}} // This is run on each of the additional context to position them accordingly.
 const spliceMemory = (string, pos, req = 1) => contextMemory.splice(pos, 0, string)
-const getMemory = (text) => {return info.memoryLength ? text.slice(0, info.memoryLength) : ''} // If memoryLength is set then slice of the beginning until the end of memoryLength, else return an empty string.
-const getContext = (text) => {return info.memoryLength ? text.slice(info.memoryLength + 1) : text} // If memoryLength is set then slice from the end of memory to the end of text, else return the entire text.
+const getMemory = (text) => {return info.memoryLength ? text.slice(0, info.memoryLength - 1) : ''} // If memoryLength is set then slice of the beginning until the end of memoryLength, else return an empty string.
+const getContext = (text) => {return info.memoryLength ? text.slice(info.memoryLength).replace(/^[^A-Z].+[.]/, '') : text} // If memoryLength is set then slice from the end of memory to the end of text, else return the entire text.
 // This basically took a 'just make it work 4Head approach', not happy with it, but it *does* work.
 // The "challenge" is to insert the words on their last appearance rather than simply inserting on linebreaks.
 // Whole-word match should be used, but I'm not keen on re-iterating the same searches in alernative means several times.
@@ -34,7 +34,7 @@ const addDescription = (entry, value = 0) =>
     const searchKeys = entry["keys"].replace(/\$/g, '').replace(/\[(.+)?\]/g, '').replace(/\|/g, ',').split(',').filter(element => element.trim().length >= 1)
     let finalIndex = null;
     let keyPhrase = null;
-    searchKeys.forEach(key => { if(!assignedDescriptors.includes(key)) {const regEx = new RegExp(`\\b${key.trim()}(s+)?\\b`,"gi"); const keyIndex = context.toLowerCase().regexLastIndexOf(regEx); if (keyIndex > finalIndex) {finalIndex = keyIndex; keyPhrase = key; assignedDescriptors.push(key)}}}) // Find the last mention of a valid key from the entry.
+    searchKeys.forEach(key => { if(!assignedDescriptors.includes(key)) {const regEx = new RegExp(`\\b${key.trim()}\\b`,"gi"); const keyIndex = context.toLowerCase().regexLastIndexOf(regEx); if (keyIndex > finalIndex) {finalIndex = keyIndex; keyPhrase = key; assignedDescriptors.push(key)}}}) // Find the last mention of a valid key from the entry.
 
     if (finalIndex)
     {
@@ -59,7 +59,7 @@ const addFrontMemory = (entry, value = 0) =>
     if ((info.actionCount % entry.fLastSeen) == value || (info.actionCount - entry.fLastSeen == 0))
     {  
         contextStacks["frontMemory"][0] = contextStacks["frontMemory"][0].replace(/\n\n>/gm, '').trim(); 
-        contextStacks["frontMemory"][0] += `\n\n> ${entry["entry"]}`; 
+        contextStacks["frontMemory"][0] += `\n> ${entry["entry"]}`; 
         entry.fLastSeen = info.actionCount;
     }
 }
