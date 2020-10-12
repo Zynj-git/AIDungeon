@@ -38,6 +38,8 @@ const modifier = (text) => {
             context = context.replace(textToReplace, `\n[${JSON.stringify(dataStorage[data])}]\n${textToReplace}`)
         }
     }
+    // Lazy patchwork to """fix""" linebreak spam.
+    while (context.includes('\n\n')) {context = context.replace('\n\n', '\n')}
     const finalText = [contextMemory, context.slice(-(info.maxChars - info.memoryLength))].join("")
     return { text: finalText }
 }
