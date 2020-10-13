@@ -17,7 +17,7 @@ const modifier = (text) => {
     let context = getContext(text);
     let lines = context.split('\n');
     // Loop through the previously defined properties in reverse order, then reverse again. Flip flop, *dab*.
-    for (var data in dataStorage) { lines.reverse().some(line => {if (!line.includes('[') && line.toLowerCase().includes(data)) {lines[lines.indexOf(line)] = `[${JSON.stringify(dataStorage[data])}]\n${line}`; console.log(true); return}}); lines.reverse(); }
+    for (var data in dataStorage) { lines.reverse().some(line => {if (!line.includes('[') && line.toLowerCase().includes(data)) {lines[lines.indexOf(line)] = `[${JSON.stringify(dataStorage[data])}]\n${line}`; return true}}); lines.reverse(); }
     let combinedLines = lines.join('\n').slice(-(info.maxChars - info.memoryLength))
     // Lazy patchwork to """fix""" linebreak spam.
     while (combinedLines.includes('\n\n')) { combinedLines = combinedLines.replace('\n\n', '\n') }
