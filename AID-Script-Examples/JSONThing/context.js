@@ -1,46 +1,27 @@
-// Traverse the keys until we reach the destination.
-const getKey = (keys, obj) => { return keys.split('.').reduce((a, b) => { return a && a[b] }, obj) }
-// Store the semi-persistent data somewhere.
-state.data = {}
+// Define a property and assign its value by using World Information.
+// The element's keys are a dot notated path e.g john.character.name
+// The element's entry (e.g John) will be assigned as the value of the path's destination, in the above example that would result in 'name: John'
+if (!state.data) {state.data = {}}
 const dataStorage = state.data;
+// Traverse the keys until we reach the destination.
+const getKey = (keys, obj) => { return keys.split('.').reduce((a, b) => { if (typeof a[b] != "object") { a[b] = {} } if (!a.hasOwnProperty(b)) { a[b] = {} } return a && a[b] }, obj) }
 const getMemory = (text) => { return info.memoryLength ? text.slice(0, info.memoryLength) : '' }
 const getContext = (text) => { return info.memoryLength ? text.slice(info.memoryLength) : text }
-
-// Do some basic wizardry.
-worldEntries.forEach(wEntry => {
-    const keys = wEntry["keys"].replace(/\[|\]/g, '').split('.')
-    const property = keys.slice(-1)
-
-    // Check if first time initialization of the parent property is necessary.
-    if (!dataStorage.hasOwnProperty(keys[0])) { dataStorage[keys[0]] = {}; }
-    // Find the object we wish to manipulate.
-    let object = getKey(keys.slice(0, keys.length - 1).join('.'), dataStorage)
-    // If the object is defined then assign the 'entry' as its value.
-    if (object != undefined) { object[property] = wEntry["entry"] }
-    else { console.log(`Property: ${property} does not have a valid parent path!`) }
-})
-
+// Assign the property defined in the wEntry's keys with its entry value.
+const setProperty = (keys, value, obj) => { const property = keys.split('.').pop(); const path = keys.split('.').slice(0, -1).join('.'); getKey(path, obj)[property] = value }
+// Loop through worldEntries and assign the properties within state.data
+worldEntries.forEach(wEntry => { setProperty(wEntry["keys"], wEntry["entry"], dataStorage) })
 const modifier = (text) => {
 
     let contextMemory = getMemory(text).split('\n');
     let context = getContext(text);
-    let modifiedText = text.toLowerCase()
-
-    console.log(state.data)
-    for (var data in dataStorage) {
-        // Match 'full sentences' that begin with a capital letter and contains the data target.
-        console.log(data)
-        if (context.toLowerCase().includes(data)) // Check if the text contains the target.
-        {
-            const regEx = new RegExp('('+ data + ')[A-Za-z,;: \'-]*|(["A-Z]|' + data + ')[A-Za-z,;: \'-]*' + data, 'gi')
-            const textToReplace = context.match(regEx).pop()
-            console.log(textToReplace)
-            context = context.replace(textToReplace, `\n[${JSON.stringify(dataStorage[data])}]\n${textToReplace}`)
-        }
-    }
+    let lines = context.split('\n');
+    // Loop through the previously defined properties in reverse order, then reverse again. Flip flop, *dab*.
+    for (var data in dataStorage) { lines.reverse().some(line => {if (!line.includes('[') && line.toLowerCase().includes(data)) {lines[lines.indexOf(line)] = `[${JSON.stringify(dataStorage[data])}]\n${line}`; console.log(true); return}}); lines.reverse(); }
+    let combinedLines = lines.join('\n').slice(-(info.maxChars - info.memoryLength))
     // Lazy patchwork to """fix""" linebreak spam.
-    while (context.includes('\n\n')) {context = context.replace('\n\n', '\n')}
-    const finalText = [contextMemory, context.slice(-(info.maxChars - info.memoryLength))].join("")
+    while (combinedLines.includes('\n\n')) { combinedLines = combinedLines.replace('\n\n', '\n') }
+    const finalText = [contextMemory, combinedLines].join("")
     return { text: finalText }
 }
 modifier(text)
