@@ -1,7 +1,7 @@
 // Define a property and assign its value by using World Information.
 // The element's keys are a dot notated path e.g john.character.name
 // The element's entry (e.g John) will be assigned as the value of the path's destination, in the above example that would result in 'name: John'
-if (!state.data) {state.data = {}}
+state.data = {}
 const dataStorage = state.data;
 // Traverse the keys until we reach the destination.
 const getKey = (keys, obj) => { return keys.split('.').reduce((a, b) => { if (typeof a[b] != "object") { a[b] = {} } if (!a.hasOwnProperty(b)) { a[b] = {} } return a && a[b] }, obj) }
@@ -13,7 +13,7 @@ const setProperty = (keys, value, obj) => { const property = keys.split('.').pop
 worldEntries.forEach(wEntry => { setProperty(wEntry["keys"], wEntry["entry"], dataStorage) })
 const modifier = (text) => {
 
-    let contextMemory = getMemory(text).split('\n');
+    let contextMemory = getMemory(text);
     let context = getContext(text);
     let lines = context.split('\n');
     // Loop through the previously defined properties in reverse order, then reverse again. Flip flop, *dab*.
