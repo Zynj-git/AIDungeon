@@ -5,7 +5,7 @@
 function uniqueBy(a, key)
 {
     let seen = new Set();
-    return a.filter(item => { return seen.has(key(item[1])) ? false : seen.add(key(item[1]));});
+    return a.filter(item => { return seen.has(key(item[0])) ? false : seen.add(key(item[0]));});
 }
 
 function chunk (arr, len) // Divides the columns of keyword / entry into pairs of two (relevant when using multiple column pairs per sheet)
@@ -21,7 +21,6 @@ function onOpen()
   ui.createMenu('AID World Entries')
       .addItem('All Sheets', 'importSheets')
       .addItem('Current Sheet', 'importFromSingleSheet')
-      .addItem('Debug Values', 'debugSheet')
       .addToUi();
 }
 
@@ -29,8 +28,6 @@ function importFromSingleSheet()
 {
   const sheet = SpreadsheetApp.getActiveSheet();
   const values = sheet.getDataRange().getValues();
-  const notes = sheet.getDataRange().getNotes();
-
   importValuesFromRange(uniqueBy(chunk(values.flat(), 4), JSON.stringify));
 }
 
@@ -39,23 +36,20 @@ function importSheets() // Processes all the keyword / entry pairs of all the sh
 {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheets();
   const values = sheet.flatMap(aSheet => aSheet.getDataRange().getValues()); // Take the values from all the sheets and flatten them into a singular array of value pairs.
-  const notes = sheet.flatMap(aSheet => aSheet.getDataRange().getNotes());
-
   importValuesFromRange(uniqueBy(chunk(values.flat(), 4), JSON.stringify));
 }
 
 
 function importValuesFromRange(values)
 {
-
   const masterWorldEntryDict = []
   for (let j = 1; j < values.length; j++)
   {
     if ((values[j][0] && values[j][1])) // We want to ignore pairs that are incomplete (With the new setup we also need to ignore instances where the value is 'keys' since we are feeding it the entire range of values from all the sheets at once)
     {
       const worldEntryDict = {};
-      worldEntryDict["keys"] = values[j][0]; // A1 is the first key. This way the script wont need to be updated as long as they stick to only using two keys.
-      worldEntryDict["entry"] = values[j][1]; // A2 is the second key
+      worldEntryDict["keys"] = values[j][0];
+      worldEntryDict["entry"] = values[j][1]; 
       worldEntryDict['isNotHidden'] = values[j][2] ? false : true;
       worldEntryDict['id'] = values[j][3];
       masterWorldEntryDict.push(worldEntryDict)
