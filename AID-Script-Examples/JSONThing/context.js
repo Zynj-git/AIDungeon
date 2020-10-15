@@ -10,12 +10,14 @@ const getContext = (text) => { return info.memoryLength ? text.slice(info.memory
 // Assign the property defined in the wEntry's keys with its entry value.
 const setProperty = (keys, value, obj) => { const property = keys.split('.').pop(); const path = keys.split('.').slice(0, -1).join('.'); getKey(path, obj)[property] = value }
 // Loop through worldEntries and assign the properties within state.data
-worldEntries.forEach(wEntry => { setProperty(wEntry["keys"], wEntry["entry"], dataStorage) })
+worldEntries.forEach(wEntry => { if (wEntry["keys"].includes('.')) {setProperty(wEntry["keys"], wEntry["entry"], dataStorage) }})
 const modifier = (text) => {
 
     let contextMemory = getMemory(text);
     let context = getContext(text);
     let lines = context.split('\n');
+    let memoryLines = contextMemory.split('\n');
+
     // Loop through the previously defined properties in reverse order, then reverse again. Flip flop, *dab*.
     for (var data in dataStorage) { lines.reverse().some(line => {if (!line.includes('[') && line.toLowerCase().includes(data)) {lines.splice(lines.indexOf(line) + 1, 0, `[${JSON.stringify(dataStorage[data])}]`); return true}}); lines.reverse(); }
     let combinedLines = lines.join('\n').slice(-(info.maxChars - info.memoryLength))
