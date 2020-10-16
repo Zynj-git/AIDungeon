@@ -11,7 +11,7 @@ const getContext = (text) => { return info.memoryLength ? text.slice(info.memory
 // Whitelisted properties defined in an entry keyworded 'whitelist' will always display above the last mention of root.
 const getWhitelist = () => worldEntries.filter(entry => entry["keys"].includes('whitelist'))[0]["entry"].split(',').map(element => element.trim())
 // Contextual properties will be referenced in frontMemory when prompted.
-const getContextualProperties = (text) => { return worldEntries.filter(entry => entry["keys"].includes('synonyms.') && entry["entry"].split(',').some(key=> text.includes(key))).map(element => element["keys"].split('.').pop());}
+const getContextualProperties = (text) => { return worldEntries.filter(entry => entry["keys"].includes('synonyms.') && entry["entry"].split(',').some(key=> text.includes(key))).map(element => element["keys"].split('.').slice(1));}
 // Assign the property defined in the wEntry's keys with its entry value.
 const setProperty = (keys, value, obj) => { const property = keys.split('.').pop(); const path = keys.split('.').slice(0, -1).join('.'); getKey(path, obj)[property] = value.includes(',') ? value.split(',').map(element => element.trim()) : value }
 // Loop through worldEntries and assign the properties within state.data
@@ -32,7 +32,7 @@ const modifier = (text) => {
     let combinedLines = lines.join('\n').slice(-(info.maxChars - info.memoryLength))
     // Lazy patchwork to """fix""" linebreak spam.
     //while (combinedLines.includes('\n\n')) { combinedLines = combinedLines.replace('\n\n', '\n') }
-    const finalText = [contextMemory, combinedLines].join("")
+    const finalText = [contextMemory, combinedLines].join("\n")
     return { text: finalText }
 }
 modifier(text)
