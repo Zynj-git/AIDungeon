@@ -23,7 +23,7 @@ const getContext = (text) => { return info.memoryLength ? text.slice(info.memory
 const getWhitelist = () => worldEntries.filter(entry => entry["keys"].includes('whitelist'))[0]["entry"].split(',').map(element => element.trim())
 // Contextual properties will be added to the JSON when a related synonym.property entry is found in the last turn. e.g synonym.cake would bring john.preferences.food.favorite.cake into the JSON for that turn.
 // It adds the property path, omitting 'synonyms', to the whitelist so each of ['preferences', 'food', 'favorite', 'cake'] would be whitelisted. john.preferences.food.favorite.hotdog would for example not show as 'hotdog' is not whitelisted.
-const getContextualProperties = (text) => { return worldEntries.filter(entry => entry["keys"].includes('synonyms.') && entry["entry"].split(',').some(key=> text.includes(key))).map(element => element["keys"].split('.').slice(1));}
+const getContextualProperties = (text) => { return worldEntries.filter(entry => entry["keys"].includes('synonyms.') && entry["entry"].split(',').some(key=> text.toLowerCase().includes(key.toLowerCase()))).map(element => element["keys"].toLowerCase().split('.').slice(1));}
 // Assign the property defined in the wEntry's keys with its entry value.
 const setProperty = (keys, value, obj) => { const property = keys.split('.').pop(); const path = keys.split('.').slice(0, -1).join('.'); getKey(path, obj)[property] = value.includes(',') ? value.split(',').map(element => element.trim()) : value }
 
@@ -31,7 +31,7 @@ const setProperty = (keys, value, obj) => { const property = keys.split('.').pop
 const whitelist = [getWhitelist(), getContextualProperties(getHistoryString(-1)).flat()].flat()
 const replacer = (name, val) => { if (whitelist.some(element => element.includes(name)) && val) { return Array.isArray(val) ? val.toString() : val } else { return undefined }};
 // Loop through worldEntries and assign the properties within state.data
-worldEntries.forEach(wEntry => { if (wEntry["keys"].includes('.')) {setProperty(wEntry["keys"], wEntry["entry"], dataStorage) }})
+worldEntries.forEach(wEntry => { if (wEntry["keys"].includes('.')) {setProperty(wEntry["keys"].toLowerCase(), wEntry["entry"], dataStorage) }})
 
 const modifier = (text) => {
 
