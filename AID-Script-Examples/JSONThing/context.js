@@ -29,7 +29,7 @@ const setProperty = (keys, value, obj) => { const property = keys.split('.').pop
 
 // By whitelisting and checking the elements, we only fetch valid, assigned, values for that turn.
 const whitelist = [getWhitelist(), getContextualProperties(getHistoryString(-1)).flat()].flat()
-const replacer = (name, val) => { if (whitelist.some(element => element.includes(name)) && val) { return Array.isArray(val) ? val.toString() : val } else { return undefined }};
+const replacer = (name, val) => { if (whitelist.some(element => element.includes(name)) && val) { return Array.isArray(val) ? val.join(', ') : val } else { return undefined }};
 // Loop through worldEntries and assign the properties within state.data
 worldEntries.forEach(wEntry => { if (wEntry["keys"].includes('.')) {setProperty(wEntry["keys"].toLowerCase(), wEntry["entry"], dataStorage) }})
 
