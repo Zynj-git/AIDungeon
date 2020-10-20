@@ -17,7 +17,7 @@ const dataStorage = state.data;
 // Traverse the keys until we reach the destination, if a key on the path is assigned a value, convert it to an empty object to not interrupt the pathing.
 const getKey = (keys, obj) => { return keys.split('.').reduce((a, b) => { if (typeof a[b] != "object") { a[b] = {} } if (!a.hasOwnProperty(b)) { a[b] = {} } return a && a[b] }, obj) }
 const getHistoryString = (turns) => history.slice(turns).map(element => element["text"]).join(' ') // Returns a single string of the text.
-const getMemory = (text) => { return info.memoryLength ? text.slice(0, info.memoryLength) : '' }
+const getMemory = (text) => { return info.memoryLength ? text.slice(0, info.memoryLength + 1) : '' }
 const getContext = (text) => { return info.memoryLength ? text.slice(info.memoryLength) : text }
 // Whitelisted properties defined in an entry keyworded 'whitelist' will always display above the last mention of root.
 const getWhitelist = () => worldEntries.filter(entry => entry["keys"].includes('whitelist'))[0]["entry"].split(',').map(element => element.trim())
@@ -28,10 +28,14 @@ const getContextualProperties = (text) => { return worldEntries.filter(entry => 
 const setProperty = (keys, value, obj) => { const property = keys.split('.').pop(); const path = keys.split('.').slice(0, -1).join('.'); getKey(path, obj)[property] = value.includes(',') ? value.split(',').map(element => element.trim()) : value }
 
 // By whitelisting and checking the elements, we only fetch valid, assigned, values for that turn.
-const whitelist = [getWhitelist(), getContextualProperties(getHistoryString(-1)).flat()].flat()
-const replacer = (name, val) => { if (whitelist.some(element => element.includes(name)) && val) { return Array.isArray(val) ? val.join(', ') : val } else { return undefined }};
+const globalWhitelist = [getWhitelist(), getContextualProperties(getHistoryString(-1)).flat()].flat()
+const globalReplacer = (name, val) => { if (globalWhitelist.some(element => element.includes(name)) && val) { return Array.isArray(val) ? val.join(', ') : val } else { return undefined }};
+const localWhitelist = getContextualProperties(getHistoryString(-1)).flat();
+console.log(localWhitelist)
+const localReplacer = (name, val) => { if (localWhitelist.some(element => element.includes(name)) && val) { return Array.isArray(val) ? val.join(', ') : val } else { return undefined }};
+
 // Loop through worldEntries and assign the properties within state.data
-worldEntries.forEach(wEntry => { if (wEntry["keys"].includes('.')) {setProperty(wEntry["keys"].toLowerCase(), wEntry["entry"], dataStorage) }})
+if (worldEntries ) {worldEntries.forEach(wEntry => { if (wEntry["keys"].includes('.')) {setProperty(wEntry["keys"].toLowerCase(), wEntry["entry"], dataStorage) }})}
 
 const modifier = (text) => {
 
@@ -41,10 +45,10 @@ const modifier = (text) => {
     let memoryLines = contextMemory.split('\n');
 
     // Loop through the previously defined properties in reverse order, then reverse again. Flip flop, *dab*.
-    for (const data in dataStorage) { lines.reverse().some(line => {if (!line.includes('[') && line.toLowerCase().includes(data)) {lines.splice(lines.indexOf(line) + 1, 0, `[${JSON.stringify(dataStorage[data], replacer)}]`); return true}}); lines.reverse(); }
+    for (const data in dataStorage) { lines.reverse().some(line => {if (!line.includes('[') && line.toLowerCase().includes(data)) {lines.splice(lines.indexOf(line) + 1, 0, `[${JSON.stringify(dataStorage[data], globalReplacer)}]`); return true}}); lines.reverse(); }
     
     // Uncommenting this line adds 'actionized' properties to the fore-front of context to have them directly affect the outcome. Should not be necessary, but may improve outcomes in certain situations. Feel free to experiment with it. If a property is not whitelisted, it's required to have a synonyms. definition to show.
-    //getHistoryString(-1).split(' ').reverse().some(word => { for (const data in dataStorage) {if (word.toLowerCase().includes(data)) { whitelist.length >= 2 ? lines.splice(lines.length, 0, `\n> [${JSON.stringify(dataStorage[data], replacer)}]\n`) : {}; return true}}})
+    //getHistoryString(-1).split(' ').reverse().some(word => { for (const data in dataStorage) {if (word.toLowerCase().includes(data)) { JSON.stringify(dataStorage[data], localReplacer).length > 2 ? lines.splice(lines.length, 0, `\n> [${JSON.stringify(dataStorage[data], localReplacer)}]\n`) : {} ; return true}}})
 
     let combinedLines = lines.join('\n').slice(-(info.maxChars - info.memoryLength))
     // Lazy patchwork to """fix""" linebreak spam.
