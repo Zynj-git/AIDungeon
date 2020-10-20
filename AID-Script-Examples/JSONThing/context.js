@@ -40,7 +40,7 @@ const modifier = (text) => {
         const localWhitelist = getContextualProperties(getHistoryString(-1)).flat();
         console.log(localWhitelist);
         const localReplacer = (name, val) => { if (localWhitelist.some(element => element.includes(name)) && val) { return Array.isArray(val) ? val.join(', ') : val } else { return undefined } };
-        worldEntries.forEach(wEntry => { if (wEntry["keys"].includes('.')) { setProperty(wEntry["keys"].toLowerCase(), wEntry["entry"], dataStorage) } })
+        worldEntries.forEach(wEntry => { if (wEntry["keys"].includes('.')) { setProperty(wEntry["keys"].toLowerCase().split(',').filter(element => element.includes('.')).map(element => element.trim()).join(''), wEntry["entry"], dataStorage) } })
         for (const data in dataStorage) { lines.reverse().some(line => { if (!line.includes('[') && line.toLowerCase().includes(data)) { lines.splice(lines.indexOf(line) + 1, 0, `[${JSON.stringify(dataStorage[data], globalReplacer)}]`); return true } }); lines.reverse(); }
 
     }
