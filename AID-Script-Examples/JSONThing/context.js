@@ -23,21 +23,9 @@ const getContext = (text) => { return info.memoryLength ? text.slice(info.memory
 const getWhitelist = () => worldEntries.filter(entry => entry["keys"].includes('whitelist'))[0]["entry"].split(',').map(element => element.trim())
 // Contextual properties will be added to the JSON when a related synonym.property entry is found in the last turn. e.g synonym.cake would bring john.preferences.food.favorite.cake into the JSON for that turn.
 // It adds the property path, omitting 'synonyms', to the whitelist so each of ['preferences', 'food', 'favorite', 'cake'] would be whitelisted. john.preferences.food.favorite.hotdog would for example not show as 'hotdog' is not whitelisted.
-const getContextualProperties = (text) => { return worldEntries.filter(entry => entry["keys"].includes('synonyms.') && entry["entry"].split(',').some(key=> text.toLowerCase().includes(key.toLowerCase()))).map(element => element["keys"].toLowerCase().split('.').slice(1));}
+const getContextualProperties = (text) => { return worldEntries.filter(entry => entry["keys"].includes('synonyms.') && entry["entry"].split(',').some(key => text.toLowerCase().includes(key.toLowerCase()))).map(element => element["keys"].toLowerCase().split('.').slice(1)); }
 // Assign the property defined in the wEntry's keys with its entry value.
 const setProperty = (keys, value, obj) => { const property = keys.split('.').pop(); const path = keys.split('.').slice(0, -1).join('.'); getKey(path, obj)[property] = value.includes(',') ? value.split(',').map(element => element.trim()) : value }
-
-// By whitelisting and checking the elements, we only fetch valid, assigned, values for that turn.
-if (worldEntries.some(element => element["keys"].includes('.'))) 
-{   const globalWhitelist = [getWhitelist(), getContextualProperties(getHistoryString(-1)).flat()].flat()
-    const globalReplacer = (name, val) => { if (globalWhitelist.some(element => element.includes(name)) && val) { return Array.isArray(val) ? val.join(', ') : val } else { return undefined }};
-    const localWhitelist = getContextualProperties(getHistoryString(-1)).flat();
-    console.log(localWhitelist)
-    const localReplacer = (name, val) => { if (localWhitelist.some(element => element.includes(name)) && val) { return Array.isArray(val) ? val.join(', ') : val } else { return undefined }};
-}
-// Loop through worldEntries and assign the properties within state.data
-if (worldEntries.some(element => element["keys"].includes('.'))) {worldEntries.forEach(wEntry => { if (wEntry["keys"].includes('.')) {setProperty(wEntry["keys"].toLowerCase(), wEntry["entry"], dataStorage) }})}
-
 const modifier = (text) => {
 
     let contextMemory = getMemory(text);
@@ -46,8 +34,17 @@ const modifier = (text) => {
     let memoryLines = contextMemory.split('\n');
 
     // Loop through the previously defined properties in reverse order, then reverse again. Flip flop, *dab*.
-    if (worldEntries.some(element => element["keys"].includes('.'))) {for (const data in dataStorage) { lines.reverse().some(line => {if (!line.includes('[') && line.toLowerCase().includes(data)) {lines.splice(lines.indexOf(line) + 1, 0, `[${JSON.stringify(dataStorage[data], globalReplacer)}]`); return true}}); lines.reverse(); }}
-    
+    if (worldEntries.some(element => element["keys"].includes('.'))) {
+        const globalWhitelist = [getWhitelist(), getContextualProperties(getHistoryString(-1)).flat()].flat()
+        const globalReplacer = (name, val) => { if (globalWhitelist.some(element => element.includes(name)) && val) { return Array.isArray(val) ? val.join(', ') : val } else { return undefined } };
+        const localWhitelist = getContextualProperties(getHistoryString(-1)).flat();
+        console.log(localWhitelist);
+        const localReplacer = (name, val) => { if (localWhitelist.some(element => element.includes(name)) && val) { return Array.isArray(val) ? val.join(', ') : val } else { return undefined } };
+        worldEntries.forEach(wEntry => { if (wEntry["keys"].includes('.')) { setProperty(wEntry["keys"].toLowerCase(), wEntry["entry"], dataStorage) } })
+        for (const data in dataStorage) { lines.reverse().some(line => { if (!line.includes('[') && line.toLowerCase().includes(data)) { lines.splice(lines.indexOf(line) + 1, 0, `[${JSON.stringify(dataStorage[data], globalReplacer)}]`); return true } }); lines.reverse(); }
+
+    }
+
     // Uncommenting this line adds 'actionized' properties to the fore-front of context to have them directly affect the outcome. Should not be necessary, but may improve outcomes in certain situations. Feel free to experiment with it. If a property is not whitelisted, it's required to have a synonyms. definition to show.
     //getHistoryString(-1).split(' ').reverse().some(word => { for (const data in dataStorage) {if (word.toLowerCase().includes(data)) { JSON.stringify(dataStorage[data], localReplacer).length > 2 ? lines.splice(lines.length, 0, `\n> [${JSON.stringify(dataStorage[data], localReplacer)}]\n`) : {} ; return true}}})
 
