@@ -25,7 +25,7 @@ const getWhitelist = () => worldEntries.filter(entry => entry["keys"].includes('
 // It adds the property path, omitting 'synonyms', to the whitelist so each of ['preferences', 'food', 'favorite', 'cake'] would be whitelisted. john.preferences.food.favorite.hotdog would for example not show as 'hotdog' is not whitelisted.
 const getContextualProperties = (text) => { return worldEntries.filter(entry => entry["keys"].includes('synonyms.') && entry["entry"].split(',').some(key => text.toLowerCase().includes(key.toLowerCase()))).map(element => element["keys"].toLowerCase().split('.').slice(1)); }
 // Assign the property defined in the wEntry's keys with its entry value.
-const setProperty = (keys, value, obj) => { const property = keys.split('.').pop(); const path = keys.split('.').slice(0, -1).join('.'); getKey(path, obj)[property] = value.includes(',') ? value.split(',').map(element => element.trim()) : value }
+const setProperty = (keys, value, obj) => { const property = keys.split('.').pop(); const path = keys.split('.').slice(0, -1).join('.'); getKey(path, obj)[property] = value } // value.includes(',') ? value.split(',').map(element => element.trim()) :  value
 const modifier = (text) => {
 
     let contextMemory = getMemory(text);
