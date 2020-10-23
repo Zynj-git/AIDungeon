@@ -17,7 +17,7 @@ const dataStorage = state.data;
 // Traverse the keys until we reach the destination, if a key on the path is assigned a value, convert it to an empty object to not interrupt the pathing.
 const getKey = (keys, obj) => { return keys.split('.').reduce((a, b) => { if (typeof a[b] != "object") { a[b] = {} } if (!a.hasOwnProperty(b)) { a[b] = {} } return a && a[b] }, obj) }
 const getHistoryString = (turns) => history.slice(turns).map(element => element["text"]).join(' ') // Returns a single string of the text.
-const getMemory = (text) => { return info.memoryLength ? text.slice(0, info.memoryLength + 1) : '' }
+const getMemory = (text) => { return info.memoryLength ? text.slice(0, info.memoryLength) : '' }
 const getContext = (text) => { return info.memoryLength ? text.slice(info.memoryLength) : text }
 // Whitelisted properties defined in an entry keyworded 'whitelist' will always display above the last mention of root.
 const getWhitelist = () => worldEntries.filter(entry => entry["keys"].includes('whitelist'))[0]["entry"].split(',').map(element => element.trim())
