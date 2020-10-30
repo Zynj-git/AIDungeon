@@ -29,9 +29,11 @@ const setProperty = (keys, value, obj) => { const property = keys.split('.').pop
 const modifier = (text) => {
 
     let contextMemory = getMemory(text);
+    let contextMemoryLength = 0;
     let context = getContext(text);
     let lines = context.split('\n');
     let memoryLines = contextMemory.split('\n');
+    //console.log(memoryLines)
 
     // Loop through the previously defined properties in reverse order, then reverse again. Flip flop, *dab*.
     if (worldEntries.some(element => element["keys"].includes('.'))) {
@@ -45,13 +47,19 @@ const modifier = (text) => {
 
     }
 
+    // Uncomment to activate normal world entries from keyword detection within the JSON lines.
+    //const normalWorldEntries = worldEntries.filter(element => {if (!element["keys"].includes('.') && (!element["keys"].includes('whitelist'))) { return true}}); const JSONString = lines.filter(line => line.startsWith('[{')).join('\n'); normalWorldEntries.forEach(element => element["keys"].split(',').some(keyword => { if (JSONString.toLowerCase().includes(keyword.toLowerCase().trim()) && !text.includes(element["entry"])) { memoryLines.splice(-1, 0, element["entry"]); contextMemoryLength += element["entry"].length; return true; } } ))
+    
     // Uncommenting this line adds 'actionized' properties to the fore-front of context to have them directly affect the outcome. Should not be necessary, but may improve outcomes in certain situations. Feel free to experiment with it. If a property is not whitelisted, it's required to have a synonyms. definition to show.
     //getHistoryString(-1).split(' ').reverse().some(word => { for (const data in dataStorage) {if (word.toLowerCase().includes(data)) { JSON.stringify(dataStorage[data], localReplacer).length > 2 ? lines.splice(lines.length, 0, `\n> [${JSON.stringify(dataStorage[data], localReplacer)}]\n`) : {} ; return true}}})
 
-    let combinedLines = lines.join('\n').slice(-(info.maxChars - info.memoryLength))
+    // Whimsically added a couple of replacers to account for the joint lines, but this was a 5AM decision so will probably be revised.
+    let combinedMemory = memoryLines.join('\n').replace(/\n$/, "");
+    let combinedLines = lines.join('\n').slice(-(info.maxChars - info.memoryLength - 1 - contextMemoryLength)).replace(/\n$/, "");
     // Lazy patchwork to """fix""" linebreak spam.
     //while (combinedLines.includes('\n\n')) { combinedLines = combinedLines.replace('\n\n', '\n') }
-    const finalText = [contextMemory, combinedLines].join("\n")
+    const finalText = [combinedMemory, combinedLines].join("\n")
+    console.log(finalText.length, info.maxChars)
     return { text: finalText }
 }
 modifier(text)
