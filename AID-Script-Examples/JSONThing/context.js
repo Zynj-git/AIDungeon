@@ -47,13 +47,15 @@ const modifier = (text) => {
 
     }
 
-    // Uncomment to activate normal world entries from keyword detection within the JSON lines.
-    //const normalWorldEntries = worldEntries.filter(element => {if (!element["keys"].includes('.') && (!element["keys"].includes('whitelist'))) { return true}}); const JSONString = lines.filter(line => line.startsWith('[{')).join('\n'); normalWorldEntries.forEach(element => element["keys"].split(',').some(keyword => { if (JSONString.toLowerCase().includes(keyword.toLowerCase().trim()) && !text.includes(element["entry"])) { memoryLines.splice(-1, 0, element["entry"]); contextMemoryLength += element["entry"].length; return true; } } ))
-    
+    const normalWorldEntries = worldEntries.filter(element => {if (!element["keys"].includes('.') && (!element["keys"].includes('whitelist'))) { return true}});
+    const JSONString = lines.filter(line => line.startsWith('[{')).join('\n')
+    //console.log(JSONString, normalWorldEntries)
+    //normalWorldEntries.forEach(wEntry => wEntry["keys"].split(',').some(keyword => { if (JSONString.toLowerCase().includes(keyword.trim())) {console.log(wEntry["entry"]); return true}}))
+    normalWorldEntries.forEach(element => element["keys"].split(',').some(keyword => { if (JSONString.toLowerCase().includes(keyword.toLowerCase().trim()) && !text.includes(element["entry"])) { if (info.memoryLength + element["entry"].length <= info.maxChars/2) {memoryLines.splice(-1, 0, element["entry"]); contextMemoryLength += element["entry"].length; return true; }} } ))
+
     // Uncommenting this line adds 'actionized' properties to the fore-front of context to have them directly affect the outcome. Should not be necessary, but may improve outcomes in certain situations. Feel free to experiment with it. If a property is not whitelisted, it's required to have a synonyms. definition to show.
     //getHistoryString(-1).split(' ').reverse().some(word => { for (const data in dataStorage) {if (word.toLowerCase().includes(data)) { JSON.stringify(dataStorage[data], localReplacer).length > 2 ? lines.splice(lines.length, 0, `\n> [${JSON.stringify(dataStorage[data], localReplacer)}]\n`) : {} ; return true}}})
 
-    // Whimsically added a couple of replacers to account for the joint lines, but this was a 5AM decision so will probably be revised.
     let combinedMemory = memoryLines.join('\n').replace(/\n$/, "");
     let combinedLines = lines.join('\n').slice(-(info.maxChars - info.memoryLength - 1 - contextMemoryLength)).replace(/\n$/, "");
     // Lazy patchwork to """fix""" linebreak spam.
