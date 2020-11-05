@@ -29,7 +29,7 @@ const getRootSynonyms = (root) => dataStorage[root].hasOwnProperty('synonyms') ?
 const getWhitelist = () => worldEntries.filter(entry => entry["keys"].includes('whitelist'))[0]["entry"].split(',').map(element => element.trim())
 // Contextual properties will be added to the JSON when a related synonym.property entry is found in the last turn. e.g synonym.cake would bring john.preferences.food.favorite.cake into the JSON for that turn.
 // It adds the property path, omitting 'synonyms', to the whitelist so each of ['preferences', 'food', 'favorite', 'cake'] would be whitelisted. john.preferences.food.favorite.hotdog would for example not show as 'hotdog' is not whitelisted.
-const getContextualProperties = (modifiedText) => { return worldEntries.filter(entry => entry["keys"].includes('synonyms.') && entry["entry"].split(',').some(key => modifiedText.includes(key.toLowerCase()))).map(element => element["keys"].toLowerCase().split('.').slice(1)); }
+const getContextualProperties = (search) => { return worldEntries.filter(entry => entry["keys"].includes('synonyms.') && entry["entry"].split(',').some(key => search.includes(key.toLowerCase()))).map(element => element["keys"].toLowerCase().split('.').slice(1)); }
 // Assign the property defined in the wEntry's keys with its entry value.
 const setProperty = (keys, value, obj) => { const property = keys.split('.').pop(); const path = keys.split('.').slice(0, -1).join('.'); getKey(path, obj)[property] = value } // value.includes(',') ? value.split(',').map(element => element.trim()) :  value
 const modifier = (text) => {
@@ -40,6 +40,7 @@ const modifier = (text) => {
     let lines = context.split('\n');
     let memoryLines = contextMemory.split('\n');
     let modifiedText = text.toLowerCase();
+    let modifiedContext = context.toLowerCase();
     //console.log(memoryLines)
 
     // Loop through the previously defined properties in reverse order, then reverse again. Flip flop, *dab*.
@@ -55,21 +56,29 @@ const modifier = (text) => {
                 let indexPos = -1;
                 let finalParent; // Measure the child properties against each other, the final/most recent mention becomes set as root.
 
-                for (const parentRoot in dataStorage[root]["child"]) {
+                for (let parentRoot in dataStorage[root]["child"]) {
                     // Check first for presence of root then fallback to presence of root.synonyms and fetch the highest value of synonyms.
-                    const index = modifiedText.includes(parentRoot) ? modifiedText.lastIndexOf(parentRoot) : dataStorage.hasOwnProperty(parentRoot) && dataStorage[parentRoot].hasOwnProperty("synonyms") ? dataStorage[parentRoot]["synonyms"].split(',').map(element => modifiedText.lastIndexOf(element.toLowerCase())).sort().reverse().shift() : null;
+                    const searchParentRoot = parentRoot.replace(`[`, '').replace(`]`, '')
+                    const index = modifiedContext.includes(searchParentRoot) ? modifiedContext.lastIndexOf(searchParentRoot) : dataStorage.hasOwnProperty(searchParentRoot) && dataStorage[searchParentRoot].hasOwnProperty("synonyms") ? dataStorage[searchParentRoot]["synonyms"].split(',').map(element => modifiedContext.lastIndexOf(element.toLowerCase())).sort().reverse().shift() : -1;
                     if (index >= 0 && index > indexPos) {
-                        indexPos = index; finalParent = dataStorage[root]["child"][parentRoot];
+                        indexPos = index;
+                        let toCopy; // Find the first bracket-encapsulated property of parent e.g tavern.child.ironforge.[axar]
+                        Object.keys(dataStorage[root]["child"][searchParentRoot]).some(element => { if (element.includes('[')) {toCopy = element.replace(`[`, '').replace(`]`, ''); return true;} }) ? finalParent = dataStorage[toCopy] : finalParent = dataStorage[root]["child"][searchParentRoot];
                     }
                 }
 
-                dataStorage[root] = finalParent; // Replace the root, e.g tavern with tavern.children.nordfall
-
+                if (finalParent) 
+                { 
+                    // Do a risque move and merge synonyms together. 
+                    if (dataStorage['synonyms'].hasOwnProperty(root)) { finalParent['synonyms'] += ', ' + dataStorage["synonyms"][root]; } 
+                    if (dataStorage[root].hasOwnProperty('synonyms')) { finalParent['synonyms'] += ', ' + dataStorage[root]["synonyms"]; }
+                    Object.assign(dataStorage[root], finalParent); 
+                } // Replace the root, e.g tavern with tavern.children.nordfall
             }
         }
 
-        // Check if root or a qualifying phrase/word in root.synonyms is present.
-        for (const data in dataStorage) { lines.reverse().some(line => { if (!line.includes('[') && (line.toLowerCase().includes(data) || getRootSynonyms(data).some(synonym => line.toLowerCase().includes(synonym)))) { lines.splice(lines.indexOf(line) + 1, 0, `[${JSON.stringify(dataStorage[data], globalReplacer)}]`); return true } }); lines.reverse(); }
+        // Check if root or a qualifying phrase/word in root.synonyms is present, prevent empty JSON lines, prevent duplicate lines (caused by child inheritance assignment)
+        for (const data in dataStorage) { lines.reverse().some(line => { if (!line.includes('[') && (line.toLowerCase().includes(data) || getRootSynonyms(data).some(synonym => line.toLowerCase().includes(synonym)))) { const string = JSON.stringify(dataStorage[data], globalReplacer); (string.length > 4  && !lines.some(line => line.includes(string))) ? lines.splice(lines.indexOf(line) + 1, 0, `[${JSON.stringify(dataStorage[data], globalReplacer)}]`) : {}; return true } }); lines.reverse(); }
 
 
         const JSONLines = lines.filter(line => line.startsWith('[{'))
@@ -91,7 +100,7 @@ const modifier = (text) => {
     //while (combinedLines.includes('\n\n')) { combinedLines = combinedLines.replace('\n\n', '\n') }
     const finalText = [combinedMemory, combinedLines].join("\n")
     // Debug to check if the context is intact and properly utilized, optimally the numbers should always match
-    console.log(`Final Text: ${finalText.length}`, `Max Text: ${info.maxChars}`)
+    console.log(`Final Text: ${finalText.length}`, `Max Text: ${info.maxChars}`, `MemoryLength: ${info.memoryLength + contextMemoryLength}`)
     return { text: finalText }
 }
 modifier(text)
