@@ -50,35 +50,59 @@ const modifier = (text) => {
         const localWhitelist = getContextualProperties(getHistoryString(-1)).flat();
         const localReplacer = (name, val) => { if (localWhitelist.some(element => element.includes(name)) && val) { return Array.isArray(val) ? val.join(', ') : val } else { return undefined } };
         worldEntries.forEach(wEntry => { if (wEntry["keys"].includes('.')) { setProperty(wEntry["keys"].toLowerCase().split(',').filter(element => element.includes('.')).map(element => element.trim()).join(''), wEntry["entry"], dataStorage) } })
-        for (const root in dataStorage) {
-
-            if (dataStorage[root].hasOwnProperty("child")) {
+        // Process child references before inserting the JSON lines.
+        for (const data in dataStorage) 
+        {
+            if (dataStorage[data].hasOwnProperty("child")) 
+            {
                 let indexPos = -1;
                 let finalParent; // Measure the child properties against each other, the final/most recent mention becomes set as root.
 
-                for (let parentRoot in dataStorage[root]["child"]) {
+                for (let parentRoot in dataStorage[data]["child"]) {
                     // Check first for presence of root then fallback to presence of root.synonyms and fetch the highest value of synonyms.
-                    const searchParentRoot = parentRoot.replace(`[`, '').replace(`]`, '')
-                    const index = modifiedContext.includes(searchParentRoot) ? modifiedContext.lastIndexOf(searchParentRoot) : dataStorage.hasOwnProperty(searchParentRoot) && dataStorage[searchParentRoot].hasOwnProperty("synonyms") ? dataStorage[searchParentRoot]["synonyms"].split(',').map(element => modifiedContext.lastIndexOf(element.toLowerCase())).sort().reverse().shift() : -1;
+                    const searchFor = parentRoot.replace(`[`, '').replace(`]`, '');
+                    const index = modifiedContext.includes(searchFor) ? modifiedContext.lastIndexOf(searchFor) : dataStorage.hasOwnProperty(searchFor) && dataStorage[searchFor].hasOwnProperty("synonyms") ? dataStorage[searchFor]["synonyms"].split(',').map(element => modifiedContext.lastIndexOf(element.toLowerCase())).sort().reverse().shift() : -1;
                     if (index >= 0 && index > indexPos) {
                         indexPos = index;
                         let toCopy; // Find the first bracket-encapsulated property of parent e.g tavern.child.ironforge.[axar]
-                        Object.keys(dataStorage[root]["child"][searchParentRoot]).some(element => { if (element.includes('[')) {toCopy = element.replace(`[`, '').replace(`]`, ''); return true;} }) ? finalParent = dataStorage[toCopy] : finalParent = dataStorage[root]["child"][searchParentRoot];
+                        for (const element in dataStorage[data]["child"][searchFor]) {
+                            // Copies are indicated by bracket-encapsulation; look for a single presence of it then break out.
+                            if (element.includes('[')) {
+                                toCopy = element.replace(`[`, '').replace(`]`, '');
+                                finalParent = dataStorage[toCopy];
+                                break;
+                            }
+                            // If it's not a copy of an existing root, grab the entire branch.
+                            else {
+                                finalParent = dataStorage[data]['child'][searchFor]
+                            }
+                        }
                     }
                 }
 
-                if (finalParent) 
-                { 
+                if (finalParent) {
                     // Do a risque move and merge synonyms together. 
-                    if (dataStorage['synonyms'].hasOwnProperty(root)) { finalParent['synonyms'] += ', ' + dataStorage["synonyms"][root]; } 
-                    if (dataStorage[root].hasOwnProperty('synonyms')) { finalParent['synonyms'] += ', ' + dataStorage[root]["synonyms"]; }
-                    Object.assign(dataStorage[root], finalParent); 
-                } // Replace the root, e.g tavern with tavern.children.nordfall
+                    if (dataStorage['synonyms'].hasOwnProperty(data)) { finalParent['synonyms'] += ', ' + dataStorage['synonyms'][data]; }
+                    if (dataStorage[data].hasOwnProperty('synonyms')) { finalParent['synonyms'] += ', ' + dataStorage[data]['synonyms']; }
+                    // Merge the root, e.g tavern with tavern.children.nordfall; non-unique properties are over-written.
+                    Object.assign(dataStorage[data], finalParent);
+                }
             }
-        }
 
-        // Check if root or a qualifying phrase/word in root.synonyms is present, prevent empty JSON lines, prevent duplicate lines (caused by child inheritance assignment)
-        for (const data in dataStorage) { lines.reverse().some(line => { if (!line.includes('[') && (line.toLowerCase().includes(data) || getRootSynonyms(data).some(synonym => line.toLowerCase().includes(synonym)))) { const string = JSON.stringify(dataStorage[data], globalReplacer); (string.length > 4  && !lines.some(line => line.includes(string))) ? lines.splice(lines.indexOf(line) + 1, 0, `[${JSON.stringify(dataStorage[data], globalReplacer)}]`) : {}; return true } }); lines.reverse(); }
+            lines.reverse().some(line => 
+                { 
+                    if (!line.includes('[') && (line.toLowerCase().includes(data) || getRootSynonyms(data).some(synonym => line.toLowerCase().includes(synonym)))) 
+                    { 
+                        // Stringify the dataStorage by displaying the whitelisted/contextual properties.
+                        const string = JSON.stringify(dataStorage[data], globalReplacer);
+                        // If it's not an empty JSON [{}] <-- 4 chars and none of the lines currently include the JSON (e.g when trying to display from unique and child)
+                        (string.length > 4 && !lines.some(line => line.includes(string))) ? lines.splice(lines.indexOf(line) + 1, 0, `[${JSON.stringify(dataStorage[data], globalReplacer)}]`) : {}; return true; 
+                    } 
+                }); 
+            // Reverse the line back into normal order.
+            lines.reverse();
+
+        }
 
 
         const JSONLines = lines.filter(line => line.startsWith('[{'))
