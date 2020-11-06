@@ -31,7 +31,7 @@ const getWhitelist = () => worldEntries.filter(entry => entry["keys"].includes('
 // It adds the property path, omitting 'synonyms', to the whitelist so each of ['preferences', 'food', 'favorite', 'cake'] would be whitelisted. john.preferences.food.favorite.hotdog would for example not show as 'hotdog' is not whitelisted.
 const getContextualProperties = (search) => { return worldEntries.filter(entry => entry["keys"].includes('synonyms.') && entry["entry"].split(',').some(key => search.includes(key.toLowerCase()))).map(element => element["keys"].toLowerCase().split('.').slice(1)); }
 // Assign the property defined in the wEntry's keys with its entry value.
-const setProperty = (keys, value, obj) => { const property = keys.split('.').pop(); const path = keys.split('.').slice(0, -1).join('.'); getKey(path, obj)[property] = value } // value.includes(',') ? value.split(',').map(element => element.trim()) :  value
+const setProperty = (keys, value, obj) => { const property = keys.split('.').pop(); const path = keys.split('.').slice(0, -1).join('.'); getKey(path, obj)[property] = value ? value : null } // value.includes(',') ? value.split(',').map(element => element.trim()) :  value
 const modifier = (text) => {
 
     let contextMemory = getMemory(text);
@@ -70,6 +70,7 @@ const modifier = (text) => {
                             if (element.includes('[')) {
                                 toCopy = element.replace(`[`, '').replace(`]`, '');
                                 finalParent = dataStorage[toCopy];
+                                dataStorage[data]["skip"] = true;
                                 break;
                             }
                             // If it's not a copy of an existing root, grab the entire branch.
@@ -89,27 +90,30 @@ const modifier = (text) => {
                 }
             }
 
-            lines.reverse().some(line => 
-                { 
-                    if (!line.includes('[') && (line.toLowerCase().includes(data) || getRootSynonyms(data).some(synonym => line.toLowerCase().includes(synonym)))) 
+            if (!dataStorage[data].hasOwnProperty('skip'))
+            {   
+                lines.reverse().some(line => 
                     { 
-                        // Stringify the dataStorage by displaying the whitelisted/contextual properties.
-                        const string = JSON.stringify(dataStorage[data], globalReplacer);
-                        // If it's not an empty JSON [{}] <-- 4 chars and none of the lines currently include the JSON (e.g when trying to display from unique and child)
-                        (string.length > 4 && !lines.some(line => line.includes(string))) ? lines.splice(lines.indexOf(line) + 1, 0, `[${JSON.stringify(dataStorage[data], globalReplacer)}]`) : {}; return true; 
-                    } 
-                }); 
-            // Reverse the line back into normal order.
-            lines.reverse();
+                        if (!line.includes('[') && (line.toLowerCase().includes(data) || getRootSynonyms(data).some(synonym => line.toLowerCase().includes(synonym)))) 
+                        { 
+                            // Stringify the dataStorage by displaying the whitelisted/contextual properties.
+                            const string = JSON.stringify(dataStorage[data], globalReplacer);
+                            // If it's not an empty JSON [{}] <-- 4 chars and none of the lines currently include the JSON (e.g when trying to display from unique and child)
+                            (string.length > 4 && !lines.some(line => line.includes(string))) ? lines.splice(lines.indexOf(line) + 1, 0, `[${JSON.stringify(dataStorage[data], globalReplacer)}]`) : {}; return true; 
+                        } 
+                    }); 
+                // Reverse the line back into normal order.
+                lines.reverse();
+            }
 
         }
 
 
-        const JSONLines = lines.filter(line => line.startsWith('[{'))
+        const JSONLines = lines.filter(line => line.startsWith('['))
         const JSONString = JSONLines.join('\n');
         const normalWorldEntries = worldEntries.filter(element => { if (!element["keys"].includes('.') && (!element["keys"].includes('whitelist'))) { return true } });
         //console.log(JSONString, normalWorldEntries)
-        normalWorldEntries.forEach(element => element["keys"].split(',').some(keyword => { if (JSONString.toLowerCase().includes(keyword.toLowerCase().trim()) && !text.includes(element["entry"])) { if (info.memoryLength + element["entry"].length <= info.maxChars / 2) { memoryLines.splice(-1, 0, element["entry"]); contextMemoryLength += element["entry"].length + 1; return true; } } }))
+        normalWorldEntries.forEach(element => element["keys"].split(',').some(keyword => { if (JSONString.toLowerCase().includes(keyword.toLowerCase()) && !text.includes(element["entry"])) { if (info.memoryLength + contextMemoryLength + element["entry"].length <= info.maxChars / 2) { memoryLines.splice(-1, 0, element["entry"]); contextMemoryLength += element["entry"].length + 1; return true; } } }))
 
         // Uncommenting this line adds 'actionized' properties to the fore-front of context to have them directly affect the outcome. Should not be necessary, but may improve outcomes in certain situations. Feel free to experiment with it. If a property is not whitelisted, it's required to have a synonyms. definition to show.
         //getHistoryString(-1).split(' ').reverse().some(word => { for (const data in dataStorage) {if (word.toLowerCase().includes(data)) { JSON.stringify(dataStorage[data], localReplacer).length > 2 ? lines.splice(lines.length, 0, `\n> [${JSON.stringify(dataStorage[data], localReplacer)}]\n`) : {} ; return true}}})
