@@ -90,7 +90,8 @@ const modifier = (text) => {
 
             if (!dataStorage[data].hasOwnProperty('skip')) {
                 lines.reverse().some(line => {
-                    if (!line.includes('[') && (line.toLowerCase().includes(data) || getRootSynonyms(data).some(synonym => line.toLowerCase().includes(synonym)))) {
+                    const regEx = new RegExp('\\b' + data, 'gi');
+                    if (!line.includes('[') && (regEx.test(line) || getRootSynonyms(data).some(synonym => line.toLowerCase().includes(synonym)))) {
                         // Stringify the dataStorage by displaying the whitelisted/contextual properties.
                         const string = JSON.stringify(dataStorage[data], globalReplacer);
                         // If it's not an empty JSON [{}] <-- 4 chars and none of the lines currently include the JSON (e.g when trying to display from unique and child)
