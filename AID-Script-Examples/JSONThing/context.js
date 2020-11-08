@@ -51,10 +51,8 @@ const modifier = (text) => {
         const localReplacer = (name, val) => { if (localWhitelist.some(element => element.includes(name)) && val) { return Array.isArray(val) ? val.join(', ') : val } else { return undefined } };
         worldEntries.forEach(wEntry => { if (wEntry["keys"].includes('.')) { setProperty(wEntry["keys"].toLowerCase().split(',').filter(element => element.includes('.')).map(element => element.trim()).join(''), wEntry["entry"], dataStorage) } })
         // Process child references before inserting the JSON lines.
-        for (const data in dataStorage) 
-        {
-            if (dataStorage[data].hasOwnProperty("child")) 
-            {
+        for (const data in dataStorage) {
+            if (dataStorage[data].hasOwnProperty("child")) {
                 let indexPos = -1;
                 let finalParent; // Measure the child properties against each other, the final/most recent mention becomes set as root.
 
@@ -90,18 +88,15 @@ const modifier = (text) => {
                 }
             }
 
-            if (!dataStorage[data].hasOwnProperty('skip'))
-            {   
-                lines.reverse().some(line => 
-                    { 
-                        if (!line.includes('[') && (line.toLowerCase().includes(data) || getRootSynonyms(data).some(synonym => line.toLowerCase().includes(synonym)))) 
-                        { 
-                            // Stringify the dataStorage by displaying the whitelisted/contextual properties.
-                            const string = JSON.stringify(dataStorage[data], globalReplacer);
-                            // If it's not an empty JSON [{}] <-- 4 chars and none of the lines currently include the JSON (e.g when trying to display from unique and child)
-                            (string.length > 4 && !lines.some(line => line.includes(string))) ? lines.splice(lines.indexOf(line) + 1, 0, `[${JSON.stringify(dataStorage[data], globalReplacer)}]`) : {}; return true; 
-                        } 
-                    }); 
+            if (!dataStorage[data].hasOwnProperty('skip')) {
+                lines.reverse().some(line => {
+                    if (!line.includes('[') && (line.toLowerCase().includes(data) || getRootSynonyms(data).some(synonym => line.toLowerCase().includes(synonym)))) {
+                        // Stringify the dataStorage by displaying the whitelisted/contextual properties.
+                        const string = JSON.stringify(dataStorage[data], globalReplacer);
+                        // If it's not an empty JSON [{}] <-- 4 chars and none of the lines currently include the JSON (e.g when trying to display from unique and child)
+                        if (string.length > 4 && !lines.some(line => line.includes(string))) { lines.splice(lines.indexOf(line) + 1, 0, `[${JSON.stringify(dataStorage[data], globalReplacer)}]`) }
+                    }
+                });
                 // Reverse the line back into normal order.
                 lines.reverse();
             }
@@ -123,7 +118,7 @@ const modifier = (text) => {
 
 
     let combinedMemory = memoryLines.join('\n').replace(/\n$/, "");
-    let combinedLines = lines.join('\n').slice(-(info.maxChars - info.memoryLength - contextMemoryLength)).replace(/\n$/, "");
+    let combinedLines = lines.join('\n').slice(-(info.maxChars - info.memoryLength - contextMemoryLength)).replace(/\n$/, "").replace(/]\n\[/g, '][').replace(/^[^\[]*.]/g, ''); // Last replace to merge stacking JSON lines into one - experimental, might be bad.
     // Lazy patchwork to """fix""" linebreak spam.
     //while (combinedLines.includes('\n\n')) { combinedLines = combinedLines.replace('\n\n', '\n') }
     const finalText = [combinedMemory, combinedLines].join("\n")
