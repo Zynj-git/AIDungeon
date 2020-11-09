@@ -22,11 +22,11 @@ const getWhitelist = () => dataStorage[whitelistPath].split(',').map(element => 
 // It adds the property path, omitting 'synonyms', to the whitelist so each of ['preferences', 'food', 'favorite', 'cake'] would be whitelisted. john.preferences.food.favorite.hotdog would for example not show as 'hotdog' is not whitelisted.
 const getContextualProperties = (search) => { return worldEntries.filter(entry => entry["keys"].startsWith(synonymsPath) && entry["entry"].split(',').some(key => search.includes(key.toLowerCase()))).map(element => element["keys"].toLowerCase().split('.').slice(1)); }
 // Assign the property defined in the wEntry's keys with its entry value.
-const setProperty = (keys, value, obj) => { const property = keys.split('.').pop(); const path = keys.split('.')[1] ? keys.split('.').slice(0, -1).join('.') : keys.replace('.', ''); if (property[1]) {getKey(path, obj)[property] = value ? value : null} else {dataStorage[path] = value}} // value.includes(',') ? value.split(',').map(element => element.trim()) :  value
+const setProperty = (keys, value, obj) => { const property = keys.split('.').pop(); const path = keys.split('.')[1] ? keys.split('.').slice(0, -1).join('.') : keys.replace('.', ''); if (property[1]) { getKey(path, obj)[property] = value ? value : null; } else { dataStorage[path] = value; } }
 // If the worldEntries are setup to use the system then process and populate dataStorage
-if (worldEntries.some(element => element["keys"].includes('.'))) {worldEntries.forEach(wEntry => { if (wEntry["keys"].includes('.')) { setProperty(wEntry["keys"].toLowerCase().split(',').filter(element => element.includes('.')).map(element => element.trim()).join(''), wEntry["entry"], dataStorage) } })}
+if (worldEntries.some(element => element["keys"].includes('.'))) { worldEntries.forEach(wEntry => { if (wEntry["keys"].includes('.')) { setProperty(wEntry["keys"].toLowerCase().split(',').filter(element => element.includes('.')).map(element => element.trim()).join(''), wEntry["entry"], dataStorage) } }) }
 
-state.commandList = { // Store a function in state with the intention of being able to call from both input / output script without duplicating code.
+state.commandList = {
     set: // Identifier and name of function
     {
         name: 'set',
@@ -39,10 +39,10 @@ state.commandList = { // Store a function in state with the intention of being a
                 const setKeys = args[0].toLowerCase().trim();
                 const setValue = args.slice(1).join(' ');
                 const index = worldEntries.findIndex(element => element["keys"] === setKeys);
-    
+
                 index >= 0 ? updateWorldEntry(index, setKeys, setValue, isNotHidden = true) : addWorldEntry(setKeys, setValue, isNotHidden = true);
-                
-                if (!setValue && index >= 0) {removeWorldEntry(index)}
+
+                if (!setValue && index >= 0) { removeWorldEntry(index) }
                 if (dataStorage) { setProperty(setKeys, setValue, dataStorage) } // Immediately reflect the changes in state.data
                 state.message = `${setKeys} set to ${setValue}`;
             }
@@ -93,9 +93,9 @@ state.commandList = { // Store a function in state with the intention of being a
         usage: '<root> or <root>.<property>',
         execute:
             (args) => {
-                
+
                 const path = args.join('').trim().toLowerCase();
-                worldEntries.forEach(wEntry => {if (wEntry["keys"].startsWith(path)) {wEntry["isNotHidden"] = true;}})
+                worldEntries.forEach(wEntry => { if (wEntry["keys"].startsWith(path)) { wEntry["isNotHidden"] = true; } })
                 state.message = `Showing all entries starting with ${path} in World Information!`;
             }
     },
@@ -107,9 +107,9 @@ state.commandList = { // Store a function in state with the intention of being a
         usage: '<root> or <root>.<property>',
         execute:
             (args) => {
-                
+
                 const path = args.join('').trim().toLowerCase();
-                worldEntries.forEach(wEntry => {if (wEntry["keys"].startsWith(path)) {wEntry["isNotHidden"] = false;}})
+                worldEntries.forEach(wEntry => { if (wEntry["keys"].startsWith(path)) { wEntry["isNotHidden"] = false; } })
                 state.message = `Hiding all entries starting with ${path} in World Information!`;
             }
     }
