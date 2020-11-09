@@ -16,22 +16,6 @@
 // [{"location": "Tavern", "name": "The Frozen Nord", "yelp-five-star-ratings": 5}] <---  (pseudo) tavern.child - Nordfall; somehow attach it with endless combinations.
 // Create a hierachy within the generic root e.g tavern.child.nordfall then fetch additional properties and restructure the object with the child hierarchy.
 
-state.data = {}
-console.log(`Turn: ${info.actionCount}`)
-const dataStorage = state.data;
-// Traverse the keys until we reach the destination, if a key on the path is assigned a value, convert it to an empty object to not interrupt the pathing.
-const getKey = (keys, obj) => { return keys.split('.').reduce((a, b) => { if (typeof a[b] != "object") { a[b] = {} } if (!a.hasOwnProperty(b)) { a[b] = {} } return a && a[b] }, obj) }
-const getHistoryString = (turns) => history.slice(turns).map(element => element["text"]).join(' ') // Returns a single string of the text.
-const getMemory = (text) => { return info.memoryLength ? text.slice(0, info.memoryLength) : '' }
-const getContext = (text) => { return info.memoryLength ? text.slice(info.memoryLength) : text }
-const getRootSynonyms = (root) => dataStorage[root].hasOwnProperty('synonyms') ? dataStorage[root]["synonyms"].split(',').map(element => element.toLowerCase().trim()) : []
-// Whitelisted properties defined in an entry keyworded 'whitelist' will always display above the last mention of root.
-const getWhitelist = () => worldEntries.filter(entry => entry["keys"].includes('whitelist'))[0]["entry"].split(',').map(element => element.trim())
-// Contextual properties will be added to the JSON when a related synonym.property entry is found in the last turn. e.g synonym.cake would bring john.preferences.food.favorite.cake into the JSON for that turn.
-// It adds the property path, omitting 'synonyms', to the whitelist so each of ['preferences', 'food', 'favorite', 'cake'] would be whitelisted. john.preferences.food.favorite.hotdog would for example not show as 'hotdog' is not whitelisted.
-const getContextualProperties = (search) => { return worldEntries.filter(entry => entry["keys"].includes('synonyms.') && entry["entry"].split(',').some(key => search.includes(key.toLowerCase()))).map(element => element["keys"].toLowerCase().split('.').slice(1)); }
-// Assign the property defined in the wEntry's keys with its entry value.
-const setProperty = (keys, value, obj) => { const property = keys.split('.').pop(); const path = keys.split('.').slice(0, -1).join('.'); getKey(path, obj)[property] = value ? value : null } // value.includes(',') ? value.split(',').map(element => element.trim()) :  value
 const modifier = (text) => {
 
     let contextMemory = getMemory(text);
@@ -49,7 +33,6 @@ const modifier = (text) => {
         const globalReplacer = (name, val) => { if (globalWhitelist.some(element => element.includes(name)) && val) { return Array.isArray(val) ? val.join(', ') : val } else { return undefined } };
         const localWhitelist = getContextualProperties(getHistoryString(-1)).flat();
         const localReplacer = (name, val) => { if (localWhitelist.some(element => element.includes(name)) && val) { return Array.isArray(val) ? val.join(', ') : val } else { return undefined } };
-        worldEntries.forEach(wEntry => { if (wEntry["keys"].includes('.')) { setProperty(wEntry["keys"].toLowerCase().split(',').filter(element => element.includes('.')).map(element => element.trim()).join(''), wEntry["entry"], dataStorage) } })
         // Process child references before inserting the JSON lines.
         for (const data in dataStorage) {
             if (dataStorage[data].hasOwnProperty("child")) {
@@ -68,7 +51,6 @@ const modifier = (text) => {
                             if (element.includes('[')) {
                                 toCopy = element.replace(`[`, '').replace(`]`, '');
                                 finalParent = dataStorage[toCopy];
-                                dataStorage[data]["skip"] = true;
                                 break;
                             }
                             // If it's not a copy of an existing root, grab the entire branch.
@@ -81,26 +63,26 @@ const modifier = (text) => {
 
                 if (finalParent) {
                     // Do a risque move and merge synonyms together. 
-                    if (dataStorage['synonyms'].hasOwnProperty(data)) { finalParent['synonyms'] += ', ' + dataStorage['synonyms'][data]; }
-                    if (dataStorage[data].hasOwnProperty('synonyms')) { finalParent['synonyms'] += ', ' + dataStorage[data]['synonyms']; }
+                    if (dataStorage['synonyms'].hasOwnProperty(data)) { finalParent['synonyms'] = ', ' + dataStorage['synonyms'][data]; }
+                    if (dataStorage[data].hasOwnProperty('synonyms')) { finalParent['synonyms'] = ', ' + dataStorage[data]['synonyms']; }
                     // Merge the root, e.g tavern with tavern.children.nordfall; non-unique properties are over-written.
                     Object.assign(dataStorage[data], finalParent);
                 }
             }
 
-            if (!dataStorage[data].hasOwnProperty('skip')) {
-                lines.reverse().some(line => {
-                    const regEx = new RegExp('\\b' + data, 'gi');
-                    if (!line.includes('[') && (regEx.test(line) || getRootSynonyms(data).some(synonym => line.toLowerCase().includes(synonym)))) {
-                        // Stringify the dataStorage by displaying the whitelisted/contextual properties.
-                        const string = JSON.stringify(dataStorage[data], globalReplacer);
-                        // If it's not an empty JSON [{}] <-- 4 chars and none of the lines currently include the JSON (e.g when trying to display from unique and child)
-                        if (string.length > 4 && !lines.some(line => line.includes(string))) { lines.splice(lines.indexOf(line) + 1, 0, `[${JSON.stringify(dataStorage[data], globalReplacer)}]`) }
-                    }
-                });
-                // Reverse the line back into normal order.
-                lines.reverse();
-            }
+            // Reverse for .some() to hit last match instead of first.
+            lines.reverse().some(line => {
+                const regEx = new RegExp('\\b' + data, 'gi');
+                if (!line.includes('[') && (regEx.test(line) || getRootSynonyms(data).some(synonym => line.toLowerCase().includes(synonym)))) {
+                    // Stringify the dataStorage by displaying the whitelisted/contextual properties.
+                    const string = JSON.stringify(dataStorage[data], globalReplacer);
+                    // If it's not an empty JSON [{}] <-- 4 chars and none of the lines currently include the JSON (e.g when trying to display from unique and child)
+                    if (string.length > 4 && !lines.some(line => line.includes(string))) { lines.splice(lines.indexOf(line) + 1, 0, `[${JSON.stringify(dataStorage[data], globalReplacer)}]`) }
+                }
+            });
+            // Reverse the line back into normal order.
+            lines.reverse();
+         
 
         }
 
