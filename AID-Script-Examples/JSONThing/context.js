@@ -1,21 +1,5 @@
-// Define a property and assign its value by using World Information.
-// The element's keys are a dot notated path e.g john.character.name
-// The element's entry (e.g John) will be assigned as the value of the path's destination, in the above example that would result in 'name: John'
-
-// NOTE: Current issues are mainly optimization and quality-of-life related.
-// state.data does not need to, nor should it be, used for storage in this situation, but for debugging purposes it's handy to view them via it.
-// Storing the data, persistently, in state would have the benefit of not implicitly having to rebuild the objects on each turn, but ensuring ease-of-use for seamless updating would incur additional processing and code regardless.
-
-// const replacer should be reworked to properly display an Array value as Array instead of converting it (.toString()) in order to follow the philosophy of 'true JSON', although presenting it as a comma-separated string is permissable.
-// const replacer should also not present undefined properties, but implementing a straight-forward logic for that eludes the capacity of my smol brain.
-// The above issue arises when a synonym. definition attempts to trigger a property at the end of a branch containing some defined in addition to some undefined properties.
-// Example: john.reaction.war is defined while john.reaction.peace is undefined. When any of the synonym.peace definitions activate it will bring forth the john.reaction branch in an attempt to present the .peace value, but ends up presenting "nothing" ([{}])
-
-// Create a parent/child reference structure to localize properties without explicit synonyms. e.g if the situation takes place in nordfall.location then a generic tavern.location should pull the correct descriptor (Nordfall themed), assigning and depending on unique roots e.g 'The Frozen Nord' is too inconsistent and infeasable.
-// [{"location": "Nordfall"}] <--- Check a line matching a specific requirement, e.g a hidden property label such as nordfall.parent - true.
-// [{"location": "Tavern", "name": "The Frozen Nord", "yelp-five-star-ratings": 5}] <---  (pseudo) tavern.child - Nordfall; somehow attach it with endless combinations.
-// Create a hierachy within the generic root e.g tavern.child.nordfall then fetch additional properties and restructure the object with the child hierarchy.
-
+// TODO: Duplication prevention for child plus original match, hit most recent mention of the two.
+// Sanitize and convert the whitelist into an object for easier manipulation.
 const modifier = (text) => {
 
     let contextMemory = getMemory(text);
@@ -39,6 +23,11 @@ const modifier = (text) => {
                 let indexPos = -1;
                 let finalParent; // Measure the child properties against each other, the final/most recent mention becomes set as root.
 
+                // Successful detections, especially soft-copies of unique root, results in duplicate JSON line insertions.
+                // Comparing properties is insufficient as generic child inheritance does not equal child - e.g synonyms polution.
+                // Previous solution implemented a 'skip' property to 'finalParent' on assignment, but did not hit 'most recent' (first .some() match determined insertion).
+                // As Object is innumerable by default, relying on a specific order is infeasable without redundant sorting and recreation of key/value pairs.
+
                 for (let parentRoot in dataStorage[data]["child"]) {
                     // Check first for presence of root then fallback to presence of root.synonyms and fetch the highest value of synonyms.
                     const searchFor = parentRoot.replace(`[`, '').replace(`]`, '');
@@ -47,13 +36,13 @@ const modifier = (text) => {
                         indexPos = index;
                         let toCopy; // Find the first bracket-encapsulated property of parent e.g tavern.child.ironforge.[axar]
                         for (const element in dataStorage[data]["child"][searchFor]) {
-                            // Copies are indicated by bracket-encapsulation; look for a single presence of it then break out.
+                            // Copies are indicated by bracket-encapsulation; look for a single presence of root to copy then break out.
                             if (element.includes('[')) {
                                 toCopy = element.replace(`[`, '').replace(`]`, '');
                                 finalParent = dataStorage[toCopy];
                                 break;
                             }
-                            // If it's not a copy of an existing root, grab the entire branch.
+                            // If it's not a copy of an existing root, grab the entire branch from root.child[...]
                             else {
                                 finalParent = dataStorage[data]['child'][searchFor]
                             }
@@ -77,6 +66,7 @@ const modifier = (text) => {
                     // Stringify the dataStorage by displaying the whitelisted/contextual properties.
                     const string = JSON.stringify(dataStorage[data], globalReplacer);
                     // If it's not an empty JSON [{}] <-- 4 chars and none of the lines currently include the JSON (e.g when trying to display from unique and child)
+                    // Could potentially check for string duplicates per line, but order is an issue... compare indexes?
                     if (string.length > 4 && !lines.some(line => line.includes(string))) { lines.splice(lines.indexOf(line) + 1, 0, `[${JSON.stringify(dataStorage[data], globalReplacer)}]`) }
                 }
             });
@@ -89,7 +79,7 @@ const modifier = (text) => {
 
         const JSONLines = lines.filter(line => line.startsWith('['))
         const JSONString = JSONLines.join('\n');
-        const normalWorldEntries = worldEntries.filter(element => { if (!element["keys"].includes('.') && (!element["keys"].includes('whitelist'))) { return true } });
+        const normalWorldEntries = worldEntries.filter(element => { if (!element["keys"].includes('.') && (!element["keys"].includes(whitelistPath))) { return true } });
         //console.log(JSONString, normalWorldEntries)
         normalWorldEntries.forEach(element => element["keys"].split(',').some(keyword => { if (JSONString.toLowerCase().includes(keyword.toLowerCase()) && !text.includes(element["entry"])) { if (info.memoryLength + contextMemoryLength + element["entry"].length <= info.maxChars / 2) { memoryLines.splice(-1, 0, element["entry"]); contextMemoryLength += element["entry"].length + 1; return true; } } }))
 
