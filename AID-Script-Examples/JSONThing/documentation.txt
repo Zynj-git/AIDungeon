@@ -1,0 +1,55 @@
+JSONThing is a script that converts World Information entries that follow the syntax into Objects then inserts them as transient, trailing JSON- strings in context at the line before the corresponding root-word's most-recent mention.
+Features:
+    1) Transient, trailing JSON- lines at the 'most relevant' position.
+    2) Managable via World Information interface, JSON file importing and a suite of input commands.
+    3) Create and present situationally appropriate properties that activate on specific synonyms - permits deep-branching and association of words.
+    4) Attach 'child' properties to generic-roots to change the properties of the root Object in accordance to prerequisite roots.
+        Permits to present e.g 'tavern' as a different Object depending on whether you're refering to the tavern in location X, Y or Z.
+            e.g tavern.child.nordfall.[The Frozen Nord] will merge and overwrite the contents of 'the frozen nord' into 'tavern' itself if the parent, 'nordfall' exists in context.
+            Alternatively you can directly continue the branch with by assigning the key as tavern.child.nordfall.tavern.location and entry 'The Frozen Nord': sets 'tavern' to the hierarchy after 'nordfall'.
+            Synonyms for these paths and child/parent relations are merged for more versatile detection.
+        Unique roots, e.g highly defined characters can be assigned to a generic word by doing a copy of the unique root with e.g root.child.parent.[unique]
+
+Supplementary Commands:
+    Note: Additional information can be found by viewing the commandsList in SharedLibrary, in addition typing the command name, prefixed with '/' will display a pop-up explanation e.g '/set'
+    
+    '/set' sets the provided path/root to the provided value.
+        Syntax is '/set <root> <value> or /set <root>.<property> <value>'.
+        Omitting a value entails deletion of the property or Object.
+    
+    '/get' gets the information attached to the Object suplemented as an argument.
+        Syntax is '/get <root> or <root>.<property>'
+        The information is displayed in 'state.message' at the bottom of the screen, cluttered in the 'tutorial-messages'.
+    
+    '/whitelist' toggles the whitelisting of the provided argument.
+        Syntax '/whitelist <word> or <phrase>'.
+        If a word is present it becomes removed, else it's added.
+    
+    '/show' reveals all worldEntries starting with the provided argument.
+        Syntax '/show <root> or <root>.<path>'.
+        If you're doing bulk updating on a specific object, showing it and managing via the World Information interface might be quicker than repeating commands.
+    
+    '/hide' opposite of '/show', hides all worldEntries starting with the provided argument.
+        Syntax '/hide <root> or <root>.<path>'.
+        Hiding entries from the World Information interface will improve perfomance as less elements are rendered simultaneously.
+
+Components:
+    The Objects (JSON- lines) can be managed entirely via the World Information interface or the commands.
+    The script searches for World Entries that contain a dot '.' in their keys to mask it from the native detection system, thus object paths are dot-separated.
+    
+    Prelimenary requirements is the presence of an entry keyed 'whitelist.' that contains the name of properties that should always be visible if the property exists for the Object.
+        The 'whitelist.' entry should be populated with a comma-separated list of words/phrases.
+        Once defined, the whitelist can be managed via the /whitelist command to toggle on/off the whitelisting of words.
+        e.g /whitelist character will remove/assign it depending on whether it's already present or not.
+
+    If a property's name is omitted from the whitelist entry, it will not display unless assigned a 'synonyms.property' definition that contains a list of activation/detection phrases.
+    e.g if you wish for an 'outfit' property to only display at the mention of 'look at, outfit, attire, dress, shirt' etc. then populate an entry keyed 'synonyms.outfit' with those words (comma-separated).
+        As with other Objects, 'synonym.' declarations can be done via the /set command.
+        e.g /set synonyms.outfit look at, outfit, attire, dress
+    
+    All properties that begin with the same <root> (first word in the keys path) belong to the same Object.
+    e.g entries with keys 'john.character' and 'john.traits' are both assigned to state.data["john"] and results in state.data["john"] = {"character": "John", "traits": "Callous"}
+        The /set command can also be used to quickly declare properties and root objects.
+        /set john would either declare a new Object or empty an existing one.
+        You can directly write '/set john.character John' to define and assign the Object, to clear a property do e.g '/set john.character' - unassigned value entails deletion.
+
