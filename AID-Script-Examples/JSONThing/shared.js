@@ -8,8 +8,16 @@ state.config = {
     synonymsPath: 'synonyms',
     pathSymbol: '.'
 }
+
+if (!state.settings) 
+{
+    state.settings = {
+        entriesFromJSON: true,
+    }
+}
 console.log(`Turn: ${info.actionCount}`)
 
+let { entriesFromJSON } = state.settings;
 const { whitelistPath, synonymsPath, pathSymbol } = state.config;
 
 // Traverse the keys until we reach the destination, if a key on the path is assigned a value, convert it to an empty object to not interrupt the pathing.
@@ -113,6 +121,18 @@ state.commandList = {
                 const path = args.join('').trim().toLowerCase();
                 worldEntries.forEach(wEntry => { if (wEntry["keys"].startsWith(path)) { wEntry["isNotHidden"] = false; } })
                 state.message = `Hiding all entries starting with ${path} in World Information!`;
+            }
+    },
+    fromJSON:
+    {
+        name: 'fromJSON',
+        description: `Toggles fetching of World Information from JSON Lines: ${entriesFromJSON}`,
+        args: false,
+        execute:
+            (args) => {
+                
+                state.settings["entriesFromJSON"] = !state.settings["entriesFromJSON"];
+                state.message = `World Information from JSON Lines: ${entriesFromJSON}`
             }
     }
 };
