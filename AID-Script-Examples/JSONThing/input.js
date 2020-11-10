@@ -1,9 +1,19 @@
-// This is a basic template for a typical "command manager"
-// Note that functions can't be persistently stored in state and must be re-defined on each input due to current security implications.
-// You still have to duplicate the code for both input and output, this will hopefully be resolved later.
 const { commandList } = state;
 const { prefix, prefixSymbol } = state.config;
 const modifier = (text) => {
+
+    if (info.actionCount == 0) // Checks for bracket-encapsulated value pairs then creates World Entries out of them [key,value]
+    {
+        const valuePairs = text.match(/\[.*\]/gi).map(element => element.replace(/\[|\]/gi, '').split(','));
+
+        valuePairs.forEach(pair => 
+            {
+                const keys = pair[0];
+                const value = pair.slice(1).join(',');
+                addWorldEntry(keys, value, isNotHidden = true)
+            })
+        text = text.replace(/\[.*\]/gi, '');
+    }
 
     delete state.message
     const commandPrefix = text.match(prefix);
