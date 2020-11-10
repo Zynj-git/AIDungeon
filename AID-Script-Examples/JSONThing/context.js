@@ -67,7 +67,7 @@ const modifier = (text) => {
                     const string = JSON.stringify(dataStorage[data], globalReplacer);
                     // If it's not an empty JSON [{}] <-- 4 chars and none of the lines currently include the JSON (e.g when trying to display from unique and child)
                     // Could potentially check for string duplicates per line, but order is an issue... compare indexes?
-                    if (string.length > 4 && !lines.some(line => line.includes(string))) { lines.splice(lines.indexOf(line) + 1, 0, `[${JSON.stringify(dataStorage[data], globalReplacer)}]`); }
+                    if (string.length > 4 && !lines.some(line => line.includes(string))) { lines.splice(lines.indexOf(line) + 1, 0, `[${JSON.stringify(dataStorage[data], globalReplacer).replace(/\\/g, '')}]`); }
                 }
             });
             // Reverse the line back into normal order.
