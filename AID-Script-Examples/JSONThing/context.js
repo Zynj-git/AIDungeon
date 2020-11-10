@@ -2,6 +2,7 @@
 // Sanitize and convert the whitelist into an object for easier manipulation.
 const modifier = (text) => {
 
+    delete state.message
     let contextMemory = getMemory(text);
     let contextMemoryLength = 0;
     let context = getContext(text);
@@ -11,7 +12,6 @@ const modifier = (text) => {
     let modifiedContext = context.toLowerCase();
     //console.log(memoryLines)
 
-    // Loop through the previously defined properties in reverse order, then reverse again. Flip flop, *dab*.
     if (worldEntries.some(element => element["keys"].includes('.'))) {
         const globalWhitelist = [getWhitelist(), getContextualProperties(getHistoryString(-4)).flat()].flat()
         const globalReplacer = (name, val) => { if (globalWhitelist.some(element => element.includes(name)) && val) { return Array.isArray(val) ? val.join(', ') : val } else { return undefined } };
