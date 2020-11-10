@@ -1,4 +1,6 @@
 state.data = {} // Rebuild data from World Information, relatively intensive in comparison to persistent storage, but easier to manage.
+const dataStorage = state.data;
+
 state.config = {
     prefix: /^\n> You \/|^\n> You say "\/|^\/|^\n\//gi,
     prefixSymbol: '/',
@@ -9,7 +11,7 @@ state.config = {
 console.log(`Turn: ${info.actionCount}`)
 
 const { whitelistPath, synonymsPath, pathSymbol } = state.config;
-const dataStorage = state.data;
+
 // Traverse the keys until we reach the destination, if a key on the path is assigned a value, convert it to an empty object to not interrupt the pathing.
 const getKey = (keys, obj) => { return keys.split('.').reduce((a, b) => { if (typeof a[b] != "object") { a[b] = {} } if (!a.hasOwnProperty(b)) { a[b] = {} } return a && a[b] }, obj) }
 const getHistoryString = (turns) => history.slice(turns).map(element => element["text"]).join(' ') // Returns a single string of the text.
