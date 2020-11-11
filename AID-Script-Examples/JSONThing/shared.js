@@ -3,7 +3,7 @@ const dataStorage = state.data;
 
 if (!state.settings) {state.settings = {}}
 // If key (setting[0]) is not in state.settings, initiate it with setting[1] as default value.
-const initSettings = [['entriesFromJSON', true]]
+const initSettings = [['entriesFromJSON', true], ['filter', false]]
 initSettings.forEach(setting => {if (!Object.keys(state.settings).includes(setting[0])) { state.settings[setting[0]] = setting[1] }})
 
 state.config = {
@@ -126,14 +126,24 @@ state.commandList = {
     fromJSON:
     {
         name: 'fromJSON',
-        description: `Toggles fetching of World Information from JSON Lines: ${entriesFromJSON}`,
+        description: `Toggles fetching of World Information from JSON Lines: ${state.settings["entriesFromJSON"]}`,
         args: false,
         execute:
             (args) => {
                 
-                state.settings["entriesFromJSON"] = !entriesFromJSON;
-                entriesFromJSON = !entriesFromJSON;
-                state.message = `World Information from JSON Lines: ${entriesFromJSON}`
+                state.settings["entriesFromJSON"] = !state.settings["entriesFromJSON"];
+                state.message = `World Information from JSON Lines: ${state.settings["entriesFromJSON"]}`
+            }
+    },
+    filter:
+    {
+        name: 'filter',
+        description: `Toggles the filtering of quotation and curly-brackets within JSON lines: ${state.settings["filter"]}\nSaves character count, but may have detrimental effects.`,
+        args: false,
+        execute:
+            (args) => {
+                state.settings["filter"] = !state.settings["filter"];
+                state.message = `'"{}' filter set to ${state.settings["filter"]}`
             }
     }
 };

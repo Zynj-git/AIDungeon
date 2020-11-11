@@ -71,10 +71,11 @@ const modifier = (text) => {
                 const regEx = new RegExp('\\b' + finalWord, 'gi');
                 if (!line.includes('[') && regEx.test(line)) {
                     // Stringify the dataStorage by displaying the whitelisted/contextual properties.
-                    const string = JSON.stringify(dataStorage[data], globalReplacer);
+                    let string = JSON.stringify(dataStorage[data], globalReplacer).replace(/\\/g, '');
+                    if (state.settings["filter"]) {string = string.replace(/"|{|}/g, '')}
                     // If it's not an empty JSON [{}] <-- 4 chars and none of the lines currently include the JSON (e.g when trying to display from unique and child)
                     // Could potentially check for string duplicates per line, but order is an issue... compare indexes?
-                    if (string.length > 4 && !lines.some(line => line.includes(string))) { lines.splice(lines.indexOf(line) + 1, 0, `[${JSON.stringify(dataStorage[data], globalReplacer).replace(/\\/g, '')}]`); return true;}
+                    if (string.length > 4 && !lines.some(line => line.includes(string))) { lines.splice(lines.indexOf(line) + 1, 0, `[${string}]`); return true;}
                 }
             });
         }
@@ -83,7 +84,7 @@ const modifier = (text) => {
 
         const JSONLines = lines.filter(line => line.startsWith('['))
         const JSONString = JSONLines.join('\n');
-        if (entriesFromJSON) {const normalWorldEntries = worldEntries.filter(element => { if (!element["keys"].includes('.') && (!element["keys"].includes(whitelistPath))) { return true } }); normalWorldEntries.forEach(element => element["keys"].split(',').some(keyword => { if (JSONString.toLowerCase().includes(keyword.toLowerCase()) && !text.includes(element["entry"])) { if (info.memoryLength + contextMemoryLength + element["entry"].length <= info.maxChars / 2) { memoryLines.splice(-1, 0, element["entry"]); contextMemoryLength += element["entry"].length + 1; return true; } } })) }
+        if (state.settings["entriesFromJSON"]) {const normalWorldEntries = worldEntries.filter(element => { if (!element["keys"].includes('.') && (!element["keys"].includes(whitelistPath))) { return true } }); normalWorldEntries.forEach(element => element["keys"].split(',').some(keyword => { if (JSONString.toLowerCase().includes(keyword.toLowerCase()) && !text.includes(element["entry"])) { if (info.memoryLength + contextMemoryLength + element["entry"].length <= info.maxChars / 2) { memoryLines.splice(-1, 0, element["entry"]); contextMemoryLength += element["entry"].length + 1; return true; } } })) }
         // Uncommenting this line adds 'actionized' properties to the fore-front of context to have them directly affect the outcome. Should not be necessary, but may improve outcomes in certain situations. Feel free to experiment with it. If a property is not whitelisted, it's required to have a synonyms. definition to show.
         //getHistoryString(-1).split(' ').reverse().some(word => { for (const data in dataStorage) {if (word.toLowerCase().includes(data)) { JSON.stringify(dataStorage[data], localReplacer).length > 2 ? lines.splice(lines.length, 0, `\n> [${JSON.stringify(dataStorage[data], localReplacer)}]\n`) : {} ; return true}}})
     }
