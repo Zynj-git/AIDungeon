@@ -45,12 +45,12 @@ function importValuesFromRange(values)
   const masterWorldEntryDict = []
   for (let j = 1; j < values.length; j++)
   {
-    if ((values[j][0] && values[j][1])) // We want to ignore pairs that are incomplete (With the new setup we also need to ignore instances where the value is 'keys' since we are feeding it the entire range of values from all the sheets at once)
+    if (values[j][0] && values[j][1]) // We want to ignore pairs that are incomplete (With the new setup we also need to ignore instances where the value is 'keys' since we are feeding it the entire range of values from all the sheets at once)
     {
       const worldEntryDict = {};
       worldEntryDict["keys"] = values[j][0];
       worldEntryDict["entry"] = values[j][1]; 
-      worldEntryDict['isNotHidden'] = values[j][2] ? false : true;
+      worldEntryDict['isNotHidden'] = values[j][2].toString() ? values[j][2] : true;
       worldEntryDict['id'] = values[j][3];
       masterWorldEntryDict.push(worldEntryDict)
     }
