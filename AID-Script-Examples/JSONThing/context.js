@@ -19,6 +19,7 @@ const modifier = (text) => {
         const localReplacer = (name, val) => { if (localWhitelist.some(element => element.includes(name)) && val) { return Array.isArray(val) ? val.join(', ') : val } else { return undefined } };
         // Process child references before inserting the JSON lines.
         
+        // Reverse lines to hit last match instead of first.
         lines.reverse()
         for (const data in dataStorage) {
             if (dataStorage[data].hasOwnProperty("child")) {
@@ -62,23 +63,23 @@ const modifier = (text) => {
                 }
             }
 
-            // Reverse for .some() to hit last match instead of first.
-            lines.some(line => {
-                const regEx = new RegExp('\\b' + data, 'gi');
-                if (!line.includes('[') && (regEx.test(line) || getRootSynonyms(data).some(synonym => line.toLowerCase().includes(synonym)))) {
+            // Correctly (🤔) find the most recent match between synonyms and child copies.
+            let finalIndex = -1; let finalWord; const checkWords = [...[data], ...getRootSynonyms(data)]; checkWords.forEach(word => { const index = modifiedContext.lastIndexOf(word.toLowerCase()); if (index > finalIndex) {finalIndex = index; finalWord = word;}})
+            //console.log(`Check: ${checkWords}| Final: ${finalWord}`)
+            // Insertion of JSON lines at last match.
+            lines.some(line => {   
+                const regEx = new RegExp('\\b' + finalWord, 'gi');
+                if (!line.includes('[') && regEx.test(line)) {
                     // Stringify the dataStorage by displaying the whitelisted/contextual properties.
                     const string = JSON.stringify(dataStorage[data], globalReplacer);
                     // If it's not an empty JSON [{}] <-- 4 chars and none of the lines currently include the JSON (e.g when trying to display from unique and child)
                     // Could potentially check for string duplicates per line, but order is an issue... compare indexes?
-                    if (string.length > 4 && !lines.some(line => line.includes(string))) { lines.splice(lines.indexOf(line) + 1, 0, `[${JSON.stringify(dataStorage[data], globalReplacer).replace(/\\/g, '')}]`); }
+                    if (string.length > 4 && !lines.some(line => line.includes(string))) { lines.splice(lines.indexOf(line) + 1, 0, `[${JSON.stringify(dataStorage[data], globalReplacer).replace(/\\/g, '')}]`); return true;}
                 }
             });
-            // Reverse the line back into normal order.
-           
-         
-
         }
-        lines.reverse();
+        // Reverse the line back into normal order.
+        lines.reverse(); 
 
         const JSONLines = lines.filter(line => line.startsWith('['))
         const JSONString = JSONLines.join('\n');
