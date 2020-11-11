@@ -18,6 +18,8 @@ const modifier = (text) => {
         const localWhitelist = getContextualProperties(getHistoryString(-1)).flat();
         const localReplacer = (name, val) => { if (localWhitelist.some(element => element.includes(name)) && val) { return Array.isArray(val) ? val.join(', ') : val } else { return undefined } };
         // Process child references before inserting the JSON lines.
+        
+        lines.reverse()
         for (const data in dataStorage) {
             if (dataStorage[data].hasOwnProperty("child")) {
                 let indexPos = -1;
@@ -52,15 +54,16 @@ const modifier = (text) => {
 
                 if (finalParent) {
                     // Do a risque move and merge synonyms together. 
-                    if (dataStorage['synonyms'].hasOwnProperty(data)) { finalParent['synonyms'] = ', ' + dataStorage['synonyms'][data]; }
-                    if (dataStorage[data].hasOwnProperty('synonyms')) { finalParent['synonyms'] = ', ' + dataStorage[data]['synonyms']; }
+                    finalParent['synonyms'] ? finalParent['synonyms'] += data : finalParent['synonyms'] = data;
+                    if (dataStorage['synonyms'].hasOwnProperty(data)) { finalParent['synonyms'] += ', ' + dataStorage['synonyms'][data]; }
+                    if (dataStorage[data].hasOwnProperty('synonyms')) { finalParent['synonyms'] += ', ' + dataStorage[data]['synonyms']; }
                     // Merge the root, e.g tavern with tavern.children.nordfall; non-unique properties are over-written.
                     Object.assign(dataStorage[data], finalParent);
                 }
             }
 
             // Reverse for .some() to hit last match instead of first.
-            lines.reverse().some(line => {
+            lines.some(line => {
                 const regEx = new RegExp('\\b' + data, 'gi');
                 if (!line.includes('[') && (regEx.test(line) || getRootSynonyms(data).some(synonym => line.toLowerCase().includes(synonym)))) {
                     // Stringify the dataStorage by displaying the whitelisted/contextual properties.
@@ -71,11 +74,11 @@ const modifier = (text) => {
                 }
             });
             // Reverse the line back into normal order.
-            lines.reverse();
+           
          
 
         }
-
+        lines.reverse();
 
         const JSONLines = lines.filter(line => line.startsWith('['))
         const JSONString = JSONLines.join('\n');
