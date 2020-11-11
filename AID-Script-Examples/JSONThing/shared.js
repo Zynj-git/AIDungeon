@@ -1,6 +1,11 @@
 state.data = {} // Rebuild data from World Information, relatively intensive in comparison to persistent storage, but easier to manage.
 const dataStorage = state.data;
 
+if (!state.settings) {state.settings = {}}
+// If key (setting[0]) is not in state.settings, initiate it with setting[1] as default value.
+const initSettings = [['entriesFromJSON', true]]
+initSettings.forEach(setting => {if (!Object.keys(state.settings).includes(setting[0])) { state.settings[setting[0]] = setting[1] }})
+
 state.config = {
     prefix: /^\n> You \/|^\n> You say "\/|^\/|^\n\//gi,
     prefixSymbol: '/',
@@ -9,12 +14,7 @@ state.config = {
     pathSymbol: '.'
 }
 
-if (!state.settings) 
-{
-    state.settings = {
-        entriesFromJSON: true,
-    }
-}
+
 console.log(`Turn: ${info.actionCount}`)
 
 let { entriesFromJSON } = state.settings;
@@ -131,7 +131,8 @@ state.commandList = {
         execute:
             (args) => {
                 
-                state.settings["entriesFromJSON"] = !state.settings["entriesFromJSON"];
+                state.settings["entriesFromJSON"] = !entriesFromJSON;
+                entriesFromJSON = !entriesFromJSON;
                 state.message = `World Information from JSON Lines: ${entriesFromJSON}`
             }
     }
