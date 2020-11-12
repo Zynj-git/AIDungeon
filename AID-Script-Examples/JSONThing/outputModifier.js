@@ -6,10 +6,10 @@ const modifier = (text) => {
         state.generate.process = false;
         const string = state.generate.primer + text;
         console.log(string)
-        const toParse = string.match(/{.*}/)[0];
+        const toParse = string.match(/{.*}/);
         if (toParse)
         {
-            const obj = JSON.parse(toParse);
+            const obj = JSON.parse(toParse[0]);
             worldEntriesFromObject(obj, state.generate.root);
             console.log(obj);
             state.message = `Generated Object for ${state.generate.root} as type ${state.generate.type}\nResult: ${JSON.stringify(obj)}`

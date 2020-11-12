@@ -1,5 +1,5 @@
 state.data = {} // Rebuild data from World Information, relatively intensive in comparison to persistent storage, but easier to manage.
-const dataStorage = state.data;
+let dataStorage = state.data;
 
 if (!state.generate) {state.generate = {}}
 if (!state.settings) {state.settings = {}}
@@ -24,7 +24,10 @@ const { whitelistPath, synonymsPath, pathSymbol } = state.config;
 // Traverse the keys until we reach the destination, if a key on the path is assigned a value, convert it to an empty object to not interrupt the pathing.
 //https://stackoverflow.com/questions/61681176/json-stringify-replacer-how-to-get-full-path
 const worldEntriesFromObject = (obj, root) => { function replacerWithPath(replacer) { let m = new Map(); return function(field, value) { let path= m.get(this) + (Array.isArray(this) ? `[${field}]` : '.' + field); if (value===Object(value)) m.set(value, path); return replacer.call(this, field, value, path.replace(/undefined\.\.?/,'')); } } JSON.stringify(obj, replacerWithPath(function(field, value, path) { if (typeof value != 'object') { let index = worldEntries.findIndex(element => element["keys"] == path); index >= 0 ? updateWorldEntry(index, `${root}.${path}`, value, isNotHidden = true) : addWorldEntry(`${root}.${path}`, value, isNotHidden = true); } return value; })); }
-const sortJSON = (string) => { const order = getWhitelist(); const regEx = /{|}|"/gi; string = string.split('",').sort((a, b) => order.indexOf(a.replace(regEx, '').split(':')[0]) - order.indexOf(b.replace(regEx, '').split(':')[0])); return string.join('",') }
+
+//const sortJSON = (string) => { const order = [getWhitelist(), getContextualProperties(getHistoryString(-4)).flat()].flat(); const regEx = /{|}|"/gi; string = string.split('",').sort((a, b) => order.indexOf(a.replace(regEx, '').trim().split(':')[0]) - order.indexOf(b.replace(regEx, '').trim().split(':')[0])); return string.join('",') }
+//const sortObject = (obj) => { const order = getWhitelist(); return Object.keys(obj).sort((a, b) => { order.indexOf(a) - order.indexOf(b) }).reduce((res, key) => (res[key] = obj[key], res), {})};
+
 const getKey = (keys, obj) => { return keys.split('.').reduce((a, b) => { if (typeof a[b] != "object") { a[b] = {} } if (!a.hasOwnProperty(b)) { a[b] = {} } return a && a[b] }, obj) }
 const getHistoryString = (turns) => history.slice(turns).map(element => element["text"]).join(' ') // Returns a single string of the text.
 const getMemory = (text) => { return info.memoryLength ? text.slice(0, info.memoryLength) : '' }

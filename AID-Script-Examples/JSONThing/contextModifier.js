@@ -13,7 +13,12 @@ const modifier = (text) => {
 
     if (worldEntries.some(element => element["keys"].includes('.'))) {
         const globalWhitelist = [getWhitelist(), getContextualProperties(getHistoryString(-4)).flat()].flat()
-        const globalReplacer = (name, val) => { if (globalWhitelist.some(element => element.includes(name)) && val) { return Array.isArray(val) ? val.join(', ') : val } else { return undefined } };
+        function globalReplacer (key, value) {
+            if (value == null || value.constructor != Object) {
+              return value
+            }
+            return Object.keys(value).sort((a, b) => globalWhitelist.indexOf(a) - globalWhitelist.indexOf(b)).filter(element => globalWhitelist.includes(element)).reduce((s,k) => {s[k] = value[k]; return s}, {})
+          }
         const localWhitelist = getContextualProperties(getHistoryString(-1)).flat();
         const localReplacer = (name, val) => { if (localWhitelist.some(element => element.includes(name)) && val) { return Array.isArray(val) ? val.join(', ') : val } else { return undefined } };
         // Process child references before inserting the JSON lines.
@@ -28,14 +33,14 @@ const modifier = (text) => {
                 const rootHistory = getHistoryString(-100).split('.').filter(sentence => sentence.toLowerCase().includes(root.toLowerCase())).join('.').trim();
                 let exampleLength = 0;
                 let exampleString = `--\nObject representation for ${type}s:\n`;
-                let focusContext = rootHistory.slice(-exampleLength)
+                let focusContext = rootHistory.slice(-(info.maxChars) - (exampleLength-stored.length))
                 
                 //console.log(stored)
                 for (data in dataStorage) 
                 { 
                     if (dataStorage[data].hasOwnProperty(type.toLowerCase())) 
                     { 
-                        const string = sortJSON(JSON.stringify(dataStorage[data], getWhitelist()).replace(/\\/g, ''));
+                        const string = JSON.stringify(dataStorage[data], globalReplacer).replace(/\\/g, '');
                         if (string.length + exampleLength <= 1000)
                         {
                             exampleLength += string.length;
@@ -45,9 +50,9 @@ const modifier = (text) => {
                 }
 
                 
-                exampleString += `--\n${focusContext}\n--\nObject representation for ${type} ${root}:\n${state.generate.primer}` 
+                exampleString += `--\nInformation about ${type} ${root}:\n${focusContext}\n--\nObject representation for ${type} ${root}:\n${state.generate.primer}` 
                 
-                //console.log(`Final Text: ${stored.length + exampleString.length}`, `Max Text: ${info.maxChars}`, `MemoryLength: ${info.memoryLength + contextMemoryLength}`)
+                console.log(`Final Text: ${stored.length + exampleString.length}`, `Max Text: ${info.maxChars}`, `MemoryLength: ${info.memoryLength + contextMemoryLength}`)
                 
                 return {text: stored + '\n' + exampleString}
             }
@@ -93,7 +98,7 @@ const modifier = (text) => {
 
                 if (finalParent) {
                     // Do a risque move and merge synonyms together. 
-                    finalParent['synonyms'] ? finalParent['synonyms'] += data + ', ' + finalParentName : finalParent['synonyms'] = data + ', ' + finalParentName;
+                    finalParent['synonyms'] ? finalParent['synonyms'] += ',' + data + ', ' + finalParentName : finalParent['synonyms'] = data + ', ' + finalParentName;
                     if (dataStorage['synonyms'].hasOwnProperty(data)) { finalParent['synonyms'] += ', ' + dataStorage['synonyms'][data]; }
                     if (dataStorage[data].hasOwnProperty('synonyms')) { finalParent['synonyms'] += ', ' + dataStorage[data]['synonyms']; }
                     // Merge the root, e.g tavern with tavern.children.nordfall; non-unique properties are over-written.
@@ -102,14 +107,15 @@ const modifier = (text) => {
             }
 
             // Correctly (🤔) find the most recent match between synonyms and child copies.
-            //console.log(`Check: ${checkWords}| Final: ${finalWord}`)
+            
             // Insertion of JSON lines at last match.
             let finalIndex = -1; let finalWord; const checkWords = [...[data], ...getRootSynonyms(data)]; checkWords.forEach(word => { const index = modifiedContext.lastIndexOf(word.toLowerCase()); if (index > finalIndex) { finalIndex = index; finalWord = word; } })
+            console.log(`Check: ${checkWords}| Final: ${finalWord}`)
             lines.some(line => {
                 const regEx = new RegExp('\\b' + finalWord, 'gi');
                 if (!line.includes('[') && regEx.test(line)) {
                     // Stringify the dataStorage by displaying the whitelisted/contextual properties.
-                    let string = sortJSON(JSON.stringify(dataStorage[data], globalReplacer).replace(/\\/g, ''));
+                    let string = JSON.stringify(dataStorage[data], globalReplacer).replace(/\\/g, '');
                     if (state.settings["filter"]) { string = string.replace(/"|{|}/g, '') }
                     // If it's not an empty JSON [{}] <-- 4 chars and none of the lines currently include the JSON (e.g when trying to display from unique and child)
                     // Could potentially check for string duplicates per line, but order is an issue... compare indexes?
