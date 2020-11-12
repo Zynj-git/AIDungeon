@@ -2,7 +2,7 @@ const modifier = (text) => {
 
     let modifiedText = text.toLowerCase();
 
-    if (state.generate.primer) {
+    if (state.generate.process && state.generate.primer) {
         const string = state.generate.primer + text;
         const toParse = string.match(/{.*}/)[0];
         const obj = JSON.parse(toParse);
