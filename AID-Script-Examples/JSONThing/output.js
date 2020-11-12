@@ -2,7 +2,7 @@ const modifier = (text) => {
 
     let modifiedText = text.toLowerCase();
 
-    if (state.generate.process && state.generate.primer) {
+    if (state.generate && state.generate.process && state.generate.primer) {
         state.generate.process = false;
         const string = state.generate.primer + text;
         console.log(string)
