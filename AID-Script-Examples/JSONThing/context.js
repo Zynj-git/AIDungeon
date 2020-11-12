@@ -24,14 +24,14 @@ const modifier = (text) => {
             if (state.generate.process)
             {
                 const { root, type } = state.generate;
-                const stored = context.substring(0, 0.2 * context.length)
+                const stored = context.substring(0, 0.25 * context.length)
                 const rootHistory = getHistoryString(-100).split('.').filter(sentence => sentence.toLowerCase().includes(root.toLowerCase())).join('.').trim();
-                let focusContext = rootHistory.slice(-(info.maxChars -1000))
+                let focusContext = rootHistory.slice(-1000)
 
                 let exampleLength = 0;
                 let exampleString = `--\nObject representation for ${type}s:\n`;
                 
-                console.log(stored)
+                //console.log(stored)
                 for (data in dataStorage) 
                 { 
                     if (dataStorage[data].hasOwnProperty(type.toLowerCase())) 
@@ -47,8 +47,8 @@ const modifier = (text) => {
 
                 
                 exampleString += `--\n${focusContext}\n--\nObject representation for ${type} ${root}:\n${state.generate.primer}` 
-                state.generate.process = false;
-                console.log(`Final Text: ${stored.length + exampleString.length}`, `Max Text: ${info.maxChars}`, `MemoryLength: ${info.memoryLength + contextMemoryLength}`)
+                
+                //console.log(`Final Text: ${stored.length + exampleString.length}`, `Max Text: ${info.maxChars}`, `MemoryLength: ${info.memoryLength + contextMemoryLength}`)
                 
                 return {text: stored + '\n' + exampleString}
             }
