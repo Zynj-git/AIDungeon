@@ -110,9 +110,10 @@ const modifier = (text) => {
             
             // Insertion of JSON lines at last match.
             let finalIndex = -1; let finalWord; const checkWords = [...[data], ...getRootSynonyms(data)]; checkWords.forEach(word => { const index = modifiedContext.lastIndexOf(word.toLowerCase()); if (index > finalIndex) { finalIndex = index; finalWord = word; } })
+            const regEx = new RegExp('\\b' + finalWord, 'gi');
             console.log(`Check: ${checkWords}| Final: ${finalWord}`)
             lines.some(line => {
-                const regEx = new RegExp('\\b' + finalWord, 'gi');
+                
                 if (!line.includes('[') && regEx.test(line)) {
                     // Stringify the dataStorage by displaying the whitelisted/contextual properties.
                     let string = JSON.stringify(dataStorage[data], globalReplacer).replace(/\\/g, '');
@@ -138,7 +139,7 @@ const modifier = (text) => {
 
 
     let combinedMemory = memoryLines.join('\n').replace(/\n$/, "");
-    let combinedLines = lines.join('\n').slice(-(info.maxChars - info.memoryLength - contextMemoryLength)).replace(/\n$/, "").replace(/\]\n\[/g, '][').replace(/^[^\[]*.]/g, ''); // Last replace to merge stacking JSON lines into one - experimental, might be bad.
+    let combinedLines = lines.join('\n').replace(/\n$/, "").replace(/\]\n\[/g, '][').replace(/^[^\[]*.]/g, '').slice(-(info.maxChars - info.memoryLength - contextMemoryLength)); // Last replace to merge stacking JSON lines into one - experimental, might be bad.
     // Lazy patchwork to """fix""" linebreak spam.
     //while (combinedLines.includes('\n\n')) { combinedLines = combinedLines.replace('\n\n', '\n') }
     const finalText = [combinedMemory, combinedLines].join("\n")
