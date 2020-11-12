@@ -26,10 +26,9 @@ const modifier = (text) => {
                 const { root, type } = state.generate;
                 const stored = context.substring(0, 0.25 * context.length)
                 const rootHistory = getHistoryString(-100).split('.').filter(sentence => sentence.toLowerCase().includes(root.toLowerCase())).join('.').trim();
-                let focusContext = rootHistory.slice(-1000)
-
                 let exampleLength = 0;
                 let exampleString = `--\nObject representation for ${type}s:\n`;
+                let focusContext = rootHistory.slice(-exampleLength)
                 
                 //console.log(stored)
                 for (data in dataStorage) 

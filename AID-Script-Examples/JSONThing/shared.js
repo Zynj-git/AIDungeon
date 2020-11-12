@@ -1,6 +1,7 @@
 state.data = {} // Rebuild data from World Information, relatively intensive in comparison to persistent storage, but easier to manage.
 const dataStorage = state.data;
 
+if (!state.generate) {state.generate = {}}
 if (!state.settings) {state.settings = {}}
 // If key (setting[0]) is not in state.settings, initiate it with setting[1] as default value.
 const initSettings = [['entriesFromJSON', true], ['filter', false]]
@@ -21,6 +22,8 @@ let { entriesFromJSON } = state.settings;
 const { whitelistPath, synonymsPath, pathSymbol } = state.config;
 
 // Traverse the keys until we reach the destination, if a key on the path is assigned a value, convert it to an empty object to not interrupt the pathing.
+//https://stackoverflow.com/questions/61681176/json-stringify-replacer-how-to-get-full-path
+const worldEntriesFromObject = (obj, root) => { function replacerWithPath(replacer) { let m = new Map(); return function(field, value) { let path= m.get(this) + (Array.isArray(this) ? `[${field}]` : '.' + field); if (value===Object(value)) m.set(value, path); return replacer.call(this, field, value, path.replace(/undefined\.\.?/,'')); } } JSON.stringify(obj, replacerWithPath(function(field, value, path) { if (typeof value != 'object') { let index = worldEntries.findIndex(element => element["keys"] == path); index >= 0 ? updateWorldEntry(index, `${root}.${path}`, value, isNotHidden = true) : addWorldEntry(`${root}.${path}`, value, isNotHidden = true); } return value; })); }
 const sortJSON = (string) => { const order = getWhitelist(); const regEx = /{|}|"/gi; string = string.split('",').sort((a, b) => order.indexOf(a.replace(regEx, '').split(':')[0]) - order.indexOf(b.replace(regEx, '').split(':')[0])); return string.join('",') }
 const getKey = (keys, obj) => { return keys.split('.').reduce((a, b) => { if (typeof a[b] != "object") { a[b] = {} } if (!a.hasOwnProperty(b)) { a[b] = {} } return a && a[b] }, obj) }
 const getHistoryString = (turns) => history.slice(turns).map(element => element["text"]).join(' ') // Returns a single string of the text.
@@ -156,14 +159,14 @@ state.commandList = {
         execute:
             (args) => {
 
-                state.generate = {}
                 state.generate.root = args[0];
                 state.generate.type = args.slice(1).join(' ');
                 state.generate.process = true;
                 state.generate.primer = `{"${ state.generate.type}": "${state.generate.root}",`
                 state.stop = false;
-                state.message = `Generating Object for ${state.generate.root} as type ${state.generate.type}`
+                
 
             }
     }
 };
+

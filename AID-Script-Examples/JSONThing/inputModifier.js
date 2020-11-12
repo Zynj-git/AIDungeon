@@ -4,15 +4,17 @@ const modifier = (text) => {
 
     if (info.actionCount == 0) // Checks for bracket-encapsulated value pairs then creates World Entries out of them [key,value]
     {
-        const valuePairs = text.match(/\[.*\]/gi).map(element => element.replace(/\[|\]/gi, '').split(','));
+        const match = text.match(/\[.*\]/gi)
 
-        valuePairs.forEach(pair => 
-            {
+        if (match) {
+            const valuePairs = match.map(element => element.replace(/\[|\]/gi, '').split(','));
+            valuePairs.forEach(pair => {
                 const keys = pair[0];
                 const value = pair.slice(1).join(',');
                 addWorldEntry(keys, value, isNotHidden = true)
             })
-        text = text.replace(/\[.*\]/gi, '');
+            text = text.replace(/\[.*\]/gi, '');
+        }
     }
 
     state.stop = true;
@@ -22,7 +24,7 @@ const modifier = (text) => {
     if (commandPrefix && commandPrefix[0]) {
         //state.message = `Text startsWith: ${commandPrefix[0]}`;
         const args = text.slice(commandPrefix[0].length).replace(/"\n$|.\n$/, '').split(/ +/); // Create a list of the words provided, remove symbols from pre-processing polution.
-        
+
         const commandName = args.shift().replace(/\W*/gi, ''); // Fetch and remove the actual command from the list.
         if (!(commandName in commandList)) { state.message = "Invalid Command!"; return { text: '', stop: true }; }
         const command = commandList[commandName];
