@@ -29,7 +29,7 @@ const modifier = (text) => {
             if (state.generate.process)
             {
                 const { root, type } = state.generate;
-                const stored = context.substring(0, 0.25 * context.length)
+                const stored = context.substring(0, 0.4 * context.length).trim()
                 const rootHistory = getHistoryString(-100).split('.').filter(sentence => sentence.toLowerCase().includes(root.toLowerCase())).join('.').trim();
                 let exampleLength = 0;
                 let exampleString = `--\nObject representation for ${type}s:\n`;
