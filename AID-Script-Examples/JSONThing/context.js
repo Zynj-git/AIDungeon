@@ -1,7 +1,6 @@
 // TODO: Duplication prevention for child plus original match, hit most recent mention of the two.
 // Sanitize and convert the whitelist into an object for easier manipulation.
 const modifier = (text) => {
-
     delete state.message
     let contextMemory = getMemory(text);
     let contextMemoryLength = 0;
@@ -19,6 +18,45 @@ const modifier = (text) => {
         const localReplacer = (name, val) => { if (localWhitelist.some(element => element.includes(name)) && val) { return Array.isArray(val) ? val.join(', ') : val } else { return undefined } };
         // Process child references before inserting the JSON lines.
 
+        // Filter out lines not mentioning root except first 20% of characters, then bring in up to ten examples or a max of 1000 characters; leaves 1772 characters for contextual details.
+        if (state.generate)
+        {
+            if (state.generate.process)
+            {
+                const { root, type } = state.generate;
+                const stored = context.substring(0, 0.2 * context.length)
+                const rootHistory = getHistoryString(-100).split('.').filter(sentence => sentence.toLowerCase().includes(root.toLowerCase())).join('.').trim();
+                let focusContext = rootHistory.slice(-(info.maxChars -1000))
+
+                let exampleLength = 0;
+                let exampleString = `--\nObject representation for ${type}s:\n`;
+                
+                console.log(stored)
+                for (data in dataStorage) 
+                { 
+                    if (dataStorage[data].hasOwnProperty(type.toLowerCase())) 
+                    { 
+                        const string = sortJSON(JSON.stringify(dataStorage[data], getWhitelist()).replace(/\\/g, ''));
+                        if (string.length + exampleLength <= 1000)
+                        {
+                            exampleLength += string.length;
+                            exampleString += string + '\n';
+                        }
+                    }
+                }
+
+                
+                exampleString += `--\n${focusContext}\n--\nObject representation for ${type} ${root}:\n${state.generate.primer}` 
+                state.generate.process = false;
+                console.log(`Final Text: ${stored.length + exampleString.length}`, `Max Text: ${info.maxChars}`, `MemoryLength: ${info.memoryLength + contextMemoryLength}`)
+                
+                return {text: stored + '\n' + exampleString}
+            }
+        }
+
+
+
+        ///////////////////////// END OF GENERATION ////////////////
         // Reverse lines to hit last match instead of first.
         lines.reverse()
         for (const data in dataStorage) {
@@ -72,7 +110,7 @@ const modifier = (text) => {
                 const regEx = new RegExp('\\b' + finalWord, 'gi');
                 if (!line.includes('[') && regEx.test(line)) {
                     // Stringify the dataStorage by displaying the whitelisted/contextual properties.
-                    let string = JSON.stringify(dataStorage[data], globalReplacer).replace(/\\/g, '');
+                    let string = sortJSON(JSON.stringify(dataStorage[data], globalReplacer).replace(/\\/g, ''));
                     if (state.settings["filter"]) { string = string.replace(/"|{|}/g, '') }
                     // If it's not an empty JSON [{}] <-- 4 chars and none of the lines currently include the JSON (e.g when trying to display from unique and child)
                     // Could potentially check for string duplicates per line, but order is an issue... compare indexes?

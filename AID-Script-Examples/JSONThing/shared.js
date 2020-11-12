@@ -21,6 +21,7 @@ let { entriesFromJSON } = state.settings;
 const { whitelistPath, synonymsPath, pathSymbol } = state.config;
 
 // Traverse the keys until we reach the destination, if a key on the path is assigned a value, convert it to an empty object to not interrupt the pathing.
+const sortJSON = (string) => { const order = getWhitelist(); const regEx = /{|}|"/gi; string = string.split('",').sort((a, b) => order.indexOf(a.replace(regEx, '').split(':')[0]) - order.indexOf(b.replace(regEx, '').split(':')[0])); return string.join('",') }
 const getKey = (keys, obj) => { return keys.split('.').reduce((a, b) => { if (typeof a[b] != "object") { a[b] = {} } if (!a.hasOwnProperty(b)) { a[b] = {} } return a && a[b] }, obj) }
 const getHistoryString = (turns) => history.slice(turns).map(element => element["text"]).join(' ') // Returns a single string of the text.
 const getMemory = (text) => { return info.memoryLength ? text.slice(0, info.memoryLength) : '' }
@@ -144,6 +145,25 @@ state.commandList = {
             (args) => {
                 state.settings["filter"] = !state.settings["filter"];
                 state.message = `'"{}' filter set to ${state.settings["filter"]}`
+            }
+    },
+    gen:
+    {
+        name: 'gen',
+        description: `Generates an Object for the passed <root> by bringing examples matching <type> into context.`,
+        args: true,
+        usage: '<root> <type>',
+        execute:
+            (args) => {
+
+                state.generate = {}
+                state.generate.root = args[0];
+                state.generate.type = args.slice(1).join(' ');
+                state.generate.process = true;
+                state.generate.primer = `{"${ state.generate.type}": "${state.generate.root}",`
+                state.stop = false;
+                state.message = `Generating Object for ${state.generate.root} as type ${state.generate.type}`
+
             }
     }
 };

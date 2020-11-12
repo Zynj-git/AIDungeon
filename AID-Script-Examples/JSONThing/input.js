@@ -15,12 +15,14 @@ const modifier = (text) => {
         text = text.replace(/\[.*\]/gi, '');
     }
 
+    state.stop = true;
     delete state.message
     const commandPrefix = text.match(prefix);
     console.log(commandPrefix)
     if (commandPrefix && commandPrefix[0]) {
         //state.message = `Text startsWith: ${commandPrefix[0]}`;
         const args = text.slice(commandPrefix[0].length).replace(/"\n$|.\n$/, '').split(/ +/); // Create a list of the words provided, remove symbols from pre-processing polution.
+        
         const commandName = args.shift().replace(/\W*/gi, ''); // Fetch and remove the actual command from the list.
         if (!(commandName in commandList)) { state.message = "Invalid Command!"; return { text: '', stop: true }; }
         const command = commandList[commandName];
@@ -35,7 +37,7 @@ const modifier = (text) => {
         }
 
 
-        try { command.execute(args); return { text: '', stop: true } }
+        try { command.execute(args); return { text: '', stop: state.stop } }
         catch (error) { state.message = `There was an error!\n${error}`; }
 
     }
