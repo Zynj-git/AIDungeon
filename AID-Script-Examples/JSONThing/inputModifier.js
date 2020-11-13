@@ -2,18 +2,13 @@ const { commandList } = state;
 const { prefix, prefixSymbol } = state.config;
 const modifier = (text) => {
 
-    if (info.actionCount == 0) // Checks for bracket-encapsulated value pairs then creates World Entries out of them [key,value]
+    if (info.actionCount == 0) 
     {
-        const match = text.match(/\[.*\]/gi)
-
-        if (match) {
-            const valuePairs = match.map(element => element.replace(/\[|\]/gi, '').split(','));
-            valuePairs.forEach(pair => {
-                const keys = pair[0];
-                const value = pair.slice(1).join(',');
-                addWorldEntry(keys, value, isNotHidden = true)
-            })
-            text = text.replace(/\[.*\]/gi, '');
+        const toParse = text.match(/{.*}/);
+        if (toParse) {
+            const obj = JSON.parse(toParse[0]);
+            worldEntriesFromObject(obj, 'you');
+            text = text.replace(toParse, '');
         }
     }
 
