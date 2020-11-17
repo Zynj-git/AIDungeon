@@ -1,21 +1,17 @@
 Extended World Information (EWI) aims at providing the user with more flexible interactions with World Information.
 To achieve this, the user is instructed to place bracket-encapsulated attribute short-hands into the keys of a worldEntries element.
 
-A quick example of what that looks like, if convoluting it as far as possible, the keys can be: '$you, $wield|equip|unsheathe, $branch|stick|staff|wand|scepter, [f=3armcedw=100]'
+A quick example of what that looks like, if convoluting it as far as possible, the keys can be: '$you, $wield|equip|unsheathe, $branch|stick|staff|wand|scepter, [parmcedw=100]'
 The '$' symbol is to prevent the native world information processing from duplicating the entry whilst '|' is a symbol signifying 'OR' (Used with the 'e' tag)
 
 In this initial example, the entry would activate if the context contains 'you' in addition to either of 'branch/stick/staff'.
 It would then process the content of the entry in the following manner:
 
-[f] - frontMemory, a transient string appended to the end of every output.
-    [f] takes an optional integer value for its assignment that determines how often it can be activated, e.g [f=3] means that it can at max be activated once every three turns.
-
 [a] - authorsNote, a transient, bracket-encapsulated notation roughly three line-breaks into context.
 [r] - revealEntry, if the entry was hidden it would now be revealed to the user.
-[m] - mediumMemory, a transient string inserted two line-breaks into the context.
-[c] - context/backMemory, imitates the normal world entry behavior, but is placed after memory instead of before.
 [e] - Every match, requires that all of the keys are present for it to activate. In conjunction with '|' (OR) this becomes a whole lot more flexible.
 [d] - descriptor, adds a transient, parenthesized descriptor to the last mention of a valid key. e.g if the entry states 'A boomstick of doom.' then the AI would see e.g 'stick (A boomstick of doom)'
+[p] - takes a number as a value, this value determines which line the entry should be inserted at. Use 0 to imitate frontMemory or 1 to place it one line back.
 
 [w] - weight, adds a weight for sorting purposes as to circumvent the natural order of entries. 
     [w] requires an assignment of an integer value e.g [w=1000], non-assigned entries are considered a weight of zero and should be sorted by their creation order.
