@@ -1,0 +1,49 @@
+JSONThing - Tutorial
+
+    All dot-separated World Entries become formatted into JSON-represented Objects where each subsequent dot is a <property> of <root> and the entry content is the <property>'s value.
+    Before explaining further - here's an example of the keywords and entries used for a 'you' character example.
+
+    -----------------------------------------------
+    KEYWORDS      | ENTRY
+    you.character | You (John)
+    you.age       | 18
+    you.gender    | male
+    you.traits    | Adventerous, Empathic, Lenient
+    you.secret    | You are secretly a superhero.
+
+    you.synonyms  | John, protagonist, player, hero
+
+    whitelist.    | character, age, gender, traits
+    ------------------------------------------------
+
+    When the Object's <root>, or any of its synonyms, is detected in the context, a line is inserted one-line ahead of it with the whitelisted <property> names visible.
+    Context Example:
+        ------------------------------------------------------------------------------------------------------------
+            It's a quiet noon at the estate...
+            [{"character": "You (John)", "age": "18", "gender": "male", "traits": "Adventerous, Empathic, Lenient"}]
+            You head downstairs to grab yourself some snack.
+        ------------------------------------------------------------------------------------------------------------
+
+    Whitelist Info:
+        You're only required to create a singular 'whitelist.' entry as it applies universally to all Objects.
+        The Object's <properties> are sorted in the order that they appear in the 'whitelist.'
+        If 'whitelist.' isn't presented or left empty, the JSON-lines will display "nothing" - [{}]
+
+    Contextual Whitelist:
+        In addition to the global 'whitelist.' you can create 'synonyms.' declarations for individual <properties>.
+        These <properties> will only appear on Objects when any of its synonyms are mentioned.
+        e.g to situationally reveal 'you.secret' we may define a 'synonyms.' for the 'secret' <property> as such:
+
+        -----------------------------------------------------
+        KEYWORDS       | ENTRY
+        synonyms.secret| secret identity, superhero?, villain
+        ------------------------------------------------------
+
+        If <root> has the <property> 'secret' it will be revealed on the mention of the values within 'synonyms.secret'
+        Context Example:
+            --------------------------------------------------------------------------------------------------------------------------------------------------
+            Watching the news, it swaps to a disasterous scene of a burning building - there's a new villain in town.
+            [{"character": "You (John)", "age": "18", "gender": "male", "traits": "Adventerous, Empathic, Lenient", "secret": "You are secretly a superhero"}]
+            You seat yourself up straight and contemplate your next move.
+            ---------------------------------------------------------------------------------------------------------------------------------------------------
+        

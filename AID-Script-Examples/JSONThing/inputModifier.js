@@ -2,15 +2,7 @@ const { commandList } = state;
 const { prefix, prefixSymbol } = state.config;
 const modifier = (text) => {
 
-    if (info.actionCount == 0) 
-    {
-        const toParse = text.match(/{.*}/);
-        if (toParse) {
-            const obj = JSON.parse(toParse[0]);
-            worldEntriesFromObject(obj, 'you');
-            text = text.replace(toParse, '');
-        }
-    }
+    if (info.actionCount == 0) { parseAsRoot(text, 'you'); }
 
     state.stop = true;
     delete state.message

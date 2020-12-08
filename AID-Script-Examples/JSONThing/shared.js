@@ -1,6 +1,5 @@
 state.data = {} // Rebuild data from World Information, relatively intensive in comparison to persistent storage, but easier to manage.
 let dataStorage = state.data;
-
 let contextMemoryLength = 0; // Keep count of additional context added.
 if (!state.generate) { state.generate = {} }
 if (!state.settings) { state.settings = {} }
@@ -33,7 +32,7 @@ const getRootSynonyms = (root) => dataStorage[root].hasOwnProperty(synonymsPath)
 const getWhitelist = () => dataStorage.hasOwnProperty(whitelistPath) ? dataStorage[whitelistPath].split(',').map(element => element.trim()) : []
 // Contextual properties will be added to the JSON when a related synonym.property entry is found in the last turn. e.g synonym.cake would bring john.preferences.food.favorite.cake into the JSON for that turn.
 // It adds the property path, omitting 'synonyms', to the whitelist so each of ['preferences', 'food', 'favorite', 'cake'] would be whitelisted. john.preferences.food.favorite.hotdog would for example not show as 'hotdog' is not whitelisted.
-const getContextualProperties = (search) => { return worldEntries.filter(entry => entry["keys"].startsWith(synonymsPath) && entry["entry"].split(',').some(key => search.includes(key.toLowerCase()))).map(element => element["keys"].toLowerCase().split('.').slice(1)); }
+const getContextualProperties = (search) => { return worldEntries.filter(entry => entry["keys"].startsWith(synonymsPath) && entry["entry"].split(',').some(key => search.toLowerCase().includes(key.toLowerCase()))).map(element => element["keys"].toLowerCase().split('.').slice(1)); }
 // Assign the property defined in the wEntry's keys with its entry value.
 const setProperty = (keys, value, obj) => { const property = keys.split('.').pop(); const path = keys.split('.')[1] ? keys.split('.').slice(0, -1).join('.') : keys.replace('.', ''); if (property[1]) { getKey(path, obj)[property] = value ? value : null; } else { dataStorage[path] = value; } }
 // If the worldEntries are setup to use the system then process and populate dataStorage
@@ -43,6 +42,7 @@ const globalReplacer = (key, value) => { if (value == null || value.constructor 
 const localWhitelist = getContextualProperties(getHistoryString(-1)).flat();
 const localReplacer = (name, val) => { if (localWhitelist.some(element => element.includes(name)) && val) { return Array.isArray(val) ? val.join(', ') : val } else { return undefined } };
 
+const insertScene = (lines) => {lines.splice(-1, 0, `${state.scene}`); return lines}
 // Close opened brackets for the string before attempting to JSON.parse() it - slight increase to success rate.
 const getDepth = (string) => { const opened = string.match(/{/g); const closed = string.match(/}/g); return (opened ? opened.length : 0) - (closed ? closed.length : 0) }
 const fixDepth = (string) => { let count = getDepth(string); while (count > 0) { count--; string += `}`; } return string }
@@ -50,25 +50,44 @@ const fixDepth = (string) => { let count = getDepth(string); while (count > 0) {
 const assignParents = (text) => { for (const data in dataStorage) { if (dataStorage[data].hasOwnProperty("child")) { let indexPos = -1; let finalParent; let finalParentName; for (let parentRoot in dataStorage[data]["child"]) { const searchFor = parentRoot.replace(`[`, '').replace(`]`, ''); const index = text.includes(searchFor) ? text.lastIndexOf(searchFor) : dataStorage.hasOwnProperty(searchFor) && dataStorage[searchFor].hasOwnProperty("synonyms") ? dataStorage[searchFor]["synonyms"].split(',').map(element => text.lastIndexOf(element.toLowerCase())).sort().reverse().shift() : -1; if (index >= 0 && index > indexPos) { indexPos = index; let toCopy; for (const element in dataStorage[data]["child"][searchFor]) { if (element.includes('[')) { toCopy = element.replace(`[`, '').replace(`]`, ''); finalParent = dataStorage[toCopy]; finalParentName = searchFor; break; } else { finalParent = dataStorage[data]['child'][searchFor]; } } } } if (finalParent) { finalParent['synonyms'] ? finalParent['synonyms'] += ',' + data + ', ' + finalParentName : finalParent['synonyms'] = data + ', ' + finalParentName; if (dataStorage['synonyms'].hasOwnProperty(data)) { finalParent['synonyms'] += ', ' + dataStorage['synonyms'][data]; } if (dataStorage[data].hasOwnProperty('synonyms')) { finalParent['synonyms'] += ', ' + dataStorage[data]['synonyms']; } Object.assign(dataStorage[data], finalParent); } } } }
 const insertJSON = (lines, text) => { lines.reverse(); for (const data in dataStorage) { let finalIndex = -1; let finalWord; const checkWords = [...[data], ...getRootSynonyms(data)]; checkWords.forEach(word => { const index = text.lastIndexOf(word.toLowerCase()); if (index > finalIndex) { finalIndex = index; finalWord = word; } }); const regEx = new RegExp('\\b' + finalWord, 'gi'); console.log(`Check: ${checkWords}| Final: ${finalWord}`); lines.some(line => { if (!line.includes('[') && regEx.test(line)) { let string = JSON.stringify(dataStorage[data], globalReplacer).replace(/\\/g, ''); if (state.settings["filter"]) { string = string.replace(/"|{|}/g, ''); } if (string.length > 4 && !lines.some(line => line.includes(string))) { lines.splice(lines.indexOf(line) + 1, 0, `[${string}]`); return true; } } }); } lines.reverse(); return lines; }
 const entriesFromJSONLines = (lines, memoryLines) => { const JSONLines = lines.filter(line => line.startsWith('[')); const JSONString = JSONLines.join('\n'); const normalWorldEntries = worldEntries.filter(element => !element["keys"].includes('.')); normalWorldEntries.forEach(element => element["keys"].split(',').some(keyword => { if (JSONString.toLowerCase().includes(keyword.toLowerCase()) && !text.includes(element["entry"])) { if (info.memoryLength + contextMemoryLength + element["entry"].length <= info.maxChars / 2) { memoryLines.splice(-1, 0, element["entry"]); contextMemoryLength += element["entry"].length + 1; return true; } } })) }
+const parseGen = (text) => { state.generate.process = false; const string = fixDepth(`${state.generate.sections.primer}${text}`); const toParse = string.match(/{.*}/); if (toParse) { const obj = JSON.parse(toParse[0]); worldEntriesFromObject(obj, state.generate.root.split(' ')[0]); state.message = `Generated Object for ${state.generate.root} as type ${state.generate.types[0]}\nResult: ${JSON.stringify(obj)}` } else { state.message = `Failed to parse AI Output for Object ${state.generate.root} type ${state.generate.type[0]}` } }
+const parseAsRoot = (text, root) => {
+    const toParse = text.match(/{.*}/g);
+    if (toParse) {
+        toParse.forEach(string => {
+            const obj = JSON.parse(string);
+            worldEntriesFromObject(obj, root);
+            text = text.replace(string, '');
+        })
 
+    }
+}
 const generateObject = (text) => {
 
-    const { root, type } = state.generate;
-    const getExamples = (obj, types) => { let exampleString = ``; for (const data in dataStorage) { if (types.some(type => dataStorage[data].hasOwnProperty(type))) { const string = JSON.stringify(dataStorage[data], globalReplacer).replace(/\\/g, ''); if (string.length + exampleString.length <= 1000) { exampleString += '\n' + string; } } } return exampleString }
+    const { root, types } = state.generate;
+    const type = types[0]
+    const getExamples = (obj, types) => { let exampleString = ``; for (const data in obj) { if (types.some(type => obj[data].hasOwnProperty(type))) { const string = JSON.stringify(obj[data], globalReplacer).replace(/\\/g, ''); if (string.length + exampleString.length <= 1000) { exampleString += '\n' + string; } } } return exampleString }
     const getAbout = (about) => getHistoryString(-100).split('.').filter(sentence => sentence.toLowerCase().includes(about.toLowerCase())).join('.').trim();
+    const createExample = (args) => {
+        const assign = args.map(element => [element, '<value>']);
+        const obj = Object.fromEntries(assign);
+        return JSON.stringify(obj).replace(/\\/g, '');
+    }
 
+    //const example = createExample(types);
     const storedContext = text.substring(0, 0.4 * text.length).trim();
-    const objectExamples = getExamples(dataStorage, type);
+    const objectExamples = getExamples(dataStorage, types);
     const rootInformation = getAbout(root).slice(-(info.maxChars) - (objectExamples.length - storedContext.length));
 
     state.generate.sections = {
         "stored": `${storedContext}`,
         "examples": `\n--\nObject representation for ${type}s:${objectExamples}`,
+        //"dummy": `\n${example}`,
         "about": `\n--\nInformation about ${type} ${root}:\n${rootInformation}`,
         "preprimer": `\n--\nObject representation for ${type} ${root}:`,
-        "primer": `\n{"${type}": "${root}",`
+        "primer": `\n{"${type}":"${root}",`
     }
-    const { stored, examples, about, preprimer, primer } = state.generate.sections;
+    const { stored, examples, dummy, about, preprimer, primer } = state.generate.sections;
     const buildString = stored + (objectExamples ? examples : '') + (rootInformation ? about : '') + preprimer + primer
 
     for (section in state.generate.sections) { console.log(`${section} Length: ${state.generate.sections[section].length}`) }
@@ -96,6 +115,7 @@ state.commandList = {
                 if (!setValue && index >= 0) { removeWorldEntry(index) }
                 if (dataStorage) { setProperty(setKeys, setValue, dataStorage) } // Immediately reflect the changes in state.data
                 state.message = `${setKeys} set to ${setValue}`;
+                return
             }
     },
     get:
@@ -112,6 +132,7 @@ state.commandList = {
                     const lens = (obj, path) => path.split('.').reduce((o, key) => o && o[key] ? o[key] : null, obj);
                     state.message = `Data Sheet for ${path}:\n${JSON.stringify(lens(dataStorage, path), null)}`;
                 }
+                return
 
             }
 
@@ -132,6 +153,7 @@ state.commandList = {
                 whitelist.includes(toWhitelist) ? whitelist.splice(whitelist.indexOf(toWhitelist), 1) : whitelist.push(toWhitelist);
                 updateWorldEntry(whitelistIndex, whitelistPath + pathSymbol, whitelist.join(', '), isNotHidden = true);
                 state.message = `Toggled whitelisting for ${toWhitelist}`;
+                return
 
             }
 
@@ -148,6 +170,7 @@ state.commandList = {
                 const path = args.join('').trim().toLowerCase();
                 worldEntries.forEach(wEntry => { if (wEntry["keys"].startsWith(path)) { wEntry["isNotHidden"] = true; } })
                 state.message = `Showing all entries starting with ${path} in World Information!`;
+                return
             }
     },
     hide:
@@ -162,6 +185,8 @@ state.commandList = {
                 const path = args.join('').trim().toLowerCase();
                 worldEntries.forEach(wEntry => { if (wEntry["keys"].startsWith(path)) { wEntry["isNotHidden"] = false; } })
                 state.message = `Hiding all entries starting with ${path} in World Information!`;
+                Object.assign(worldEntries, worldEntries)
+                return
             }
     },
     fromJSON:
@@ -174,6 +199,7 @@ state.commandList = {
 
                 state.settings["entriesFromJSON"] = !state.settings["entriesFromJSON"];
                 state.message = `World Information from JSON Lines: ${state.settings["entriesFromJSON"]}`
+                return
             }
     },
     filter:
@@ -185,6 +211,7 @@ state.commandList = {
             (args) => {
                 state.settings["filter"] = !state.settings["filter"];
                 state.message = `'"{}' filter set to ${state.settings["filter"]}`
+                return
             }
     },
     gen:
@@ -192,17 +219,33 @@ state.commandList = {
         name: 'gen',
         description: `Generates an Object for the passed <root> by bringing examples matching <type> into context.`,
         args: true,
-        usage: '<root> <type>',
+        usage: '<root>|<type>',
         execute:
             (args) => {
 
-                state.generate.root = args[0];
-                state.generate.type = args.slice(1);
+                if (!args.join(' ').includes('|')) { state.message = `Error: Separator '|' between <root> and <type> not detected.`; return }
+
+                console.log(args)
+                //args = args.map(element => element.trim())
+                state.generate.root = args.slice(0, args.indexOf('|')).join(' ');
+                state.generate.types = args.slice(args.indexOf('|') + 1);
                 state.generate.process = true;
-                state.generate.primer = `{"${state.generate.types}": "${state.generate.root}",`
                 state.stop = false;
+                return
 
+            }
+    },
+    scene:
+    {
+        name: 'scene',
+        description: 'Inserts <text> in a bracket-enapsulated string, one line back in context before insertion of JSON.',
+        args: true,
+        usage: '<text>',
+        execute:
+            (args) => {
 
+                state.scene = `[Scene Description: ${args.join(' ')}]`
+                state.message = `Scene description set to ${state.scene}`
             }
     }
 };
