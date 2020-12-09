@@ -28,6 +28,7 @@ console.log(`Turn: ${info.actionCount}`)
 let { entriesFromJSON } = state.settings;
 const { whitelistPath, synonymsPath, pathSymbol } = state.config;
 
+
 //https://stackoverflow.com/questions/61681176/json-stringify-replacer-how-to-get-full-path
 const replacerWithPath = (replacer) => { let m = new Map(); return function (field, value) { let path = m.get(this) + (Array.isArray(this) ? `[${field}]` : '.' + field); if (value === Object(value)) m.set(value, path); return replacer.call(this, field, value, path.replace(/undefined\.\.?/, '')); } }
 const worldEntriesFromObject = (obj, root) => { JSON.stringify(obj, replacerWithPath(function (field, value, path) { if (typeof value != 'object') { const index = worldEntries.findIndex(element => element["keys"] == `${root}.${path}`.replace(/\.$/g, '')); index >= 0 ? updateWorldEntry(index, `${root}.${path}`.replace(/\.$/g, ''), value.toString(), isNotHidden = true) : addWorldEntry(`${root}.${path}`.replace(/\.$/g, ''), value.toString(), isNotHidden = true); } return value; })); }
@@ -37,9 +38,14 @@ const getHistoryString = (turns) => history.slice(turns).map(element => element[
 const getHistoryText = (turns) => history.slice(turns).map(element => element["text"]) // Returns an array of text.
 const getActionTypes = (turns) => history.slice(turns).map(element => element["type"]) // Returns the action types of the previous turns in an array.
 const getAttributes = (keys) => { const attrib = keys.match(/([a-z](=\d+)?)/g); if (attrib) { return attrib.map(attrib => attrib.split('=')) } } // Pass it a bracket-encapsulated string and it returns an array of [attribute, value] pairs if possible.
+
+const regExMatch = (expressions, string) => {
+    const toCheck = expressions.includes('#') ? expressions.slice(0, expressions.indexOf('#')).split(',') : expressions.split(',');
+    return toCheck.every(exp => {const regEx = new RegExp(exp, 'gi'); return regEx.test(string)});
+}
 const lens = (obj, path) => path.split('.').reduce((o, key) => o && o[key] ? o[key] : null, obj);
 
-const everyCheck = (entry, string) => {
+/* const everyCheck = (entry, string) => {
     string = string.toLowerCase().trim();
 
     const keys = entry["keys"].replace(/\$|,?\s*?\[[^\[\]]*\]/g, '').toLowerCase().trim().split(',');
@@ -50,7 +56,7 @@ const everyCheck = (entry, string) => {
 
     console.log(`Keys: ${keys}`, `Any: ${anyArray}`, `Every: ${everyArray}`);
     if (everyArray && anyCheck) { return true }
-}
+} */
 
 
 
@@ -89,7 +95,7 @@ const addDescription = (entry, value = 0) => {
 
 const addAuthorsNote = (entry, value = 0) => state.memory.authorsNote = `${entry["entry"]}`
 const revealWorldEntry = (entry, value = 0) => entry.isNotHidden = true
-const addPositionalEntry = (entry, value = 0) => { const segment = value > lines.length ? memoryLines : lines; segment.splice((value != 0 ? -(value) : lines.length), 0, entry["entry"]) }
+const addPositionalEntry = (entry, value = 0) => { spliceContext((value != 0 ? -(value) : lines.length), entry["entry"]) }
 
 const getWhitelist = () => dataStorage.hasOwnProperty(whitelistPath) ? dataStorage[whitelistPath].split(',').map(element => element.trim()) : []
 
@@ -142,7 +148,7 @@ const consumeWorldEntries = () => {
     if (worldEntries.some(element => element["keys"].includes('.'))) {
 
         worldEntries.forEach(wEntry => {
-            if (wEntry["keys"].includes('.')) {
+            if ((wEntry["keys"].includes('.')) && !wEntry["keys"].includes('#')) {
                 const index = worldEntries.findIndex(element => element["keys"] == wEntry["keys"]);
                 removeWorldEntry(index); // <------------
                 setProperty(wEntry["keys"].toLowerCase().split(',').filter(element => element.includes('.')).map(element => element.trim()).join(''), wEntry["entry"], dataStorage);
@@ -171,6 +177,7 @@ const spliceContext = (pos, string) => {
 
     // Add a variable to keep track of the length on strings, not certain if it'll be relevant as all splicing is done on the combined context rather than the native 'memory'/'story' split.
     // Might have to check if it 'would be in memory if inserted normally' e.g by checking memoryLines.length against the 'pos' argument supplied here.
+    contextMemoryLength += string.length;
     fullContextLines.splice(pos, 0, string);
     memoryLines = fullContextLines.slice(0, memoryLines.length + 1);
     lines = fullContextLines.slice(memoryLines.length);
@@ -237,7 +244,7 @@ const insertJSON = (text) => {
 
 
 
-const entriesFromJSONLines = () => { const JSONLines = lines.filter(line => line.startsWith('[')); const JSONString = JSONLines.join('\n'); const normalWorldEntries = worldEntries.filter(element => !element["keys"].includes('.')); normalWorldEntries.forEach(element => element["keys"].split(',').some(keyword => { if (JSONString.toLowerCase().includes(keyword.toLowerCase()) && !text.includes(element["entry"])) { if (info.memoryLength + contextMemoryLength + element["entry"].length <= info.maxChars / 2) { memoryLines.splice(-1, 0, element["entry"]); contextMemoryLength += element["entry"].length + 1; return true; } } })) }
+const entriesFromJSONLines = () => { const JSONLines = lines.filter(line => line.startsWith('[')); const JSONString = JSONLines.join('\n'); const normalWorldEntries = worldEntries.filter(element => !element["keys"].includes('.')); normalWorldEntries.forEach(element => element["keys"].split(',').some(keyword => { if (JSONString.toLowerCase().includes(keyword.toLowerCase()) && !text.includes(element["entry"])) { if (info.memoryLength + element["entry"].length <= info.maxChars / 2) { spliceContext(memory.split('\n').length, element["entry"]); return true; } } })) }
 const parseGen = (text) => { state.generate.process = false; const string = fixDepth(`${state.generate.sections.primer}${text}`); const toParse = string.match(/{.*}/); if (toParse) { const obj = JSON.parse(toParse[0]); worldEntriesFromObject(obj, state.generate.root.split(' ')[0]); state.message = `Generated Object for ${state.generate.root} as type ${state.generate.types[0]}\nResult: ${JSON.stringify(obj)}` } else { state.message = `Failed to parse AI Output for Object ${state.generate.root} type ${state.generate.type[0]}` } }
 const parseAsRoot = (text, root) => { const toParse = text.match(/{.*}/g); if (toParse) { toParse.forEach(string => { const obj = JSON.parse(string); worldEntriesFromObject(obj, root); text = text.replace(string, ''); }) } }
 const generateObject = (text) => {
@@ -324,7 +331,7 @@ state.commandList = {
                 const toWhitelist = args.join(' ').toLowerCase();
                 let whitelist = dataStorage[whitelistPath].split(',').map(element => element.trim().toLowerCase());
                 whitelist.includes(toWhitelist) ? whitelist.splice(whitelist.indexOf(toWhitelist), 1) : whitelist.push(toWhitelist);
-                dataStorage[whitelistPath] = whitelist;
+                dataStorage[whitelistPath] = whitelist.toString();
                 state.message = `Toggled whitelisting for ${toWhitelist}`;
                 return
 
@@ -364,9 +371,8 @@ state.commandList = {
             (args) => {
 
                 const path = args.join('').trim().toLowerCase();
-                worldEntries.forEach(wEntry => { if (wEntry["keys"].startsWith(path)) { wEntry["isNotHidden"] = false; } })
+                worldEntries.forEach(wEntry => { if (wEntry["keys"].startsWith(path) && wEntry["keys"].includes('.')) { removeWorldEntry(worldEntries.indexOf(wEntry)); setProperty(wEntry["keys"].toLowerCase().split(',').filter(element => element.includes('.')).map(element => element.trim()).join(''), wEntry["entry"], dataStorage); } })
                 state.message = `Hiding all entries starting with ${path} in World Information!`;
-                Object.assign(worldEntries, worldEntries)
                 return
             }
     },
@@ -444,27 +450,27 @@ const entryFunctions = {
 // spliceMemory would be to position it 'at the top of context'/'end of memory' while spliceLines is for short/medium injections towards the lower part of context.
 
 // Pass the worldEntries list and check attributes, then process them.
+
 const processWorldEntries = (entries) => {
     entries = [...entries] // Copy the entries to avoid in-place manipulation.
 
-    entries.sort((a, b) => a["keys"].match(/(?<=w=)\d+/) - b["keys"].match(/(?<=w=)\d+/)).forEach(wEntry => // Take a quick sprint through the worldEntries list and process its elements.
+    entries.sort((a, b) => a["keys"].split('#').slice(-1)[0].match(/(?<=w=)\d+/) - b["keys"].split('#').slice(-1)[0].match(/(?<=w=)\d+/)).forEach(wEntry => // Take a quick sprint through the worldEntries list and process its elements.
     {
-        const entryAttributes = getAttributes(wEntry["keys"].extractString('[', ']'))
+        const entryAttributes = getAttributes(wEntry["keys"].split('#').slice(-1)[0].extractString('[', ']'))
 
         if (entryAttributes && entryAttributes.length > 0) {
             const lastTurnString = entryAttributes.some(attrib => attrib.includes('p') || attrib.includes('d')) ? getHistoryString(-1).toLowerCase().trim() : getHistoryString(-4).toLowerCase().trim() // What we check the keywords against, this time around we basically check where in the context the last history element is then slice forward.
 
-            const basicCheck = wEntry["keys"].replace(/\$/g, '').replace(/\|/g, ',').split(',').some(keyword => lastTurnString.includes(keyword.toLowerCase().trim()))
+            
+           
+            const basicCheck = regExMatch(wEntry["keys"], lastTurnString)
             console.log(`Entry: ${wEntry["keys"]}: BasicCheck: ${basicCheck}`)// Only process attributes of entries detected on the previous turn. (Using the presumed native functionality of substring acceptance instead of RegEx wholeword match)
-            // During the custom check we also (temporarily) remove the '$' prefix as to not need special processing of that later, a trim is also done.
             if (basicCheck) {
                 try // We try to do something. If code goes kaboom then we just catch the error and proceed. This is to deal with non-attribute assigned entries e.g those with empty bracket-encapsulations []
                 {
 
-                    // Do a strict/every match if it's flagged as such, entry will only be processed if all keywords match as opposed to any.
-                    if (entryAttributes.some(attrib => attrib.includes('e'))) { if (everyCheck(wEntry, lastTurnString)) { entryAttributes.forEach(attrib => entryFunctions[attrib[0]](wEntry, attrib[1])) } }
-                    // If it's not flagged with 'e' then process as normal (any check)
-                    else { entryAttributes.forEach(attrib => entryFunctions[attrib[0]](wEntry, attrib[1])) }
+                   
+                    entryAttributes.forEach(attrib => entryFunctions[attrib[0]](wEntry, attrib[1]))
 
 
                 }

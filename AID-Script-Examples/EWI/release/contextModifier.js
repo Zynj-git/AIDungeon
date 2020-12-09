@@ -54,11 +54,11 @@ const modifier = (text) => {
 
     let combinedMemory = memoryLines.join('\n').replace(/\n$/, "");
 
-    let combinedLines = lines.join('\n').replace(/\n$/, "").replace(/\]\n\[/g, '][').slice(-(info.maxChars - info.memoryLength - contextMemoryLength)).replace(/^[^\[]*.]/g, '');
+    let combinedLines = lines.join('\n').replace(/\n$/, "").replace(/\]\n\[/g, '][').slice(-(info.maxChars - combinedMemory.length - 1)).replace(/^[^\[]*.]/g, '');
     const finalText = [combinedMemory, combinedLines].join("\n")
     
     // Debug to check if the context is intact and properly utilized, optimally the numbers should always match
-    console.log(`Final Text: ${finalText.length}`, `Max Text: ${info.maxChars}`, `MemoryLength: ${info.memoryLength + contextMemoryLength}`)
+    console.log(`Final Text: ${finalText.length}`, `Max Text: ${info.maxChars}`, `MemoryLength: ${info.memoryLength}`)
     return { text: finalText }
 
 }
