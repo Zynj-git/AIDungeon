@@ -169,8 +169,8 @@ const consumeWorldEntries = () => {
         })
     }
 }
-const globalWhitelist = [getWhitelist(), getContextualProperties(text).flat()].flat();
-const globalReplacer = (key, value) => { if (value == null || value.constructor != Object) { return value } return Object.keys(value).sort((a, b) => globalWhitelist.indexOf(a) - globalWhitelist.indexOf(b)).filter(element => globalWhitelist.includes(element)).reduce((s, k) => { s[k] = value[k]; return s }, {}) }
+const globalWhitelist = [getWhitelist(), getContextualProperties(getHistoryString(-4)).flat()].flat();
+const globalReplacer = (key, value) => { if (value == null || value.constructor != Object) { return value == null ? undefined : value } return Object.keys(value).sort((a, b) => globalWhitelist.indexOf(a) - globalWhitelist.indexOf(b)).filter(element => globalWhitelist.includes(element)).reduce((s, k) => { s[k] = value[k]; return s }, {}) }
 const localWhitelist = getContextualProperties(getHistoryString(-1)).flat();
 const localReplacer = (name, val) => { if (localWhitelist.some(element => element.includes(name)) && val) { return Array.isArray(val) ? val.join(', ') : val } else { return undefined } };
 
