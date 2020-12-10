@@ -19,15 +19,14 @@ initSettings.forEach(setting => { if (!Object.keys(state.settings).includes(sett
 state.config = {
     prefix: /^\n> You \/|^\n> You say "\/|^\/|^\n\//gi,
     prefixSymbol: '/',
-    whitelistPath: 'whitelist',
-    synonymsPath: 'synonyms',
+    whitelistPath: '_whitelist',
+    synonymsPath: '_synonyms',
     pathSymbol: '.'
 }
 
 console.log(`Turn: ${info.actionCount}`)
 let { entriesFromJSON } = state.settings;
 const { whitelistPath, synonymsPath, pathSymbol } = state.config;
-
 
 //https://stackoverflow.com/questions/61681176/json-stringify-replacer-how-to-get-full-path
 const replacerWithPath = (replacer) => { let m = new Map(); return function (field, value) { let path = m.get(this) + (Array.isArray(this) ? `[${field}]` : '.' + field); if (value === Object(value)) m.set(value, path); return replacer.call(this, field, value, path.replace(/undefined\.\.?/, '')); } }
@@ -40,8 +39,20 @@ const getActionTypes = (turns) => history.slice(turns).map(element => element["t
 const getAttributes = (keys) => { const attrib = keys.match(/([a-z](=\d+)?)/g); if (attrib) { return attrib.map(attrib => attrib.split('=')) } } // Pass it a bracket-encapsulated string and it returns an array of [attribute, value] pairs if possible.
 
 const regExMatch = (expressions, string) => {
-    const toCheck = expressions.includes('#') ? expressions.slice(0, expressions.indexOf('#')).split(',') : expressions.split(',');
-    return toCheck.every(exp => {const regEx = new RegExp(exp, 'gi'); return regEx.test(string)});
+
+    const validWords = [];
+    const lines = expressions.split('\n');
+    lines.forEach(line => {
+        const expression = line.slice(0, line.indexOf('#'));
+        const words = line.slice(line.indexOf('#') + 1)
+        if (expression.split(',').every(exp => {
+            const regEx = new RegExp(exp, 'i');
+            return regEx.test(string)
+        })) {
+            validWords.push(words)
+        }
+    })
+    return validWords
 }
 const lens = (obj, path) => path.split('.').reduce((o, key) => o && o[key] ? o[key] : null, obj);
 
@@ -106,31 +117,31 @@ const getContextualProperties = (search) => {
 
     function buildSynonyms(replacer) {
         let m = new Map();
-        return function(field, value) {
-          let path = m.get(this) + (Array.isArray(this) ? `[${field}]` : '.' + field);
-      
-          if (value === Object(value)) {
-            m.set(value, path);
-          }
-          const final = replacer.call(this, field, value, path.replace(/undefined\.\.?/, ''));
-      
-          if (typeof final != 'object') {
-            // TODO: Insert a function to check the qualification of AND/OR sequences.
-            if (typeof value == 'string') {
-                paths.push(path.replace(/undefined\.\.?/, '').split('.'));
-                values.push(value.split(','));
+        return function (field, value) {
+            let path = m.get(this) + (Array.isArray(this) ? `[${field}]` : '.' + field);
+
+            if (value === Object(value)) {
+                m.set(value, path);
             }
-      
-          }
-          return final;
+            const final = replacer.call(this, field, value, path.replace(/undefined\.\.?/, ''));
+
+            if (typeof final != 'object') {
+                // TODO: Insert a function to check the qualification of AND/OR sequences.
+                if (typeof value == 'string') {
+                    paths.push(path.replace(/undefined\.\.?/, '').split('.'));
+                    values.push(value.split(','));
+                }
+
+            }
+            return final;
         }
-      }
-    
+    }
+
     const paths = []
     const values = []
-    JSON.stringify(dataStorage[synonymsPath], buildSynonyms(function(field, value, path) {
+    JSON.stringify(dataStorage[synonymsPath], buildSynonyms(function (field, value, path) {
         return value;
-      }));
+    }));
 
 
 
@@ -200,21 +211,23 @@ const insertJSON = (text) => {
     for (const data in dataStorage) {
 
         if (typeof dataStorage[data] == 'object') {
-            if (!dataStorage[data].hasOwnProperty("_config") || typeof dataStorage[data]["_config"] != 'object' || dataStorage[data]["_config"] == null) {dataStorage[data]["_config"] = {}}
-            configValues.forEach(setting => {if (!dataStorage[data]["_config"].hasOwnProperty(setting[0])) {dataStorage[data]["_config"][setting[0]] = setting[1]}})
-            
+            if (!dataStorage[data].hasOwnProperty("_config") || typeof dataStorage[data]["_config"] != 'object' || dataStorage[data]["_config"] == null) { dataStorage[data]["_config"] = {} }
+            configValues.forEach(setting => { if (!dataStorage[data]["_config"].hasOwnProperty(setting[0])) { dataStorage[data]["_config"][setting[0]] = setting[1] } })
+            if (!dataStorage[data].hasOwnProperty(synonymsPath)) { dataStorage[data][synonymsPath] = data }
 
             const { float, sprawl } = dataStorage[data]["_config"];
 
             let finalLineIndex;
             // Determine if the Object should be present, somewhere.
-            const checkWords = [...[data], ...getRootSynonyms(data)];
+            const quickSearch = regExMatch(dataStorage[data][synonymsPath], fullContextLines.join(''));
+            const checkWords = quickSearch.length > 0 ? quickSearch.flatMap(element => element.replace(/\W/g, ',').split(',')) : ['_undefined'];
             fullContextLines.forEach(line => {
                 if (checkWords.some(word => line.toLowerCase().includes(word))) { finalLineIndex = fullContextLines.indexOf(line) }
             })
-            console.log(`Final Index Line`, finalLineIndex)
+
             if (finalLineIndex > -1) {
                 let string = JSON.stringify(dataStorage[data], globalReplacer).replace(/\\/g, '');
+                console.log(string)
                 if (state.settings["filter"]) { string = string.replace(/"|{|}/g, ''); }
 
                 if (float) {
@@ -222,20 +235,11 @@ const insertJSON = (text) => {
                 }
 
                 else {
-                    fullContextLines.some(line => {
-                       
-                        if (string.length > 4 && !fullContextLines.some(line => line.includes(string))) {
-                            spliceContext(finalLineIndex, `[${string}]`);
-                            return true;
-                        }
-                        
-                    });
+                    if (string.length > 4 && !fullContextLines.some(line => line.includes(string))) { spliceContext(finalLineIndex, `[${string}]`); };
+                    
                 }
 
             }
-
-
-            console.log(`Check: ${checkWords}| Final: ${null}`);
 
         }
     }
@@ -434,6 +438,18 @@ state.commandList = {
                 state.scene = `[Scene Description: ${args.join(' ')}]`
                 state.message = `Scene description set to ${state.scene}`
             }
+    },
+    delete:
+    {
+        name: 'delete',
+        description: 'Deletes the provided Object from state.',
+        args: true,
+        usage: '<Object>',
+        execute:
+            (args) => {
+                delete dataStorage[args[0]]
+                state.message = `Deleted Object: ${args[0]}`;
+            }
     }
 };
 
@@ -461,15 +477,15 @@ const processWorldEntries = (entries) => {
         if (entryAttributes && entryAttributes.length > 0) {
             const lastTurnString = entryAttributes.some(attrib => attrib.includes('p') || attrib.includes('d')) ? getHistoryString(-1).toLowerCase().trim() : getHistoryString(-4).toLowerCase().trim() // What we check the keywords against, this time around we basically check where in the context the last history element is then slice forward.
 
-            
-           
+
+
             const basicCheck = regExMatch(wEntry["keys"], lastTurnString)
             console.log(`Entry: ${wEntry["keys"]}: BasicCheck: ${basicCheck}`)// Only process attributes of entries detected on the previous turn. (Using the presumed native functionality of substring acceptance instead of RegEx wholeword match)
-            if (basicCheck) {
+            if (basicCheck.length > 0) {
                 try // We try to do something. If code goes kaboom then we just catch the error and proceed. This is to deal with non-attribute assigned entries e.g those with empty bracket-encapsulations []
                 {
 
-                   
+
                     entryAttributes.forEach(attrib => entryFunctions[attrib[0]](wEntry, attrib[1]))
 
 
