@@ -125,14 +125,15 @@ const getContextualProperties = (search) => {
             }
             const final = replacer.call(this, field, value, path.replace(/undefined\.\.?/, ''));
 
-            if (typeof final != 'object') {
+            {if (typeof final != 'object') {
                 // TODO: Insert a function to check the qualification of AND/OR sequences.
                 if (typeof value == 'string') {
-                    paths.push(path.replace(/undefined\.\.?/, '').split('.'));
-                    values.push(value.split(','));
+                    if (regExMatch(value, search).length > 0)
+                    {paths.push(path.replace(/undefined\.\.?/, '').split('.'));
+                    values.push(value.split(','));}
                 }
 
-            }
+            }}
             return final;
         }
     }
@@ -144,9 +145,9 @@ const getContextualProperties = (search) => {
     }));
 
 
-
-    const finalSynonyms = [...paths.flat(), ...values.flat()]
-
+    
+    const finalSynonyms = [...paths.flat().map(element => element.replace(synonymsPath, '').replace('_config', '')), ...values.flat().map(element => element.replace(synonymsPath, '').replace('_config', ''))]
+    console.log(`FINAL SYNONYMS: ${finalSynonyms}`)
     return finalSynonyms
 }
 
@@ -221,10 +222,11 @@ const insertJSON = (text) => {
             // Determine if the Object should be present, somewhere.
             const quickSearch = regExMatch(dataStorage[data][synonymsPath], fullContextLines.join(''));
             const checkWords = quickSearch.length > 0 ? quickSearch.flatMap(element => element.replace(/\W/g, ',').split(',')) : ['_undefined'];
+            
             fullContextLines.forEach(line => {
                 if (checkWords.some(word => line.toLowerCase().includes(word))) { finalLineIndex = fullContextLines.indexOf(line) }
             })
-
+            console.log(`CHECKWORDS: ${checkWords}, FINAL INDEX: ${finalLineIndex}`)
             if (finalLineIndex > -1) {
                 let string = JSON.stringify(dataStorage[data], globalReplacer).replace(/\\/g, '');
                 console.log(string)
