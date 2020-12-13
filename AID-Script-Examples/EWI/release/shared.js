@@ -125,15 +125,18 @@ const getContextualProperties = (search) => {
             }
             const final = replacer.call(this, field, value, path.replace(/undefined\.\.?/, ''));
 
-            {if (typeof final != 'object') {
-                // TODO: Insert a function to check the qualification of AND/OR sequences.
-                if (typeof value == 'string') {
-                    if (regExMatch(value, search).length > 0)
-                    {paths.push(path.replace(/undefined\.\.?/, '').split('.'));
-                    values.push(value.split(','));}
-                }
+            {
+                if (typeof final != 'object') {
+                    // TODO: Insert a function to check the qualification of AND/OR sequences.
+                    if (typeof value == 'string') {
+                        if (regExMatch(value, search).length > 0) {
+                            paths.push(path.replace(/undefined\.\.?/, '').split('.'));
+                            values.push(value.split(','));
+                        }
+                    }
 
-            }}
+                }
+            }
             return final;
         }
     }
@@ -145,7 +148,7 @@ const getContextualProperties = (search) => {
     }));
 
 
-    
+
     const finalSynonyms = [...paths.flat().map(element => element.replace(synonymsPath, '').replace('_config', '')), ...values.flat().map(element => element.replace(synonymsPath, '').replace('_config', ''))]
     console.log(`FINAL SYNONYMS: ${finalSynonyms}`)
     return finalSynonyms
@@ -154,20 +157,14 @@ const getContextualProperties = (search) => {
 const setProperty = (keys, value, obj) => { const property = keys.split('.').pop(); const path = keys.split('.')[1] ? keys.split('.').slice(0, -1).join('.') : keys.replace('.', ''); if (property[1]) { getKey(path, obj)[property] = value ? value : null; } else { dataStorage[path] = value; } }
 const getKey = (keys, obj) => { return keys.split('.').reduce((a, b) => { if (typeof a[b] != "object") { a[b] = {} } if (!a.hasOwnProperty(b)) { a[b] = {} } return a && a[b] }, obj) }
 
-// TODO: Figure out why the native 'removeWorldEntry' function doesn't do the thing. It don't boop the entries away 😡
 const consumeWorldEntries = () => {
 
-    if (worldEntries.some(element => element["keys"].includes('.'))) {
+    worldEntries.filter(wEntry => (wEntry["keys"].includes('.') && !wEntry["keys"].includes('#'))).forEach(wEntry => {
+        removeWorldEntry(worldEntries.indexOf(wEntry))
+        setProperty(wEntry["keys"].toLowerCase().split(',').filter(element => element.includes('.')).map(element => element.trim()).join(''), wEntry["entry"], dataStorage);
 
-        worldEntries.forEach(wEntry => {
-            if ((wEntry["keys"].includes('.')) && !wEntry["keys"].includes('#')) {
-                const index = worldEntries.findIndex(element => element["keys"] == wEntry["keys"]);
-                removeWorldEntry(index); // <------------
-                setProperty(wEntry["keys"].toLowerCase().split(',').filter(element => element.includes('.')).map(element => element.trim()).join(''), wEntry["entry"], dataStorage);
-
-            }
-        })
-    }
+    })
+    
 }
 const globalWhitelist = [getWhitelist(), getContextualProperties(getHistoryString(-4)).flat()].flat();
 const globalReplacer = (key, value) => { if (value == null || value.constructor != Object) { return value == null ? undefined : value } return Object.keys(value).sort((a, b) => globalWhitelist.indexOf(a) - globalWhitelist.indexOf(b)).filter(element => globalWhitelist.includes(element)).reduce((s, k) => { s[k] = value[k]; return s }, {}) }
@@ -222,7 +219,7 @@ const insertJSON = (text) => {
             // Determine if the Object should be present, somewhere.
             const quickSearch = regExMatch(dataStorage[data][synonymsPath], fullContextLines.join(''));
             const checkWords = quickSearch.length > 0 ? quickSearch.flatMap(element => element.replace(/\W/g, ',').split(',')) : ['_undefined'];
-            
+
             fullContextLines.forEach(line => {
                 if (checkWords.some(word => line.toLowerCase().includes(word))) { finalLineIndex = fullContextLines.indexOf(line) }
             })
@@ -238,7 +235,7 @@ const insertJSON = (text) => {
 
                 else {
                     if (string.length > 4 && !fullContextLines.some(line => line.includes(string))) { spliceContext(finalLineIndex, `[${string}]`); };
-                    
+
                 }
 
             }
@@ -356,11 +353,9 @@ state.commandList = {
                 //const getKeyNoTransform = (keys, obj) => { return keys.split('.').reduce((a, b) => { return a && a[b] }, obj) }
                 args = args.map(element => element.trim()).join('').toLowerCase().split('.');
                 const path = args.join('.')
-                const objectPath = args.length > 1 ? args.slice(1).join('.') : args[0]
-                console.log('objectPath', objectPath)
 
                 console.log('path', path, args.length)
-                const object = args.length > 1 ? lens(args.slice(1).join('.'), dataStorage[args[0]]) : dataStorage[args[0]]
+                const object = args.length > 1 ? lens(dataStorage[args[0]], args.slice(1).join('.')) : dataStorage[args[0]]
                 console.log('object', object)
                 worldEntriesFromObject(object, path)
                 state.message = `Showing all Objects starting with ${path} in World Information!`;
