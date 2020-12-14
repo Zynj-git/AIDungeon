@@ -13,7 +13,7 @@ let contextMemoryLength = 0; // Keep count of additional context added.
 if (!state.generate) { state.generate = {} }
 if (!state.settings) { state.settings = {} }
 // If key (setting[0]) is not in state.settings, initiate it with setting[1] as default value.
-const initSettings = [['entriesFromJSON', true], ['filter', false]]
+const initSettings = [['entriesFromJSON', true], ['filter', false], ['searchTurnsRange', 4]]
 initSettings.forEach(setting => { if (!Object.keys(state.settings).includes(setting[0])) { state.settings[setting[0]] = setting[1] } })
 
 state.config = {
@@ -43,7 +43,7 @@ const regExMatch = (expressions, string) => {
     const validWords = [];
     const lines = expressions.split('\n');
     lines.forEach(line => {
-        const expression = line.slice(0, line.indexOf('#'));
+        const expression = line.slice(0, line.includes('#') ? line.indexOf('#') : line.length);
         const words = line.slice(line.indexOf('#') + 1)
         if (expression.split(',').every(exp => {
             const regEx = new RegExp(exp, 'i');
@@ -106,7 +106,7 @@ const addDescription = (entry, value = 0) => {
 
 const addAuthorsNote = (entry, value = 0) => state.memory.authorsNote = `${entry["entry"]}`
 const revealWorldEntry = (entry, value = 0) => entry.isNotHidden = true
-const addPositionalEntry = (entry, value = 0) => { spliceContext((value != 0 ? -(value) : lines.length), entry["entry"]) }
+const addPositionalEntry = (entry, value = 0) => { spliceContext((value != 0 ? -(value) : fullContextLines.length), entry["entry"]) }
 
 const getWhitelist = () => dataStorage.hasOwnProperty(whitelistPath) ? dataStorage[whitelistPath].split(',').map(element => element.trim()) : []
 
@@ -125,18 +125,15 @@ const getContextualProperties = (search) => {
             }
             const final = replacer.call(this, field, value, path.replace(/undefined\.\.?/, ''));
 
-            {
-                if (typeof final != 'object') {
-                    // TODO: Insert a function to check the qualification of AND/OR sequences.
-                    if (typeof value == 'string') {
-                        if (regExMatch(value, search).length > 0) {
-                            paths.push(path.replace(/undefined\.\.?/, '').split('.'));
-                            values.push(value.split(','));
-                        }
-                    }
-
+            {if (typeof final != 'object') {
+                // TODO: Insert a function to check the qualification of AND/OR sequences.
+                if (typeof value == 'string') {
+                    if (regExMatch(value, search).length > 0)
+                    {paths.push(path.replace(/undefined\.\.?/, '').split('.'));
+                    values.push(value.split(','));}
                 }
-            }
+
+            }}
             return final;
         }
     }
@@ -148,7 +145,7 @@ const getContextualProperties = (search) => {
     }));
 
 
-
+    
     const finalSynonyms = [...paths.flat().map(element => element.replace(synonymsPath, '').replace('_config', '')), ...values.flat().map(element => element.replace(synonymsPath, '').replace('_config', ''))]
     console.log(`FINAL SYNONYMS: ${finalSynonyms}`)
     return finalSynonyms
@@ -162,9 +159,7 @@ const consumeWorldEntries = () => {
     worldEntries.filter(wEntry => (wEntry["keys"].includes('.') && !wEntry["keys"].includes('#'))).forEach(wEntry => {
         removeWorldEntry(worldEntries.indexOf(wEntry))
         setProperty(wEntry["keys"].toLowerCase().split(',').filter(element => element.includes('.')).map(element => element.trim()).join(''), wEntry["entry"], dataStorage);
-
     })
-    
 }
 const globalWhitelist = [getWhitelist(), getContextualProperties(getHistoryString(-4)).flat()].flat();
 const globalReplacer = (key, value) => { if (value == null || value.constructor != Object) { return value == null ? undefined : value } return Object.keys(value).sort((a, b) => globalWhitelist.indexOf(a) - globalWhitelist.indexOf(b)).filter(element => globalWhitelist.includes(element)).reduce((s, k) => { s[k] = value[k]; return s }, {}) }
@@ -192,6 +187,7 @@ const spliceContext = (pos, string) => {
     lines = fullContextLines.slice(memoryLines.length);
     // Re-assemble 'fullContextLines'
     fullContextLines = [...memoryLines, ...lines];
+    text = fullContextLines.join('\n')
 
 }
 //[tavern|inn, Keysworth, tavern-keeper|tavernkeeper], [${obj}, look|watch|spectate, hair]
@@ -217,11 +213,11 @@ const insertJSON = (text) => {
 
             let finalLineIndex;
             // Determine if the Object should be present, somewhere.
-            const quickSearch = regExMatch(dataStorage[data][synonymsPath], fullContextLines.join(''));
-            const checkWords = quickSearch.length > 0 ? quickSearch.flatMap(element => element.replace(/\W/g, ',').split(',')) : ['_undefined'];
-
+            const quickSearch = regExMatch(dataStorage[data][synonymsPath], lines.join(''));
+            const checkWords = quickSearch.length > 0 ? quickSearch.flatMap(element => element.replace(/[^A-Za-z 0-9]/g, ',').split(',')) : ['_undefined'];
+            
             fullContextLines.forEach(line => {
-                if (checkWords.some(word => line.toLowerCase().includes(word))) { finalLineIndex = fullContextLines.indexOf(line) }
+                if (checkWords.some(word => line.toLowerCase().includes(word.toLowerCase()))) { finalLineIndex = fullContextLines.indexOf(line) }
             })
             console.log(`CHECKWORDS: ${checkWords}, FINAL INDEX: ${finalLineIndex}`)
             if (finalLineIndex > -1) {
@@ -235,7 +231,7 @@ const insertJSON = (text) => {
 
                 else {
                     if (string.length > 4 && !fullContextLines.some(line => line.includes(string))) { spliceContext(finalLineIndex, `[${string}]`); };
-
+                    
                 }
 
             }
@@ -312,6 +308,7 @@ state.commandList = {
         execute:
             (args) => {
 
+                // TODO: Permit the consumption of specific entries, currently this is also inadvertently execute /hide
                 consumeWorldEntries();
                 if (dataStorage) {
                     const path = args.join('').toLowerCase().trim();
@@ -447,6 +444,18 @@ state.commandList = {
                 delete dataStorage[args[0]]
                 state.message = `Deleted Object: ${args[0]}`;
             }
+    },
+    searchRange:
+    {
+        name: 'searchRange',
+        description: 'Determines how many turns back it should check for qualifiers on [p] and [a] arguments - Default (4)',
+        args: true,
+        usage: '<Number>',
+        execute:
+            (args) => {
+                state.settings.searchTurnsRange = args[0]
+                state.message = `Search Range set to ${args[0]}`
+            }
     }
 };
 
@@ -472,7 +481,7 @@ const processWorldEntries = (entries) => {
         const entryAttributes = getAttributes(wEntry["keys"].split('#').slice(-1)[0].extractString('[', ']'))
 
         if (entryAttributes && entryAttributes.length > 0) {
-            const lastTurnString = entryAttributes.some(attrib => attrib.includes('p') || attrib.includes('d')) ? getHistoryString(-1).toLowerCase().trim() : getHistoryString(-4).toLowerCase().trim() // What we check the keywords against, this time around we basically check where in the context the last history element is then slice forward.
+            const lastTurnString = entryAttributes.some(attrib => attrib.includes('p') || attrib.includes('d')) ? getHistoryString(-state.settings.searchTurnsRange).toLowerCase().trim() : getHistoryString(-4).toLowerCase().trim() // What we check the keywords against, this time around we basically check where in the context the last history element is then slice forward.
 
 
 
