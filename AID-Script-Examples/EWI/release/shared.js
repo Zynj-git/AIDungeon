@@ -41,7 +41,7 @@ const getAttributes = (keys) => { const attrib = keys.match(/([a-z](=\d+)?)/g); 
 const regExMatch = (expressions, string) => {
 
     const validWords = [];
-    const lines = expressions.split('\n');
+    const lines = expressions.split(/\n/g);
     lines.forEach(line => {
         const expression = line.slice(0, line.includes('#') ? line.indexOf('#') : line.length);
         const words = line.slice(line.indexOf('#') + 1)
@@ -55,6 +55,7 @@ const regExMatch = (expressions, string) => {
     return validWords
 }
 const lens = (obj, path) => path.split('.').reduce((o, key) => o && o[key] ? o[key] : null, obj);
+const delLens = (obj, path) => path.split('.').reduce((o, key) => o && o[key] ? o[key] : delete obj[o][key]);
 
 /* const everyCheck = (entry, string) => {
     string = string.toLowerCase().trim();
@@ -76,13 +77,8 @@ const replaceLast = (x, y, z) => { let a = x.split(""); let length = y.length; i
 const getMemory = (text) => { return info.memoryLength ? text.slice(0, info.memoryLength) : '' } // If memoryLength is set then slice of the beginning until the end of memoryLength, else return an empty string.
 const getContext = (text) => { return info.memoryLength ? text.slice(info.memoryLength) : text } // If memoryLength is set then slice from the end of memory to the end of text, else return the entire text.
 
-// Format entry keys for addDescription, last OR sequence is used to determine eligible words, the rest become AND/OR gates.
-const format = (entry) => {
-    let filter = entry["keys"].replace(/\$/g, '').replace(/,?\s*?\[[^\[\]]*\]/g, '').split(',');
-    let array = filter.length > 1 ? filter.slice(-1) : filter;
-    return array.join(',').replace(/\|/g, ',').split(',').map(element => element.trim())
-};
-
+// Extract the last cluster in the RegEx' AND check then filter out non-word/non-whitespace symbols to TRY and assemble the intended words.
+const format = (entry) => entry["keys"].slice(entry["keys"].includes(",") || entry["keys"].includes(".*")  ? entry["keys"].regexLastIndexOf(/(,|\.\*)/g) : 0, entry["keys"].includes('#') ? entry["keys"].indexOf('#') : entry["keys"].length).replace(/[^\w-\s]/g, ',').split(',').map(e => e.trim()).filter(e => e.length > 1);
 const addDescription = (entry, value = 0) => {
     let searchText = lines.join('\n');
     const searchKeys = format(entry);
@@ -90,26 +86,23 @@ const addDescription = (entry, value = 0) => {
     let finalIndex = -1;
     let keyPhrase;
     searchKeys.forEach(key => {
-        const regEx = new RegExp(`\\b${key.trim()}`, "gi");
+        const regEx = new RegExp(`\\b${key.trim()}`, "i");
         const keyIndex = searchText.toLowerCase().regexLastIndexOf(regEx);
         if (keyIndex > finalIndex) {
             finalIndex = keyIndex;
             keyPhrase = key;
         }
     });
-    if (finalIndex && !(entry["entry"].replace(/[,.!?]*/g, '').split(' ').some(word => searchText.includes(`${keyPhrase} ${word}`) || searchText.includes(`${word} ${keyPhrase}`)))) {
+    if (finalIndex) {
         searchText = replaceLast(searchText, keyPhrase, value != 0 ? `${keyPhrase} ${entry["entry"]}` : `${entry["entry"]} ${keyPhrase}`);
     } lines = searchText.split('\n');
 }
-
-
 
 const addAuthorsNote = (entry, value = 0) => state.memory.authorsNote = `${entry["entry"]}`
 const revealWorldEntry = (entry, value = 0) => entry.isNotHidden = true
 const addPositionalEntry = (entry, value = 0) => { spliceContext((value != 0 ? -(value) : fullContextLines.length), entry["entry"]) }
 
 const getWhitelist = () => dataStorage.hasOwnProperty(whitelistPath) ? dataStorage[whitelistPath].split(',').map(element => element.trim()) : []
-
 
 // TODO: Feed it the positional argument of the Object for float searches.
 // TODO: Only retrieve the absolute necessities of information, currently its a slight rework of the function utilized in 'createWorldEntriesFromObject' func.
@@ -143,11 +136,9 @@ const getContextualProperties = (search) => {
     JSON.stringify(dataStorage[synonymsPath], buildSynonyms(function (field, value, path) {
         return value;
     }));
-
-
     
     const finalSynonyms = [...paths.flat().map(element => element.replace(synonymsPath, '').replace('_config', '')), ...values.flat().map(element => element.replace(synonymsPath, '').replace('_config', ''))]
-    console.log(`FINAL SYNONYMS: ${finalSynonyms}`)
+
     return finalSynonyms
 }
 
@@ -161,7 +152,7 @@ const consumeWorldEntries = () => {
         setProperty(wEntry["keys"].toLowerCase().split(',').filter(element => element.includes('.')).map(element => element.trim()).join(''), wEntry["entry"], dataStorage);
     })
 }
-const globalWhitelist = [getWhitelist(), getContextualProperties(getHistoryString(-4)).flat()].flat();
+const globalWhitelist = [getWhitelist(), getContextualProperties(getHistoryString(-state.settings.searchTurnsRange)).flat()].flat();
 const globalReplacer = (key, value) => { if (value == null || value.constructor != Object) { return value == null ? undefined : value } return Object.keys(value).sort((a, b) => globalWhitelist.indexOf(a) - globalWhitelist.indexOf(b)).filter(element => globalWhitelist.includes(element)).reduce((s, k) => { s[k] = value[k]; return s }, {}) }
 const localWhitelist = getContextualProperties(getHistoryString(-1)).flat();
 const localReplacer = (name, val) => { if (localWhitelist.some(element => element.includes(name)) && val) { return Array.isArray(val) ? val.join(', ') : val } else { return undefined } };
@@ -169,8 +160,6 @@ const localReplacer = (name, val) => { if (localWhitelist.some(element => elemen
 // Close opened brackets for the string before attempting to JSON.parse() it - slight increase to success rate.
 const getDepth = (string) => { const opened = string.match(/{/g); const closed = string.match(/}/g); return (opened ? opened.length : 0) - (closed ? closed.length : 0) }
 const fixDepth = (string) => { let count = getDepth(string); while (count > 0) { count--; string += `}`; } return string }
-/////
-const assignParents = (text) => { for (const data in dataStorage) { if (dataStorage[data].hasOwnProperty("child")) { let indexPos = -1; let finalParent; let finalParentName; for (let parentRoot in dataStorage[data]["child"]) { const searchFor = parentRoot.replace(`[`, '').replace(`]`, ''); const index = text.includes(searchFor) ? text.lastIndexOf(searchFor) : dataStorage.hasOwnProperty(searchFor) && dataStorage[searchFor].hasOwnProperty("synonyms") ? dataStorage[searchFor]["synonyms"].split(',').map(element => text.lastIndexOf(element.toLowerCase())).sort().reverse().shift() : -1; if (index >= 0 && index > indexPos) { indexPos = index; let toCopy; for (const element in dataStorage[data]["child"][searchFor]) { if (element.includes('[')) { toCopy = element.replace(`[`, '').replace(`]`, ''); finalParent = dataStorage[toCopy]; finalParentName = searchFor; break; } else { finalParent = dataStorage[data]['child'][searchFor]; } } } } if (finalParent) { finalParent['synonyms'] ? finalParent['synonyms'] += ',' + data + ', ' + finalParentName : finalParent['synonyms'] = data + ', ' + finalParentName; if (dataStorage['synonyms'].hasOwnProperty(data)) { finalParent['synonyms'] += ', ' + dataStorage['synonyms'][data]; } if (dataStorage[data].hasOwnProperty('synonyms')) { finalParent['synonyms'] += ', ' + dataStorage[data]['synonyms']; } Object.assign(dataStorage[data], finalParent); } } } }
 
 // TODO: If AND/OR segments are present, only map those that qualify.
 const getRootSynonyms = (root) => dataStorage[root].hasOwnProperty(synonymsPath) ? dataStorage[root][synonymsPath].split(',').map(element => element.toLowerCase().trim()) : []
@@ -179,10 +168,8 @@ const getRootSynonyms = (root) => dataStorage[root].hasOwnProperty(synonymsPath)
 // TODO: Sanitize and add counter, verify whether memory having priority is detrimental to the structure - 'Remember' should never be at risk of ommitance.
 const spliceContext = (pos, string) => {
 
-    // Add a variable to keep track of the length on strings, not certain if it'll be relevant as all splicing is done on the combined context rather than the native 'memory'/'story' split.
-    // Might have to check if it 'would be in memory if inserted normally' e.g by checking memoryLines.length against the 'pos' argument supplied here.
     contextMemoryLength += string.length;
-    fullContextLines.splice(pos, 0, string);
+    if (pos && string) {fullContextLines.splice(pos, 0, string);}
     memoryLines = fullContextLines.slice(0, memoryLines.length + 1);
     lines = fullContextLines.slice(memoryLines.length);
     // Re-assemble 'fullContextLines'
@@ -199,7 +186,7 @@ const insertJSON = (text) => {
 
     // An Object that stores meta-info for comparison and ordering during processing - e.g to adjust positions as things are pushed around.
     const masterObject = {}
-    const configValues = [['float', null], ['sprawl', false]]
+    const configValues = [['float', null], ['sprawl', false], ['inline', false]]
 
 
     for (const data in dataStorage) {
@@ -209,27 +196,30 @@ const insertJSON = (text) => {
             configValues.forEach(setting => { if (!dataStorage[data]["_config"].hasOwnProperty(setting[0])) { dataStorage[data]["_config"][setting[0]] = setting[1] } })
             if (!dataStorage[data].hasOwnProperty(synonymsPath)) { dataStorage[data][synonymsPath] = data }
 
-            const { float, sprawl } = dataStorage[data]["_config"];
+            const { float, sprawl, inline } = dataStorage[data]["_config"];
 
             let finalLineIndex;
             // Determine if the Object should be present, somewhere.
-            const quickSearch = regExMatch(dataStorage[data][synonymsPath], lines.join(''));
-            const checkWords = quickSearch.length > 0 ? quickSearch.flatMap(element => element.replace(/[^A-Za-z 0-9]/g, ',').split(',')) : ['_undefined'];
-            
-            fullContextLines.forEach(line => {
-                if (checkWords.some(word => line.toLowerCase().includes(word.toLowerCase()))) { finalLineIndex = fullContextLines.indexOf(line) }
+            const quickSearch = regExMatch(dataStorage[data][synonymsPath], lines.join('\n'));
+            const checkWords = quickSearch.length > 0 ? quickSearch.flatMap(element => element.replace(/[^A-Za-z 0-9]/g, ',').split(',')).filter(element => element.length > 0) : ['_undefined'];
+            let finalWord = '_undefined';
+
+            fullContextLines.filter(line => !line.includes('[{')).forEach(line => {
+                if (checkWords.some(word => { if (line.toLowerCase().includes(word.toLowerCase())) {finalWord = word; return true;}})) { finalLineIndex = fullContextLines.indexOf(line);}
             })
             console.log(`CHECKWORDS: ${checkWords}, FINAL INDEX: ${finalLineIndex}`)
-            if (finalLineIndex > -1) {
+            if (finalLineIndex > -1 || (float && checkWords[0] != '_undefined')) {
                 let string = JSON.stringify(dataStorage[data], globalReplacer).replace(/\\/g, '');
                 console.log(string)
                 if (state.settings["filter"]) { string = string.replace(/"|{|}/g, ''); }
 
-                if (float) {
-                    spliceContext(float, string);
+                if ((string.length > 4 && string.length + contextMemoryLength + info.memoryLength < info.maxChars/2) && float) {
+                    spliceContext(float, `[${string}]`);
                 }
 
-                else {
+            
+                else
+                {
                     if (string.length > 4 && !fullContextLines.some(line => line.includes(string))) { spliceContext(finalLineIndex, `[${string}]`); };
                     
                 }
@@ -243,7 +233,7 @@ const insertJSON = (text) => {
 
 
 
-const entriesFromJSONLines = () => { const JSONLines = lines.filter(line => line.startsWith('[')); const JSONString = JSONLines.join('\n'); const normalWorldEntries = worldEntries.filter(element => !element["keys"].includes('.')); normalWorldEntries.forEach(element => element["keys"].split(',').some(keyword => { if (JSONString.toLowerCase().includes(keyword.toLowerCase()) && !text.includes(element["entry"])) { if (info.memoryLength + element["entry"].length <= info.maxChars / 2) { spliceContext(memory.split('\n').length, element["entry"]); return true; } } })) }
+const entriesFromJSONLines = () => { const JSONLines = lines.filter(line => line.startsWith('[')); const JSONString = JSONLines.join('\n'); const normalWorldEntries = worldEntries.filter(element => !element["keys"].includes('.')); normalWorldEntries.forEach(element => element["keys"].split(',').some(keyword => { if (JSONString.toLowerCase().includes(keyword.toLowerCase()) && !text.includes(element["entry"])) { if (info.memoryLength + contextMemoryLength + element["entry"].length <= info.maxChars / 2) { spliceContext(memory.split('\n').length, element["entry"]); return true; } } })) }
 const parseGen = (text) => { state.generate.process = false; const string = fixDepth(`${state.generate.sections.primer}${text}`); const toParse = string.match(/{.*}/); if (toParse) { const obj = JSON.parse(toParse[0]); worldEntriesFromObject(obj, state.generate.root.split(' ')[0]); state.message = `Generated Object for ${state.generate.root} as type ${state.generate.types[0]}\nResult: ${JSON.stringify(obj)}` } else { state.message = `Failed to parse AI Output for Object ${state.generate.root} type ${state.generate.type[0]}` } }
 const parseAsRoot = (text, root) => { const toParse = text.match(/{.*}/g); if (toParse) { toParse.forEach(string => { const obj = JSON.parse(string); worldEntriesFromObject(obj, root); text = text.replace(string, ''); }) } }
 const generateObject = (text) => {
@@ -441,7 +431,8 @@ state.commandList = {
         usage: '<Object>',
         execute:
             (args) => {
-                delete dataStorage[args[0]]
+                console.log(args[0])
+                delLens(dataStorage, args[0])
                 state.message = `Deleted Object: ${args[0]}`;
             }
     },
