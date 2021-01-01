@@ -1,17 +1,17 @@
 Extended World Information (EWI) aims at providing the user with more flexible interactions with World Information.
 To achieve this, the user is instructed to place bracket-encapsulated attribute short-hands into the keys of a worldEntries element.
 
-A quick example of what that looks like, if convoluting it as far as possible, the keys can be: '$you, $wield|equip|unsheathe, $branch|stick|staff|wand|scepter, [p=1aredw=100]'
-The '$' symbol is to prevent the native world information processing from duplicating the entry whilst '|' is a symbol signifying 'OR' (Used with the 'e' tag to create AND/OR clauses)
+A quick example of what that looks like, if convoluting it as far as possible, the keys can be: '\you, \(wield|equip|unsheathe), \(branch|stick|staff|wand|scepter),#[p=1ardw=100]'
+With EWI, keys utilize RegEx for activation with comma ',' functioning as an `AND` clause and '#' separating the meta-info at the end.
+Backslash '\' is used to avoid the native processing from registering, while still maintaining usual RegEx functionality.
 
-Note: Available attributes are [parwed] - configurable attributes are [pwd], assign optional numerical values with = e.g [p=1]
+Note: Available attributes are [parwd] - configurable attributes are [pwd], assign optional numerical values with = e.g [p=1]
 
 In this initial example, the entry would activate if the context contains 'you' in addition to either of 'branch/stick/staff'.
 It would then process the content of the entry in the following manner:
 
 [a] - authorsNote, a transient, bracket-encapsulated notation roughly three line-breaks into context.
 [r] - revealEntry, if the entry was hidden it would now be revealed to the user.
-[e] - Every match, requires that all of the keys are present for it to activate. In conjunction with '|' (OR) this becomes a whole lot more flexible.
 [d] - descriptor takes an optional value e.g [d=1] that determines if the descriptor is positoned before or after the detected word.
 	By default (no assigned value) it adds the entry in front of the detected word. e.g if the entry states 'a boomstick of doom.' then the AI would see e.g 'a boomstick of doom stick '
 [p] - takes a number as a value, this value determines which line the entry should be inserted at. Use 0 to imitate frontMemory or 1 to place it one line back.
