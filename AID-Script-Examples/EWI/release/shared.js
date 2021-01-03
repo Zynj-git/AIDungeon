@@ -143,7 +143,7 @@ const getContextualProperties = (search) => {
 }
 
 const setProperty = (keys, value, obj) => { const property = keys.split('.').pop(); const path = keys.split('.')[1] ? keys.split('.').slice(0, -1).join('.') : keys.replace('.', ''); if (property[1]) { getKey(path, obj)[property] = value ? value : null; } else { dataStorage[path] = value; } }
-const getKey = (keys, obj) => { return keys.split('.').reduce((a, b) => { if (typeof a[b] != "object") { a[b] = {} } if (!a.hasOwnProperty(b)) { a[b] = {} } return a && a[b] }, obj) }
+const getKey = (keys, obj) => { return keys.split('.').reduce((a, b) => { if (typeof a[b] != "object" || a[b] == null) { a[b] = {} } if (!a.hasOwnProperty(b)) { a[b] = {} } return a && a[b] }, obj) }
 
 const consumeWorldEntries = () => {
 
@@ -168,15 +168,20 @@ const getRootSynonyms = (root) => dataStorage[root].hasOwnProperty(synonymsPath)
 // TODO: Sanitize and add counter, verify whether memory having priority is detrimental to the structure - 'Remember' should never be at risk of ommitance.
 const spliceContext = (pos, string) => {
 
-    contextMemoryLength += string.length;
-    if (pos && string) {fullContextLines.splice(pos, 0, string);}
-    memoryLines = fullContextLines.slice(0, memoryLines.length + 1);
-    lines = fullContextLines.slice(memoryLines.length);
-    // Re-assemble 'fullContextLines'
-    fullContextLines = [...memoryLines, ...lines];
-    text = fullContextLines.join('\n')
+    const linesLength = lines.join('\n').length
+    const memoryLength = memoryLines.join('\n').length
 
+    if ((linesLength + memoryLines) + string.length > info.maxChars)
+    { lines = lines.join('\n').slice(string.length).join('\n') }
+    lines.splice(pos, 0, string)
 }
+
+const spliceMemory = (pos, string) =>
+{
+    contextMemoryLength += string.length;
+    memoryLines.splice(pos, 0, string);
+}
+
 //[tavern|inn, Keysworth, tavern-keeper|tavernkeeper], [${obj}, look|watch|spectate, hair]
 
 // TODO: Get the sprawler into a functional state, but that depends on supplimental functions such as 'getRootSynonyms' and the 'globalReplacer'.
@@ -204,8 +209,8 @@ const insertJSON = (text) => {
             const checkWords = quickSearch.length > 0 ? quickSearch.flatMap(element => element.replace(/[^A-Za-z 0-9]/g, ',').split(',')).filter(element => element.length > 0) : ['_undefined'];
             let finalWord = '_undefined';
 
-            fullContextLines.filter(line => !line.includes('[{')).forEach(line => {
-                if (checkWords.some(word => { if (line.toLowerCase().includes(word.toLowerCase())) {finalWord = word; return true;}})) { finalLineIndex = fullContextLines.indexOf(line);}
+            lines.filter(line => !line.includes('[{')).forEach(line => {
+                if (checkWords.some(word => { if (line.toLowerCase().includes(word.toLowerCase())) {finalWord = word; return true;}})) { finalLineIndex = lines.indexOf(line);}
             })
             console.log(`CHECKWORDS: ${checkWords}, FINAL INDEX: ${finalLineIndex}`)
             if (finalLineIndex > -1 || (float && checkWords[0] != '_undefined')) {
@@ -213,14 +218,14 @@ const insertJSON = (text) => {
                 console.log(string)
                 if (state.settings["filter"]) { string = string.replace(/"|{|}/g, ''); }
 
-                if ((string.length > 4 && string.length + contextMemoryLength + info.memoryLength < info.maxChars/2) && float) {
-                    spliceContext(float, `[${string}]`);
+                if (string.length > 4 && float) {
+                    float.includes('ML') ? spliceMemory(memoryLines.length, `[${string}]`) : spliceContext(float, `[${string}]`);
                 }
 
             
                 else
                 {
-                    if (string.length > 4 && !fullContextLines.some(line => line.includes(string))) { spliceContext(finalLineIndex, `[${string}]`); };
+                    if (string.length > 4 && !lines.some(line => line.includes(string))) { spliceContext(finalLineIndex, `[${string}]`); };
                     
                 }
 
@@ -233,7 +238,7 @@ const insertJSON = (text) => {
 
 
 
-const entriesFromJSONLines = () => { const JSONLines = lines.filter(line => line.startsWith('[')); const JSONString = JSONLines.join('\n'); const normalWorldEntries = worldEntries.filter(element => !element["keys"].includes('.')); normalWorldEntries.forEach(element => element["keys"].split(',').some(keyword => { if (JSONString.toLowerCase().includes(keyword.toLowerCase()) && !text.includes(element["entry"])) { if (info.memoryLength + contextMemoryLength + element["entry"].length <= info.maxChars / 2) { spliceContext(memory.split('\n').length, element["entry"]); return true; } } })) }
+const entriesFromJSONLines = () => { const JSONLines = lines.filter(line => line.startsWith('[')); const JSONString = JSONLines.join('\n'); const normalWorldEntries = worldEntries.filter(element => !element["keys"].includes('.')); normalWorldEntries.forEach(element => element["keys"].split(',').some(keyword => { if (JSONString.toLowerCase().includes(keyword.toLowerCase()) && !text.includes(element["entry"])) { if (info.memoryLength + contextMemoryLength + element["entry"].length <= info.maxChars / 2) { spliceMemory(memory.split('\n').length, element["entry"]); return true; } } })) }
 const parseGen = (text) => { state.generate.process = false; const string = fixDepth(`${state.generate.sections.primer}${text}`); const toParse = string.match(/{.*}/); if (toParse) { const obj = JSON.parse(toParse[0]); worldEntriesFromObject(obj, state.generate.root.split(' ')[0]); state.message = `Generated Object for ${state.generate.root} as type ${state.generate.types[0]}\nResult: ${JSON.stringify(obj)}` } else { state.message = `Failed to parse AI Output for Object ${state.generate.root} type ${state.generate.type[0]}` } }
 const parseAsRoot = (text, root) => { const toParse = text.match(/{.*}/g); if (toParse) { toParse.forEach(string => { const obj = JSON.parse(string); worldEntriesFromObject(obj, root); text = text.replace(string, ''); }) } }
 const generateObject = (text) => {
