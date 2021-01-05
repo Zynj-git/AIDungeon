@@ -26,7 +26,7 @@ Supplementary Commands:
         Syntax '/whitelist <word> or <phrase>'.
         If a word is present it becomes removed, else it's added.
     
-    '/show' reveals all worldEntries starting with the provided argument.
+    '/show' reveals all Objects starting with the provided argument in the World Information interface.
         Syntax '/show <root> or <root>.<path>'.
         If you're doing bulk updating on a specific object, showing it and managing via the World Information interface might be quicker than repeating commands.
     
@@ -41,7 +41,7 @@ Supplementary Commands:
         It's enabled by default and permits e.g a 'trait' to have its prose entry fetched when relevant for an Object.
 
 Components:
-    The Objects (JSON- lines) can be managed entirely via the World Information interface, externally in .JSON Files/Editors, or the commands.
+    The Objects (JSON- lines) can be managed via the World Information interface, externally in .JSON Files/Editors, or the commands.
     The script searches for World Entries that contain a dot '.' in its keys to consume it for Object creation. The presence of '#' omits it from consumption. (RegEx Friendly)
     
     Prelimenary requirements is the presence of an entry keyed '_whitelist.' that contains the name of properties that should always be visible if the property exists for the Object.
