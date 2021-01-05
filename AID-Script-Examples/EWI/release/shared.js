@@ -85,7 +85,7 @@ const addDescription = (entry, value = 0) => {
 
 const addAuthorsNote = (entry, value = 0) => state.memory.authorsNote = `${entry["entry"]}`
 const revealWorldEntry = (entry, value = 0) => entry.isNotHidden = true
-const addPositionalEntry = (entry, value = 0) => { spliceContext((value != 0 ? -(value) : fullContextLines.length), entry["entry"]) }
+const addPositionalEntry = (entry, value = 0) => { spliceContext((value != 0 ? -(value) : lines.length), entry["entry"]) }
 
 const getWhitelist = () => dataStorage.hasOwnProperty(whitelistPath) ? dataStorage[whitelistPath].split(',').map(element => element.trim()) : []
 
@@ -158,8 +158,8 @@ const spliceContext = (pos, string) => {
     const linesLength = lines.join('\n').length
     const memoryLength = memoryLines.join('\n').length
 
-    if ((linesLength + memoryLines) + string.length > info.maxChars)
-    { lines = lines.join('\n').slice(string.length).join('\n') }
+    if ((linesLength + memoryLength) + string.length > info.maxChars)
+    { lines = lines.join('\n').slice(string.length).split('\n') }
     lines.splice(pos, 0, string)
 }
 
