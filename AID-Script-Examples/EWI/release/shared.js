@@ -480,7 +480,7 @@ const processWorldEntries = (entries) => {
 
 
             const basicCheck = regExMatch(wEntry["keys"], lastTurnString)
-            console.log(`Checking if '${wEntry["keys"]}' passes check: ${basicCheck}`)// Only process attributes of entries detected on the previous turn. (Using the presumed native functionality of substring acceptance instead of RegEx wholeword match)
+            console.log(`Checking if '${wEntry["keys"]}' passes check: ${basicCheck.length > 0 ? true : false}`)// Only process attributes of entries detected on the previous turn. (Using the presumed native functionality of substring acceptance instead of RegEx wholeword match)
             if (basicCheck.length > 0) {
                 try // We try to do something. If code goes kaboom then we just catch the error and proceed. This is to deal with non-attribute assigned entries e.g those with empty bracket-encapsulations []
                 {
