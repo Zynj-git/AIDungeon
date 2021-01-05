@@ -332,8 +332,10 @@ state.commandList = {
                 const path = args.join('.')
 
                 const object = args.length > 1 ? lens(dataStorage[args[0]], args.slice(1).join('.')) : dataStorage[args[0]]
-                worldEntriesFromObject(object, path)
-                state.message = `Showing all Objects starting with ${path} in World Information!`;
+                if (object) { worldEntriesFromObject(object, path)
+                    state.message = `Showing all Objects starting with ${path} in World Information!`;
+                }
+                else {state.message = `${object} is an invalid Object!`}
                 return
             }
     },
