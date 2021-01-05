@@ -55,22 +55,8 @@ const regExMatch = (expressions, string) => {
     return validWords
 }
 const lens = (obj, path) => path.split('.').reduce((o, key) => o && o[key] ? o[key] : null, obj);
+// TODO: Find a reliable method of emergency deleting specific points in Object.
 const delLens = (obj, path) => path.split('.').reduce((o, key) => o && o[key] ? o[key] : delete obj[o][key]);
-
-/* const everyCheck = (entry, string) => {
-    string = string.toLowerCase().trim();
-
-    const keys = entry["keys"].replace(/\$|,?\s*?\[[^\[\]]*\]/g, '').toLowerCase().trim().split(',');
-    const anyArray = keys.filter(element => element.includes('|'));
-
-    const anyCheck = anyArray.map(element => element.trim()).every(element => element.split('|').some(key => string.includes(key)));
-    const everyArray = keys.map(element => element.trim()).filter(element => !element.includes('|')).every(key => string.includes(key));
-
-    console.log(`Keys: ${keys}`, `Any: ${anyArray}`, `Every: ${everyArray}`);
-    if (everyArray && anyCheck) { return true }
-} */
-
-
 
 String.prototype.extractString = function (a, b) { return this.slice(this.indexOf(a), this.indexOf(b) + 1) } // Slightly cleaner to read and write than doing the indexing yourself.
 const replaceLast = (x, y, z) => { let a = x.split(""); let length = y.length; if (x.lastIndexOf(y) != -1) { for (let i = x.lastIndexOf(y); i < x.lastIndexOf(y) + length; i++) { if (i == x.lastIndexOf(y)) { a[i] = z; } else { delete a[i]; } } } return a.join(""); }
@@ -82,7 +68,6 @@ const format = (entry) => entry["keys"].slice(entry["keys"].includes(",") || ent
 const addDescription = (entry, value = 0) => {
     let searchText = lines.join('\n');
     const searchKeys = format(entry);
-    console.log('Search', searchKeys);
     let finalIndex = -1;
     let keyPhrase;
     searchKeys.forEach(key => {
@@ -121,9 +106,11 @@ const getContextualProperties = (search) => {
             {if (typeof final != 'object') {
                 // TODO: Insert a function to check the qualification of AND/OR sequences.
                 if (typeof value == 'string') {
-                    if (regExMatch(value, search).length > 0)
+
+                    const match = regExMatch(value, search)
+                    if (match.length > 0)
                     {paths.push(path.replace(/undefined\.\.?/, '').split('.'));
-                    values.push(value.split(','));}
+                    values.push(match);}
                 }
 
             }}
@@ -212,10 +199,8 @@ const insertJSON = (text) => {
             lines.filter(line => !line.includes('[{')).forEach(line => {
                 if (checkWords.some(word => { if (line.toLowerCase().includes(word.toLowerCase())) {finalWord = word; return true;}})) { finalLineIndex = lines.indexOf(line);}
             })
-            console.log(`CHECKWORDS: ${checkWords}, FINAL INDEX: ${finalLineIndex}`)
             if (finalLineIndex > -1 || (float && checkWords[0] != '_undefined')) {
                 let string = JSON.stringify(dataStorage[data], globalReplacer).replace(/\\/g, '');
-                console.log(string)
                 if (state.settings["filter"]) { string = string.replace(/"|{|}/g, ''); }
 
                 if (string.length > 4 && float) {
@@ -346,9 +331,7 @@ state.commandList = {
                 args = args.map(element => element.trim()).join('').toLowerCase().split('.');
                 const path = args.join('.')
 
-                console.log('path', path, args.length)
                 const object = args.length > 1 ? lens(dataStorage[args[0]], args.slice(1).join('.')) : dataStorage[args[0]]
-                console.log('object', object)
                 worldEntriesFromObject(object, path)
                 state.message = `Showing all Objects starting with ${path} in World Information!`;
                 return
@@ -369,9 +352,9 @@ state.commandList = {
                 return
             }
     },
-    fromJSON:
+    cross:
     {
-        name: 'fromJSON',
+        name: 'cross',
         description: `Toggles fetching of World Information from JSON Lines: ${state.settings["entriesFromJSON"]}`,
         args: false,
         execute:
@@ -405,7 +388,7 @@ state.commandList = {
 
                 if (!args.join(' ').includes('|')) { state.message = `Error: Separator '|' between <root> and <type> not detected.`; return }
 
-                console.log(args)
+
                 //args = args.map(element => element.trim())
                 state.generate.root = args.slice(0, args.indexOf('|')).join(' ');
                 state.generate.types = args.slice(args.indexOf('|') + 1);
@@ -436,7 +419,7 @@ state.commandList = {
         usage: '<Object>',
         execute:
             (args) => {
-                console.log(args[0])
+
                 delLens(dataStorage, args[0])
                 state.message = `Deleted Object: ${args[0]}`;
             }
@@ -451,6 +434,21 @@ state.commandList = {
             (args) => {
                 state.settings.searchTurnsRange = args[0]
                 state.message = `Search Range set to ${args[0]}`
+            }
+    },
+    from:
+    {
+        name: "from",
+        description: 'Creates an Object with the given root from the passed JSON- line.',
+        args: 'true',
+        usage: '<root> <JSON- Line/Object>',
+        execute:
+            (args) => {
+                const obj = args.slice(1).join(' ')
+                const root = args[0]
+                parseAsRoot(obj, root)
+                state.message = `Created Object '${root}' from ${obj}!`
+
             }
     }
 };
@@ -482,7 +480,7 @@ const processWorldEntries = (entries) => {
 
 
             const basicCheck = regExMatch(wEntry["keys"], lastTurnString)
-            console.log(`Entry: ${wEntry["keys"]}: BasicCheck: ${basicCheck}`)// Only process attributes of entries detected on the previous turn. (Using the presumed native functionality of substring acceptance instead of RegEx wholeword match)
+            console.log(`Checking if '${wEntry["keys"]}' passes check: ${basicCheck}`)// Only process attributes of entries detected on the previous turn. (Using the presumed native functionality of substring acceptance instead of RegEx wholeword match)
             if (basicCheck.length > 0) {
                 try // We try to do something. If code goes kaboom then we just catch the error and proceed. This is to deal with non-attribute assigned entries e.g those with empty bracket-encapsulations []
                 {
