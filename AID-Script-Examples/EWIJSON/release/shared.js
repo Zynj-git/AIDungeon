@@ -30,7 +30,7 @@ const { whitelistPath, synonymsPath, pathSymbol } = state.config;
 
 //https://stackoverflow.com/questions/61681176/json-stringify-replacer-how-to-get-full-path
 const replacerWithPath = (replacer) => { let m = new Map(); return function (field, value) { let path = m.get(this) + (Array.isArray(this) ? `[${field}]` : '.' + field); if (value === Object(value)) m.set(value, path); return replacer.call(this, field, value, path.replace(/undefined\.\.?/, '')); } }
-const worldEntriesFromObject = (obj, root) => { JSON.stringify(obj, replacerWithPath(function (field, value, path) { if (typeof value != 'object') { const index = worldEntries.findIndex(element => element["keys"] == `${root}.${path}`.replace(/\.$/g, '')); index >= 0 ? updateWorldEntry(index, `${root}.${path}`.replace(/\.$/g, ''), value.toString(), isNotHidden = true) : addWorldEntry(`${root}.${path}`.replace(/\.$/g, ''), value.toString(), isNotHidden = true); } return value; })); }
+const worldEntriesFromObject = (obj, root) => { JSON.stringify(obj, replacerWithPath(function (field, value, path) { if (typeof value != 'object') { const index = worldEntries.findIndex(element => element["keys"] == `${root}.${path}`.replace(/^\.*|\.$/g, '')); index >= 0 ? updateWorldEntry(index, `${root}.${path}`.replace(/^\.*|\.$/g, ''), value.toString(), isNotHidden = true) : addWorldEntry(`${root}.${path}`.replace(/^\.*|\.$/g, ''), value.toString(), isNotHidden = true); } return value; })); }
 //https://stackoverflow.com/questions/273789/is-there-a-version-of-javascripts-string-indexof-that-allows-for-regular-expr#273810
 String.prototype.regexLastIndexOf = function (regex, startpos) { regex = (regex.global) ? regex : new RegExp(regex.source, "g" + (regex.ignoreCase ? "i" : "") + (regex.multiLine ? "m" : "")); if (typeof (startpos) == "undefined") { startpos = this.length; } else if (startpos < 0) { startpos = 0; } let stringToWorkWith = this.substring(0, startpos + 1); let lastIndexOf = -1; let nextStop = 0; while ((result = regex.exec(stringToWorkWith)) != null) { lastIndexOf = result.index; regex.lastIndex = ++nextStop; } return lastIndexOf; }
 const getHistoryString = (turns) => history.slice(turns).map(element => element["text"]).join(' ') // Returns a single string of the text.
@@ -334,7 +334,7 @@ state.commandList = {
                     worldEntriesFromObject(object, path)
                     state.message = `Showing all Objects starting with ${path} in World Information!`;
                 }
-                else { state.message = `${object} is an invalid Object!` }
+                else {  worldEntriesFromObject(dataStorage, ''); state.message = `Showing ALL Objects in World Information!` }// }
                 return
             }
     },
