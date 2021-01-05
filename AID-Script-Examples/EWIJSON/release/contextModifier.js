@@ -46,6 +46,12 @@ const modifier = (text) => {
             "req": worldEntries.length > 0,
             "args": worldEntries,
             "exec": processWorldEntries
+        },
+        "trackRoots":
+        {
+            "req": true,
+            "args": null,
+            "exec": trackRoots
         }
 
     }
