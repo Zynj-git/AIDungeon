@@ -1,0 +1,118 @@
+JSONThing is a Work-In-Progress script that converts World Information entries that follow the syntax into Objects then inserts them as transient, trailing JSON- strings in context at the line before the corresponding root-word's most-recent mention.
+The following information is supplementary to the tutorial at the bottom.
+Note that this is a tool that can be experimented with and the information is not all-encompassing.
+
+Features:
+    1) Transient, trailing JSON- lines at the 'most relevant' position in context for more accurate representation.
+        1.1) Entries can be configured to 'float' at a specific position via its '_config' path.
+        1.2) The entry point for internal configuration is prefixed by '_' e.g '_whitelist', '_synonyms', and '_config'.
+            1.2.1) Subsequent paths do not use '_' e.g <root>._config.float
+    2) Manageable via World Information interface, JSON file importing and a suite of input commands.
+    3) Create and present situationally appropriate properties that activate on specific conditions - permits deep-branching and association of words.
+        3.1) This is achieved through RegEx (Regular Expressions) and some familiarity is recommended.
+
+Supplementary Commands:
+    Note: Additional information can be found by viewing the commandsList in SharedLibrary, in addition typing the command name, prefixed with '/' will display a pop-up explanation e.g '/set'
+    
+    '/set' sets the provided path/root to the provided value.
+        Syntax is '/set <root> <value> or /set <root>.<property> <value>'.
+        Omitting a value entails deletion of the property or Object.
+    
+    '/get' gets the information attached to the Object suplemented as an argument.
+        Syntax is '/get <root> or <root>.<property>'
+        The information is displayed in 'state.message' at the bottom of the screen, cluttered in the 'tutorial-messages'.
+    
+    '/whitelist' toggles the whitelisting of the provided argument.
+        Syntax '/whitelist <word> or <phrase>'.
+        If a word is present it becomes removed, else it's added.
+    
+    '/show' reveals all worldEntries starting with the provided argument.
+        Syntax '/show <root> or <root>.<path>'.
+        If you're doing bulk updating on a specific object, showing it and managing via the World Information interface might be quicker than repeating commands.
+    
+    '/hide' opposite of '/show', consumes all worldEntries starting with the provided argument.
+        Syntax '/hide <root> or <root>.<path>'.
+        Hiding entries from the World Information interface will improve perfomance as less elements are rendered simultaneously.
+
+    '/from' takes a JSON-line and creates an Object with the provided argument as its root.
+        Syntax '/from <root> <Object>'
+
+    '/cross' toggles cross-reference of normal World Entries found within the inserted JSON-lines.
+        It's enabled by default and permits e.g a 'trait' to have its prose entry fetched when relevant for an Object.
+
+Components:
+    The Objects (JSON- lines) can be managed entirely via the World Information interface, externally in .JSON Files/Editors, or the commands.
+    The script searches for World Entries that contain a dot '.' in its keys to consume it for Object creation. The presence of '#' omits it from consumption. (RegEx Friendly)
+    
+    Prelimenary requirements is the presence of an entry keyed '_whitelist.' that contains the name of properties that should always be visible if the property exists for the Object.
+        1) The '_whitelist.' entry should be populated with a comma-separated list of words/phrases.
+        2) Once defined, the whitelist can be managed via the /whitelist command to toggle on/off the whitelisting of words.
+            2.1) e.g /whitelist character will remove/assign it depending on whether it's already present or not.
+        3) Properties become sorted in the order of the whitelist, left to right, when displayed.
+
+Tutorial:
+
+    All dot-separated World Entries become formatted into JSON-represented Objects where each subsequent dot is a <property> of <root> and the entry content is the <property>'s value.
+    Synonyms utilize RegEx with two outliers to its normal functionality:
+        1) Comma ',' splits the expression to enable an 'AND'/'EVERY' qualifier.
+            1.1) Every expression split by a comma on the same line must match to qualify.
+        2) Hash '#' is used to denote specific words for assignment e.g in 'you.*(car|vehicle)#backseat' it will test for 'you.*(car|vehicle)' but position itself on the mention of 'backseat'.
+        3) When managing entries through the World Information interface, each new line functions as its independent RegEx qualifier.
+        3.1) For example, one line can be a general enabler while a different line might activate under more specific circumstances. 
+            e.g 'John' to assign it on John whenever it's mentioned while 'John,(tavern|inn)#tavern-keeper,inn-keeper' to assign 'John' to either 'tavern-keeper' or 'inn-keeper' once qualified.
+    Before explaining further - here's an example of the keywords and entries used for a 'you' character example.
+
+    -----------------------------------------------
+    KEYWORDS                   | ENTRY
+    you.character              | You (John)
+    you.age                    | 18
+    you.gender                 | male
+    you.traits                 | Adventerous, Empathic, Lenient
+    you.secret                 | You are secretly a superhero.
+    you.weapons.ranged         | Ultimate Bow of Doom
+    you.weapons.melee          | Sharp Piece of Paper
+    you._synonyms              | (John|protagonist|player|hero)
+
+    _events.events.new-villain | A fearsome villain has started terrorizing the streets!
+    _events._synonyms          | .*#
+    _events._config.float      | 5
+
+    _whitelist.                | character, age, gender, traits
+    ------------------------------------------------
+
+    When the Object's <root>, or any of its synonyms, is detected in the context, a line is inserted one-line ahead of it with the whitelisted <property> names visible.
+    Context Example:
+        ------------------------------------------------------------------------------------------------------------
+            It's a quiet noon at the estate...
+            [{"character": "You (John)", "age": "18", "gender": "male", "traits": "Adventerous, Empathic, Lenient"}]
+            You head downstairs to grab yourself some snack.
+        ------------------------------------------------------------------------------------------------------------
+
+    Whitelist Info:
+        You're only required to create a singular '_whitelist.' entry as it applies universally to all Objects.
+        The Object's <properties> are sorted in the order that they appear in the 'whitelist.'
+        If '_whitelist' isn't presented or left empty, the JSON-lines will display "nothing" - [{}]
+
+    Contextual Whitelist:
+        In addition to the global '_whitelist' you can create '_synonyms' declarations for individual <properties>.
+        These <properties> will only appear on Objects when any of its synonyms are mentioned.
+        e.g to situationally reveal 'you.secret' we may define a 'synonyms.' for the 'secret' <property> as such:
+
+        -----------------------------------------------------
+        KEYWORDS                        | ENTRY
+        _synonyms.secret                | (secret|super).*(identity|hero)|villain
+        _synonyms.weapons.ranged        | you.*(shoot|fire|throw|aim)
+        _synonyms.weapons.melee         | you.*(hit|punch|thrust|stab|crush|smack|smash)
+        _synonyms.events.new-villain    | you.*(watch|hear|observe|notice).*(news|TV)
+                                        | (explosion|fire|scream|disater)
+        ------------------------------------------------------
+
+        If <root> has the <property> 'secret' it will be revealed on the mention of the values within 'synonyms.secret'
+	    RegEx expressions go through a filter to extract the actual words used within unless '#' is present.
+        Context Example:
+            --------------------------------------------------------------------------------------------------------------------------------------------------
+            Watching the news, it swaps to a disasterous scene of a burning building - there's a new villain in town.
+            [{"character": "You (John)", "age": "18", "gender": "male", "traits": "Adventerous, Empathic, Lenient", "secret": "You are secretly a superhero"}]
+            You seat yourself up straight and contemplate your next move.
+            ---------------------------------------------------------------------------------------------------------------------------------------------------
+        

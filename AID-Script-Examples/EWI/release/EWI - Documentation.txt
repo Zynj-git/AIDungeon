@@ -1,11 +1,11 @@
 Extended World Information (EWI) aims at providing the user with more flexible interactions with World Information.
 To achieve this, the user is instructed to place bracket-encapsulated attribute short-hands into the keys of a worldEntries element.
 
-A quick example of what that looks like, if convoluting it as far as possible, the keys can be: '\you, \(wield|equip|unsheathe), \(branch|stick|staff|wand|scepter),#[p=1ardw=100]'
+A quick example of what that looks like, if convoluting it as far as possible, the keys can be: '\you, (wield|equip|unsheathe), (branch|stick|staff|wand|scepter),#[p=1ardw=100]'
 With EWI, keys utilize RegEx for activation with comma ',' functioning as an `AND` clause and '#' separating the meta-info at the end.
 Backslash '\' is used to avoid the native processing from registering, while still maintaining usual RegEx functionality.
 
-Note: Available attributes are [parwd] - configurable attributes are [pwd], assign optional numerical values with = e.g [p=1]
+Note: Available attributes are [parwd] - configurable attributes are [pwd], assign optional numerical values with '=' e.g [p=1]
 
 In this initial example, the entry would activate if the context contains 'you' in addition to either of 'branch/stick/staff'.
 It would then process the content of the entry in the following manner:

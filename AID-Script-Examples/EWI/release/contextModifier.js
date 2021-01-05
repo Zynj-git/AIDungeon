@@ -5,6 +5,7 @@ let lines = context.split('\n');
 let memoryLines = contextMemory.split('\n');
 let modifiedText = text.toLowerCase();
 let modifiedContext = context.toLowerCase();
+let memoryLinesLength = memoryLines.length
 
 // Adjusted and re-created from spliceContext()
 let fullContextLines = [...memoryLines, ...lines];
