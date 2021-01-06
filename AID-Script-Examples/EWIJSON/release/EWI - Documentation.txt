@@ -11,7 +11,8 @@ In this initial example, the entry would activate if the context contains 'you' 
 It would then process the content of the entry in the following manner:
 
 [a] - authorsNote, a transient, bracket-encapsulated notation roughly three line-breaks into context.
-[r] - revealEntry, if the entry was hidden it would now be revealed to the user.
+[r] - randomizedPick, all entries with the exact same keywords (outside of the meta-tag '#') will be randomly selected from.
+[s] - showEEntry, if the entry was hidden it would now be revealed to the user.
 [d] - descriptor takes an optional value e.g [d=1] that determines if the descriptor is positoned before or after the detected word.
 	By default (no assigned value) it adds the entry in front of the detected word. e.g if the entry states 'a boomstick of doom.' then the AI would see e.g 'a boomstick of doom stick '
 [p] - takes a number as a value, this value determines which line the entry should be inserted at. Use 0 to imitate frontMemory or 1 to place it one line back.

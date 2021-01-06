@@ -28,6 +28,20 @@ console.log(`Turn: ${info.actionCount}`)
 let { entriesFromJSON } = state.settings;
 const { whitelistPath, synonymsPath, pathSymbol } = state.config;
 
+// https://www.tutorialspoint.com/group-by-element-in-array-javascript
+const groupRandomizeEntries = arr => {
+    const hash = Object.create(null),
+      result = [];
+    arr.forEach(el => {
+      const keys = el.keys.slice(0, el.keys.indexOf('#'))
+      if (!hash[keys]) {
+        hash[keys] = [];
+        result.push(hash[keys]);
+      };
+      hash[keys].push(el);
+    });
+    return result;
+  };
 //https://stackoverflow.com/questions/61681176/json-stringify-replacer-how-to-get-full-path
 const replacerWithPath = (replacer) => { let m = new Map(); return function (field, value) { let path = m.get(this) + (Array.isArray(this) ? `[${field}]` : '.' + field); if (value === Object(value)) m.set(value, path); return replacer.call(this, field, value, path.replace(/undefined\.\.?/, '')); } }
 const worldEntriesFromObject = (obj, root) => { JSON.stringify(obj, replacerWithPath(function (field, value, path) { if (typeof value != 'object') { const index = worldEntries.findIndex(element => element["keys"] == `${root}.${path}`.replace(/^\.*|\.$/g, '')); index >= 0 ? updateWorldEntry(index, `${root}.${path}`.replace(/^\.*|\.$/g, ''), value.toString(), isNotHidden = true) : addWorldEntry(`${root}.${path}`.replace(/^\.*|\.$/g, ''), value.toString(), isNotHidden = true); } return value; })); }
@@ -80,7 +94,7 @@ const addDescription = (entry, value = 0) => {
 }
 
 const addAuthorsNote = (entry, value = 0) => state.memory.authorsNote = `${entry["entry"]}`
-const revealWorldEntry = (entry, value = 0) => entry.isNotHidden = true
+const showWorldEntry = (entry, value = 0) => entry.isNotHidden = true
 const addPositionalEntry = (entry, value = 0) => { spliceContext((value != 0 ? -(value) : lines.length), entry["entry"]) }
 
 const getWhitelist = () => dataStorage.hasOwnProperty(whitelistPath) ? dataStorage[whitelistPath].split(',').map(element => element.trim()) : []
@@ -478,9 +492,10 @@ state.commandList = {
 
 const entryFunctions = {
     'a': addAuthorsNote, // [a] adds it as authorsNote, only one authorsNote at a time.
-    'r': revealWorldEntry, // [r] reveals the entry once mentioned, used in conjuction with [e] to only reveal if all keywords are mentioned at once.
+    's': showWorldEntry, // [r] reveals the entry once mentioned, used in conjuction with [e] to only reveal if all keywords are mentioned at once.
     'e': () => { }, // [e] tells the custom keyword check to only run the above functions if every keyword of the entry matches.
     'd': addDescription, // [d] adds the first sentence of the entry as a short, parenthesized descriptor to the last mention of the revelant keyword(s) e.g John (a business man)
+    'r': () => {}, // [r] picks randomly between entries with the same matching keys. e.g 'you.*catch#[rp=1]' and 'you.*catch#[rd]' has 50% each to be picked.
     'p': addPositionalEntry, // Inserts the <entry> <value> amount of lines into context, e.g [p=1] inserts it one line into context.
     'w': () => { }, // [w] assigns the weight attribute, the higher value the more recent/relevant it will be in context/frontMemory/intermediateMemory etc.
 }
@@ -490,9 +505,14 @@ const entryFunctions = {
 
 // Pass the worldEntries list and check attributes, then process them.
 
+const pickRandom = () => {
+    const lists = groupRandomizeEntries(worldEntries.filter(element => /#.*\[.*r.*\]/.test(element.keys)));
+    const result = [worldEntries.filter(element => !/#.*\[.*r.*\]/.test(element.keys))];
+    lists.forEach(element => result.push(element[Math.floor(Math.random() * element.length)]))
+    return result.flat()
+  }
 const processWorldEntries = (entries) => {
-    entries = [...entries] // Copy the entries to avoid in-place manipulation.
-
+    entries = pickRandom() // Copy the entries to avoid in-place manipulation.
     entries.sort((a, b) => a["keys"].split('#').slice(-1)[0].match(/(?<=w=)\d+/) - b["keys"].split('#').slice(-1)[0].match(/(?<=w=)\d+/)).forEach(wEntry => // Take a quick sprint through the worldEntries list and process its elements.
     {
         const entryAttributes = getAttributes(wEntry["keys"].split('#').slice(-1)[0].extractString('[', ']'))
