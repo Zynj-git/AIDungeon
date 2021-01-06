@@ -27,7 +27,7 @@ const modifier = (text) => {
 
 
         try { command.execute(args); return { text: '', stop: state.stop } }
-        catch (error) { state.message = `There was an error!\n${error}`; }
+        catch (error) { state.message = `There was an error!\n${error}`; console.log(`There was an error!\n${error}`); }
 
     }
 

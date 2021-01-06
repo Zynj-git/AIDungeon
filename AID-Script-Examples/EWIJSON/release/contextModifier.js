@@ -17,6 +17,12 @@ const modifier = (text) => {
 
     const execute = {
 
+      /*  "sanitizeWhitelist":
+        {
+            "req": true,
+            "args": null,
+            "exec": sanitizeWhitelist
+        }, */
         "consume":
         {
             "req": true,
@@ -52,6 +58,12 @@ const modifier = (text) => {
             "req": true,
             "args": null,
             "exec": trackRoots
+        },
+        "parityMode":
+        {
+            "req": state.settings["parityMode"],
+            "args": null,
+            "exec": parityMode
         }
 
     }

@@ -13,7 +13,7 @@ let contextMemoryLength = 0; // Keep count of additional context added.
 if (!state.generate) { state.generate = {} }
 if (!state.settings) { state.settings = {} }
 // If key (setting[0]) is not in state.settings, initiate it with setting[1] as default value.
-const initSettings = [['entriesFromJSON', true], ['filter', false], ['searchTurnsRange', 4]]
+const initSettings = [['entriesFromJSON', true], ['filter', false], ['searchTurnsRange', 4], ['parityMode', false]]
 initSettings.forEach(setting => { if (!Object.keys(state.settings).includes(setting[0])) { state.settings[setting[0]] = setting[1] } })
 
 state.config = {
@@ -139,6 +139,8 @@ const consumeWorldEntries = () => {
     })
 }
 
+const sanitizeWhitelist = () => { const index = worldEntries.findIndex(element => element["keys"].includes('_whitelist')); if (index >= 0) {worldEntries[index]["keys"] = '_whitelist.';}}
+const parityMode = () => worldEntriesFromObject(dataStorage, '');
 const trackRoots = () => {const list = Object.keys(dataStorage); const index = worldEntries.findIndex(element => element["keys"] == 'rootList'); if (index < 0) {addWorldEntry('rootList', list, isNotHidden = true)} else {updateWorldEntry(index, list, isNotHidden = true)}}
 const globalWhitelist = [getWhitelist(), getContextualProperties(getHistoryString(-state.settings.searchTurnsRange)).flat()].flat();
 const globalReplacer = (key, value) => { if (value == null || value.constructor != Object) { return value == null ? undefined : value } return Object.keys(value).sort((a, b) => globalWhitelist.indexOf(a) - globalWhitelist.indexOf(b)).filter(element => globalWhitelist.includes(element)).reduce((s, k) => { s[k] = value[k]; return s }, {}) }
@@ -287,11 +289,15 @@ state.commandList = {
             (args) => {
 
                 // TODO: Permit the consumption of specific entries, currently this is also inadvertently execute /hide
+                //sanitizeWhitelist();
                 consumeWorldEntries();
-                if (dataStorage) {
-                    const path = args.join('').toLowerCase().trim();
+                const path = args.join('').toLowerCase().trim();
+                if (dataStorage && dataStorage.hasOwnProperty(args[0].toLowerCase().trim())) {
+                    
                     state.message = `Data Sheet for ${path}:\n${JSON.stringify(lens(dataStorage, path), null)}`;
+                    if (state.settings["parityMode"]) {parityMode()}
                 }
+                else { state.message = `${path} was invalid!`}
                 return
 
             }
@@ -336,6 +342,19 @@ state.commandList = {
                 }
                 else {  worldEntriesFromObject(dataStorage, ''); state.message = `Showing ALL Objects in World Information!` }// }
                 return
+            }
+    },
+
+    parity:
+    {
+        name: 'parity',
+        description: `Rebuilds Objects to World Entries after consumption at end of turn: ${state.settings["parityMode"]}`,
+        args: false,
+        usage: '/parity',
+        execute:
+            (args) => {
+                state.settings["parityMode"] = !state.settings["parityMode"];
+                state.message = `Parity Mode ${state.settings["parityMode"]} - Objects Rebuilt in World Information interface at end of turn.`;
             }
     },
     hide:
