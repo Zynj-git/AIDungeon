@@ -80,7 +80,7 @@ const addDescription = (entry, value = 0) => {
     const expression = entry["keys"].slice(entry["keys"].includes(",") ? entry["keys"].indexOf(',') + 1 : 0, entry["keys"].includes('#') ? entry["keys"].indexOf('#') : entry["keys"].length)
     const regEx = new RegExp(expression, 'ig');
     const result = [...searchText.matchAll(regEx)].pop();
-    searchText = searchText.slice(0, searchText.indexOf(result[0])) + result[0].slice(0, -result.slice(-1)[0].length) + entry["entry"] + ' ' + result.slice(-1)[0] + searchText.slice(searchText.indexOf(result[0]) + result[0].length)
+    searchText = searchText.slice(0, searchText.toLowerCase().lastIndexOf(result[0].toLowerCase())) + result[0].slice(0, -result.slice(-1)[0].length) + entry["entry"] + ' ' + result.slice(-1)[0] + searchText.slice(searchText.toLowerCase().lastIndexOf(result[0].toLowerCase()) + result[0].length)
     lines = searchText.split('\n');
 }
 
@@ -95,7 +95,7 @@ const addTrailingEntry = (entry, value = 0) => {
     lines.forEach((line, i) => { if (searchKeys.some(key => line.toLowerCase().includes(key.toLowerCase()))) {finalIndex = i;}})
     if (finalIndex >= 0)
     {
-        spliceContext((finalIndex - 1) - value, entry["entry"])
+        spliceContext((finalIndex) - value, entry["entry"])
     }
     return
 ;}
