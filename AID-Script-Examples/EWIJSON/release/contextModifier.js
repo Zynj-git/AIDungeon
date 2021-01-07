@@ -49,7 +49,7 @@ const modifier = (text) => {
         },
         "worldEntriesAttributeProcessing":
         {
-            "req": worldEntries.length > 0,
+            "req": (worldEntries && worldEntries.length > 0),
             "args": worldEntries,
             "exec": processWorldEntries
         },
@@ -71,10 +71,10 @@ const modifier = (text) => {
     for (action in execute) { if (execute[action]["req"]) {execute[action]["exec"](execute[action]["args"])} }
 
 
-    let combinedMemory = memoryLines.join('\n').replace(/\n$/, "");
+    let combinedMemory = memoryLines.join('\n').replace(/\n$/, '')
 
-    let combinedLines = lines.join('\n').replace(/\n$/, "").replace(/\]\n\[/g, '][').slice(-(info.maxChars - combinedMemory.length - 1)).replace(/^[^\[]*.]/g, '');
-    const finalText = [combinedMemory, combinedLines].join("\n")
+    let combinedLines = lines.join('\n').replace(/\n$/, '').replace(/\]\n\[/g, '][').slice(-(info.maxChars - combinedMemory.length - 1)).replace(/^[^\[]*.]/g, '');
+    const finalText = [combinedMemory, combinedLines].join("\n").replace(/^true\n?/g, '');
     
     // Debug to check if the context is intact and properly utilized, optimally the numbers should always match
     console.log(`Final Text: ${finalText.length}`, `Max Text: ${info.maxChars}`, `MemoryLength: ${info.memoryLength}`)

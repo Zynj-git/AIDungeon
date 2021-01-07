@@ -80,6 +80,7 @@ const addDescription = (entry, value = 0) => {
     const searchKeys = format(entry);
     let finalIndex = -1;
     let keyPhrase;
+    
     searchKeys.forEach(key => {
         const regEx = new RegExp(`\\b${key.trim()}`, "i");
         const keyIndex = searchText.toLowerCase().regexLastIndexOf(regEx);
@@ -88,7 +89,8 @@ const addDescription = (entry, value = 0) => {
             keyPhrase = key;
         }
     });
-    if (finalIndex) {
+
+    if (finalIndex >= 0) {
         searchText = replaceLast(searchText, keyPhrase, value != 0 ? `${keyPhrase} ${entry["entry"]}` : `${entry["entry"]} ${keyPhrase}`);
     } lines = searchText.split('\n');
 }
@@ -96,8 +98,20 @@ const addDescription = (entry, value = 0) => {
 const addAuthorsNote = (entry, value = 0) => state.memory.authorsNote = `${entry["entry"]}`
 const showWorldEntry = (entry, value = 0) => entry.isNotHidden = true
 const addPositionalEntry = (entry, value = 0) => { spliceContext((value != 0 ? -(value) : lines.length), entry["entry"]) }
+const addTrailingEntry = (entry, value = 0) => { 
+    
+    // TODO: Create unified function with [d] attribute.
+    let finalIndex = -1;
+    const searchKeys = format(entry);
+    lines.forEach((line, i) => { if (searchKeys.some(key => line.toLowerCase().includes(key.toLowerCase()))) {finalIndex = i;}})
+    if (finalIndex >= 0)
+    {
+        spliceContext((finalIndex - 1) - value, entry["entry"])
+    }
+    return
+;}
 
-const getWhitelist = () => dataStorage.hasOwnProperty(whitelistPath) ? dataStorage[whitelistPath].split(',').map(element => element.trim()) : []
+const getWhitelist = () => dataStorage.hasOwnProperty(whitelistPath) && typeof dataStorage[whitelistPath] == 'string' ? dataStorage[whitelistPath].toLowerCase().split(/,|\n/g).map(element => element.trim()) : []
 
 // TODO: Feed it the positional argument of the Object for float searches.
 // TODO: Only retrieve the absolute necessities of information, currently its a slight rework of the function utilized in 'createWorldEntriesFromObject' func.
@@ -153,7 +167,7 @@ const consumeWorldEntries = () => {
     })
 }
 
-const sanitizeWhitelist = () => { const index = worldEntries.findIndex(element => element["keys"].includes('_whitelist')); if (index >= 0) {worldEntries[index]["keys"] = '_whitelist.';}}
+//const sanitizeWhitelist = () => { const index = worldEntries.findIndex(element => element["keys"].includes('_whitelist')); if (index >= 0) {worldEntries[index]["keys"] = '_whitelist.';}}
 const parityMode = () => worldEntriesFromObject(dataStorage, '');
 const trackRoots = () => {const list = Object.keys(dataStorage); const index = worldEntries.findIndex(element => element["keys"] == 'rootList'); if (index < 0) {addWorldEntry('rootList', list, isNotHidden = true)} else {updateWorldEntry(index, list, isNotHidden = true)}}
 const globalWhitelist = [getWhitelist(), getContextualProperties(getHistoryString(-state.settings.searchTurnsRange)).flat()].flat();
@@ -175,13 +189,16 @@ const spliceContext = (pos, string) => {
     const linesLength = lines.join('\n').length
     const memoryLength = memoryLines.join('\n').length
 
-    if ((linesLength + memoryLength) + string.length > info.maxChars) { lines = lines.join('\n').slice(string.length).split('\n') }
-    lines.splice(pos, 0, string)
+    let adjustedLines = 0;
+    if ((linesLength + memoryLength) + string.length > info.maxChars) { const adjustor = lines.join('\n').slice(string.length).split('\n'); adjustedLines = lines.length - adjustor.length; lines = adjustor;}
+    lines.splice(pos - adjustedLines, 0, string)
+    return
 }
 
 const spliceMemory = (pos, string) => {
     contextMemoryLength += string.length;
     memoryLines.splice(pos, 0, string);
+    return
 }
 
 //[tavern|inn, Keysworth, tavern-keeper|tavernkeeper], [${obj}, look|watch|spectate, hair]
@@ -237,7 +254,7 @@ const insertJSON = (text) => {
 
 
 
-const entriesFromJSONLines = () => { const JSONLines = lines.filter(line => line.startsWith('[')); const JSONString = JSONLines.join('\n'); const normalWorldEntries = worldEntries.filter(element => !element["keys"].includes('.')); normalWorldEntries.forEach(element => element["keys"].split(',').some(keyword => { if (JSONString.toLowerCase().includes(keyword.toLowerCase()) && !text.includes(element["entry"])) { if (info.memoryLength + contextMemoryLength + element["entry"].length <= info.maxChars / 2) { spliceMemory(memory.split('\n').length, element["entry"]); return true; } } })) }
+const entriesFromJSONLines = () => { const JSONLines = lines.filter(line => line.startsWith('[')); const JSONString = JSONLines.join('\n'); const normalWorldEntries = worldEntries.filter(element => !element["keys"].includes('.') || element["keys"].includes('#')); normalWorldEntries.forEach(element => element["keys"].split(',').some(keyword => { if (JSONString.toLowerCase().includes(keyword.toLowerCase()) && !text.includes(element["entry"])) { if (info.memoryLength + contextMemoryLength + element["entry"].length <= info.maxChars / 2) { spliceMemory(memory.split('\n').length, element["entry"]); return true; } } })) }
 const parseGen = (text) => { state.generate.process = false; const string = fixDepth(`${state.generate.sections.primer}${text}`); const toParse = string.match(/{.*}/); if (toParse) { const obj = JSON.parse(toParse[0]); worldEntriesFromObject(obj, state.generate.root.split(' ')[0]); state.message = `Generated Object for ${state.generate.root} as type ${state.generate.types[0]}\nResult: ${JSON.stringify(obj)}` } else { state.message = `Failed to parse AI Output for Object ${state.generate.root} type ${state.generate.type[0]}` } }
 const parseAsRoot = (text, root) => { const toParse = text.match(/{.*}/g); if (toParse) { toParse.forEach(string => { const obj = JSON.parse(string); worldEntriesFromObject(obj, root); text = text.replace(string, ''); }) } }
 const generateObject = (text) => {
@@ -288,8 +305,8 @@ state.commandList = {
                 const setKeys = args[0].toLowerCase().trim();
                 const setValue = args.slice(1).join(' ');
 
-                if (dataStorage) { setProperty(setKeys, setValue, dataStorage) } // Immediately reflect the changes in state.data
-                state.message = `${setKeys} set to ${setValue}`;
+                console.log(setKeys, setValue)
+                if (dataStorage) { setProperty(setKeys, setValue, dataStorage); state.message = `${setKeys} set to ${setValue}`;} // Immediately reflect the changes in state.data
                 return
             }
     },
@@ -498,6 +515,7 @@ const entryFunctions = {
     'r': () => {}, // [r] picks randomly between entries with the same matching keys. e.g 'you.*catch#[rp=1]' and 'you.*catch#[rd]' has 50% each to be picked.
     'p': addPositionalEntry, // Inserts the <entry> <value> amount of lines into context, e.g [p=1] inserts it one line into context.
     'w': () => { }, // [w] assigns the weight attribute, the higher value the more recent/relevant it will be in context/frontMemory/intermediateMemory etc.
+    't': addTrailingEntry, // [t] adds the entry at a line relative to the activator in context. [t=2] will trail context two lines behind the activating word.
 }
 
 // To avoid complicating it with measurements of the additonal string, and at the cost of slightly less flexibility, we assign different functions to handle the positioning.
