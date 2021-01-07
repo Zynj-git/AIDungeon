@@ -77,22 +77,11 @@ const getContext = (text) => { return info.memoryLength ? text.slice(info.memory
 const format = (entry) => entry["keys"].slice(entry["keys"].includes(",") || entry["keys"].includes(".*") ? entry["keys"].regexLastIndexOf(/(,|\.\*)/g) : 0, entry["keys"].includes('#') ? entry["keys"].indexOf('#') : entry["keys"].length).replace(/[^\w-\s]/g, ',').split(',').map(e => e.trim()).filter(e => e.length > 1);
 const addDescription = (entry, value = 0) => {
     let searchText = lines.join('\n');
-    const searchKeys = format(entry);
-    let finalIndex = -1;
-    let keyPhrase;
-    
-    searchKeys.forEach(key => {
-        const regEx = new RegExp(`\\b${key.trim()}`, "i");
-        const keyIndex = searchText.toLowerCase().regexLastIndexOf(regEx);
-        if (keyIndex > finalIndex) {
-            finalIndex = keyIndex;
-            keyPhrase = key;
-        }
-    });
-
-    if (finalIndex >= 0) {
-        searchText = replaceLast(searchText, keyPhrase, value != 0 ? `${keyPhrase} ${entry["entry"]}` : `${entry["entry"]} ${keyPhrase}`);
-    } lines = searchText.split('\n');
+    const expression = entry["keys"].slice(entry["keys"].includes(",") ? entry["keys"].indexOf(',') + 1 : 0, entry["keys"].includes('#') ? entry["keys"].indexOf('#') : entry["keys"].length)
+    const regEx = new RegExp(expression, 'ig');
+    const result = [...searchText.matchAll(regEx)].flat();
+    searchText = searchText.slice(0, searchText.indexOf(result[0])) + result[0].slice(0, -result.slice(-1)[0].length) + entry["entry"] + ' ' + result.slice(-1)[0] + searchText.slice(searchText.indexOf(result[0]) + result[0].length)
+    lines = searchText.split('\n');
 }
 
 const addAuthorsNote = (entry, value = 0) => state.memory.authorsNote = `${entry["entry"]}`
