@@ -323,7 +323,7 @@ state.commandList = {
                 //sanitizeWhitelist();
                 consumeWorldEntries();
                 const path = args.join('').toLowerCase().trim();
-                if (dataStorage && dataStorage.hasOwnProperty(args[0].toLowerCase().trim())) {
+                if (dataStorage && dataStorage.hasOwnProperty(args[0].split('.')[0].toLowerCase().trim())) {
 
                     state.message = `Data Sheet for ${path}:\n${JSON.stringify(lens(dataStorage, path), null)}`;
                     if (state.settings["parityMode"]) { parityMode() }
