@@ -7,7 +7,7 @@
 
 // DONE: Dynamic configuration of Objects. Float position and insertion. Sprawler enabler. Reverse logic is reversed to permit interaction with the full extent of context via spliceContext() from anywhere, e.g when and if asynchronus functions become relevant.
 
-if (!state.data) { state.data = {} } // Rebuild data from World Information, relatively intensive in comparison to persistent storage, but easier to manage.
+if (!state.data) { state.data = {} } //
 let dataStorage = state.data;
 let contextMemoryLength = 0; // Keep count of additional context added.
 if (!state.generate) { state.generate = {} }
@@ -15,7 +15,10 @@ if (!state.settings) { state.settings = {} }
 // If key (setting[0]) is not in state.settings, initiate it with setting[1] as default value.
 const initSettings = [['entriesFromJSON', true], ['filter', false], ['searchTurnsRange', 4], ['parityMode', false]]
 initSettings.forEach(setting => { if (!Object.keys(state.settings).includes(setting[0])) { state.settings[setting[0]] = setting[1] } })
+const ewiAttribConfig = ['a', 'd','p', 's', 't']
 
+
+// Config for consistency.
 state.config = {
     prefix: /^\n> You \/|^\n> You say "\/|^\/|^\n\//gi,
     prefixSymbol: '/',
@@ -23,13 +26,14 @@ state.config = {
     synonymsPath: '_synonyms',
     pathSymbol: '.'
 }
-
+if (!state.settings.ewi) {state.settings.ewi = {}}
+ewiAttribConfig.forEach(attr => {if (!state.settings.ewi.hasOwnProperty(attr)) {state.settings.ewi[attr] = {"range": 4}}})
 console.log(`Turn: ${info.actionCount}`)
 let { entriesFromJSON } = state.settings;
 const { whitelistPath, synonymsPath, pathSymbol } = state.config;
 
 // https://www.tutorialspoint.com/group-by-element-in-array-javascript
-const groupRandomizeEntries = arr => {
+const groupElementsBy = arr => {
     const hash = Object.create(null),
         result = [];
     arr.forEach(el => {
@@ -488,13 +492,18 @@ state.commandList = {
     searchRange:
     {
         name: 'searchRange',
-        description: 'Determines how many turns back it should check for qualifiers on [p] and [a] arguments - Default (4)',
+        description: 'Set the search range for attribute conditions - Default (4)\nValid Attributes are: a,d,p,s, and t',
         args: true,
-        usage: '<Number>',
+        usage: '<Attribute> <Number> e.g /searchRange t 50',
         execute:
             (args) => {
-                state.settings.searchTurnsRange = args[0]
-                state.message = `Search Range set to ${args[0]}`
+
+                const attribute = args[0].replace(/\[|\]/, '');
+                
+                const value = Number(args.slice(1).join(''))
+                console.log(attribute, value)
+                if (state.settings.ewi.hasOwnProperty(attribute)) {state.settings.ewi[attribute]["range"] = value; state.message = `Search Range of [${attribute}] set to ${value}!`}
+                else {state.message = `[${attribute}] is not configureable for range!`}
             }
     },
     from:
@@ -514,15 +523,17 @@ state.commandList = {
     }
 };
 
+
+
 const entryFunctions = {
-    'a': addAuthorsNote, // [a] adds it as authorsNote, only one authorsNote at a time.
-    's': showWorldEntry, // [r] reveals the entry once mentioned, used in conjuction with [e] to only reveal if all keywords are mentioned at once.
+    'a': {"func": addAuthorsNote, "range": state.settings.ewi['a']}, // [a] adds it as authorsNote, only one authorsNote at a time.
+    's': {"func": showWorldEntry, "range": state.settings.ewi['s']}, // [r] reveals the entry once mentioned, used in conjuction with [e] to only reveal if all keywords are mentioned at once.
     'e': () => { }, // [e] tells the custom keyword check to only run the above functions if every keyword of the entry matches.
-    'd': addDescription, // [d] adds the first sentence of the entry as a short, parenthesized descriptor to the last mention of the revelant keyword(s) e.g John (a business man)
+    'd': {"func": addDescription, "range": state.settings.ewi['d']}, // [d] adds the first sentence of the entry as a short, parenthesized descriptor to the last mention of the revelant keyword(s) e.g John (a business man)
     'r': () => { }, // [r] picks randomly between entries with the same matching keys. e.g 'you.*catch#[rp=1]' and 'you.*catch#[rd]' has 50% each to be picked.
-    'p': addPositionalEntry, // Inserts the <entry> <value> amount of lines into context, e.g [p=1] inserts it one line into context.
+    'p': {"func": addPositionalEntry, "range": state.settings.ewi['p']}, // Inserts the <entry> <value> amount of lines into context, e.g [p=1] inserts it one line into context.
     'w': () => { }, // [w] assigns the weight attribute, the higher value the more recent/relevant it will be in context/frontMemory/intermediateMemory etc.
-    't': addTrailingEntry, // [t] adds the entry at a line relative to the activator in context. [t=2] will trail context two lines behind the activating word.
+    't': {"func": addTrailingEntry, "range": state.settings.ewi['t']} // [t] adds the entry at a line relative to the activator in context. [t=2] will trail context two lines behind the activating word.
 }
 
 // To avoid complicating it with measurements of the additonal string, and at the cost of slightly less flexibility, we assign different functions to handle the positioning.
@@ -531,30 +542,29 @@ const entryFunctions = {
 // Pass the worldEntries list and check attributes, then process them.
 
 const pickRandom = () => {
-    const lists = groupRandomizeEntries(worldEntries.filter(element => /#.*\[.*r.*\]/.test(element.keys)));
+    const lists = groupElementsBy(worldEntries.filter(element => /#.*\[.*r.*\]/.test(element.keys)));
     const result = [worldEntries.filter(element => !/#.*\[.*r.*\]/.test(element.keys))];
     lists.forEach(element => result.push(element[Math.floor(Math.random() * element.length)]))
     return result.flat()
 }
-const processWorldEntries = (entries) => {
+const processWorldEntries = () => {
     const entries = pickRandom() // Copy the entries to avoid in-place manipulation.
-    entries.sort((a, b) => a["keys"].split('#').slice(-1)[0].match(/(?<=w=)\d+/) - b["keys"].split('#').slice(-1)[0].match(/(?<=w=)\d+/)).forEach(wEntry => // Take a quick sprint through the worldEntries list and process its elements.
+    entries.sort((a, b) => a["keys"].split('#').slice(-1)[0].match(/(?<=w=)\d+/) - b["keys"].split('#').slice(-1)[0].match(/(?<=w=)\d+/)).filter(e => e["keys"].includes('#')).forEach(wEntry => // Take a quick sprint through the worldEntries list and process its elements.
     {
-        const entryAttributes = getAttributes(wEntry["keys"].split('#').slice(-1)[0].extractString('[', ']'))
+        const regEx = /(\w(=\d*)?)/gi
+        let attribPairs = regEx.test(wEntry["keys"]) ? wEntry["keys"].slice(wEntry["keys"].lastIndexOf('#')).match(regEx).map(e => e.split('=')).filter(e => entryFunctions[e[0]].hasOwnProperty('func')) : []       
+        if (attribPairs && attribPairs.length > 0) {
 
-        if (entryAttributes && entryAttributes.length > 0) {
-            const lastTurnString = entryAttributes.some(attrib => attrib.includes('p') || attrib.includes('d') || attrib.includes('t')) ? lines.slice(-state.settings.searchTurnsRange).join('\n').toLowerCase().trim() : lines.slice(-4).join('\n').toLowerCase().trim() // What we check the keywords against, this time around we basically check where in the context the last history element is then slice forward.
-
-
-
+             // What we check the keywords against, this time around we basically check where in the context the last history element is then slice forward.
+            const hasRange = attribPairs.filter(a => entryFunctions[a[0]].hasOwnProperty('range'))     
+            const lastTurnString = lines.slice(-entryFunctions[hasRange[hasRange.length - 1][0]]["range"]).join('\n')
             const basicCheck = regExMatch(wEntry["keys"], lastTurnString)
-            console.log(`Checking if '${wEntry["keys"]}' passes check: ${basicCheck.length > 0 ? true : false}`)// Only process attributes of entries detected on the previous turn. (Using the presumed native functionality of substring acceptance instead of RegEx wholeword match)
+            //console.log(`Checking if '${wEntry["keys"]}' passes check: ${basicCheck.length > 0 ? true : false}`)// Only process attributes of entries detected on the previous turn. (Using the presumed native functionality of substring acceptance instead of RegEx wholeword match)
             if (basicCheck.length > 0) {
                 try // We try to do something. If code goes kaboom then we just catch the error and proceed. This is to deal with non-attribute assigned entries e.g those with empty bracket-encapsulations []
                 {
 
-
-                    entryAttributes.forEach(attrib => entryFunctions[attrib[0]](wEntry, attrib[1]))
+                    attribPairs.forEach(pair => entryFunctions[pair[0]]["func"](wEntry, pair[1]))
 
 
                 }

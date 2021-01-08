@@ -50,7 +50,7 @@ const modifier = (text) => {
         "worldEntriesAttributeProcessing":
         {
             "req": (worldEntries && worldEntries.length > 0),
-            "args": worldEntries,
+            "args": null,
             "exec": processWorldEntries
         },
         "trackRoots":
