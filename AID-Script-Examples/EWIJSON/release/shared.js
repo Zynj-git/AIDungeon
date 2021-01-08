@@ -74,13 +74,20 @@ const getContext = (text) => { return info.memoryLength ? text.slice(info.memory
 
 // Extract the last cluster in the RegEx' AND check then filter out non-word/non-whitespace symbols to TRY and assemble the intended words.
 const format = (entry) => entry["keys"].slice(entry["keys"].includes(",") || entry["keys"].includes(".*") ? entry["keys"].regexLastIndexOf(/(,|\.\*)/g) : 0, entry["keys"].includes('#') ? entry["keys"].indexOf('#') : entry["keys"].length).replace(/[^\w-\s]/g, ',').split(',').map(e => e.trim()).filter(e => e.length > 1);
-const addDescription = (entry, value = 0) => {
+const addDescription = (entry, value = 0) => 
+{
     let searchText = lines.join('\n');
-    const expression = entry["keys"].slice(entry["keys"].includes(",") ? entry["keys"].indexOf(',') + 1 : 0, entry["keys"].includes('#') ? entry["keys"].indexOf('#') : entry["keys"].length)
-    const regEx = new RegExp(expression, 'ig');
-    const result = [...searchText.matchAll(regEx)].pop();
-    if (result) { searchText = searchText.slice(0, searchText.toLowerCase().lastIndexOf(result[0].toLowerCase())) + result[0].slice(0, -result.slice(-1)[0].length) + entry["entry"] + ' ' + result.slice(-1)[0] + searchText.slice(searchText.toLowerCase().lastIndexOf(result[0].toLowerCase()) + result[0].length) }
+    const expressions = entry["keys"].replace(/#.*/, '').split(',')
+    
+    // Test if it would pass EVERY expression.
+    if (expressions.every(exp => {const regEx = new RegExp(exp, 'i'); if (regEx.test(searchText)) {return true;}}))
+    {
+    const regEx = new RegExp(expressions.pop(), 'ig');
+    // Find a match for the last expression and grab the most recent word for positioning. Filter out undefined/false values.
+    const result = [...searchText.matchAll(regEx)].pop().filter(Boolean).pop()
+    if (result) { searchText = searchText.slice(0, searchText.toLowerCase().lastIndexOf(result.toLowerCase())) + result.slice(0, -result.length) + entry["entry"] + ' ' + result + searchText.slice(searchText.toLowerCase().lastIndexOf(result.toLowerCase()) + result.length) }
     lines = searchText.split('\n');
+    }
 }
 
 const addAuthorsNote = (entry, value = 0) => state.memory.authorsNote = `${entry["entry"]}`
@@ -92,11 +99,11 @@ const addTrailingEntry = (entry, value = 0) => {
     let finalIndex = -1;
     const searchKeys = format(entry);
     lines.forEach((line, i) => { if (searchKeys.some(key => line.toLowerCase().includes(key.toLowerCase()))) { finalIndex = i; } })
+    console.log(searchKeys, finalIndex)
     if (finalIndex >= 0) {
         spliceContext((finalIndex) - value, entry["entry"])
     }
-    return
-        ;
+    return;
 }
 
 const getWhitelist = () => dataStorage.hasOwnProperty(whitelistPath) && typeof dataStorage[whitelistPath] == 'string' ? dataStorage[whitelistPath].toLowerCase().split(/,|\n/g).map(element => element.trim()) : []
@@ -536,7 +543,7 @@ const processWorldEntries = (entries) => {
         const entryAttributes = getAttributes(wEntry["keys"].split('#').slice(-1)[0].extractString('[', ']'))
 
         if (entryAttributes && entryAttributes.length > 0) {
-            const lastTurnString = entryAttributes.some(attrib => attrib.includes('p') || attrib.includes('d')) ? getHistoryString(-state.settings.searchTurnsRange).toLowerCase().trim() : getHistoryString(-4).toLowerCase().trim() // What we check the keywords against, this time around we basically check where in the context the last history element is then slice forward.
+            const lastTurnString = entryAttributes.some(attrib => attrib.includes('p') || attrib.includes('d')) ? lines.slice(-state.settings.searchTurnsRange).join('\n').toLowerCase().trim() : lines.slice(-4).join('\n').toLowerCase().trim() // What we check the keywords against, this time around we basically check where in the context the last history element is then slice forward.
 
 
 
