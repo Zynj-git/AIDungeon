@@ -537,13 +537,13 @@ const pickRandom = () => {
     return result.flat()
 }
 const processWorldEntries = (entries) => {
-    entries = pickRandom() // Copy the entries to avoid in-place manipulation.
+    const entries = pickRandom() // Copy the entries to avoid in-place manipulation.
     entries.sort((a, b) => a["keys"].split('#').slice(-1)[0].match(/(?<=w=)\d+/) - b["keys"].split('#').slice(-1)[0].match(/(?<=w=)\d+/)).forEach(wEntry => // Take a quick sprint through the worldEntries list and process its elements.
     {
         const entryAttributes = getAttributes(wEntry["keys"].split('#').slice(-1)[0].extractString('[', ']'))
 
         if (entryAttributes && entryAttributes.length > 0) {
-            const lastTurnString = entryAttributes.some(attrib => attrib.includes('p') || attrib.includes('d')) ? lines.slice(-state.settings.searchTurnsRange).join('\n').toLowerCase().trim() : lines.slice(-4).join('\n').toLowerCase().trim() // What we check the keywords against, this time around we basically check where in the context the last history element is then slice forward.
+            const lastTurnString = entryAttributes.some(attrib => attrib.includes('p') || attrib.includes('d') || attrib.includes('t')) ? lines.slice(-state.settings.searchTurnsRange).join('\n').toLowerCase().trim() : lines.slice(-4).join('\n').toLowerCase().trim() // What we check the keywords against, this time around we basically check where in the context the last history element is then slice forward.
 
 
 
