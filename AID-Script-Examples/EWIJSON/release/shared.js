@@ -15,7 +15,7 @@ if (!state.settings) { state.settings = {} }
 // If key (setting[0]) is not in state.settings, initiate it with setting[1] as default value.
 const initSettings = [['entriesFromJSON', true], ['filter', false], ['searchTurnsRange', 4], ['parityMode', false]]
 initSettings.forEach(setting => { if (!Object.keys(state.settings).includes(setting[0])) { state.settings[setting[0]] = setting[1] } })
-const ewiAttribConfig = ['a', 'd','p', 's', 't']
+const ewiAttribConfig = ['a', 'd', 'm', 'p', 's', 't']
 
 
 // Config for consistency.
@@ -58,15 +58,20 @@ const getAttributes = (keys) => { const attrib = keys.match(/([a-z](=\d+)?)/g); 
 
 const regExMatch = (expressions, string) => {
 
-    const validWords = [];
+    const result = [];
+    // Test the multi-lines individually, last/bottom line qualifying becomes result.
     const lines = expressions.split(/\n/g);
     lines.forEach(line => {
-        const expression = line.slice(0, line.includes('#') ? line.indexOf('#') : line.length);
-        const words = line.slice(line.indexOf('#') + 1)
-        if (expression.split(',').every(exp => { const regEx = new RegExp(exp, 'i'); return regEx.test(string) })) { validWords.push(words) }
+      const expressions = line.slice(0, line.includes('#') ? line.indexOf('#') : line.length).split(/(?<!\\),/g);
+      if (expressions.every(exp => {
+          const regEx = new RegExp(exp, 'i');
+          return regEx.test(string)
+        })) {
+        result.push([...string.matchAll(new RegExp(expressions.pop(), 'gi'))].pop())
+      }
     })
-    return validWords
-}
+    return result.pop()
+  }
 const lens = (obj, path) => path.split('.').reduce((o, key) => o && o[key] ? o[key] : null, obj);
 // TODO: Find a reliable method of emergency deleting specific points in Object.
 const delLens = (obj, path) => path.split('.').reduce((o, key) => o && o[key] ? o[key] : delete obj[o][key]);
@@ -78,25 +83,35 @@ const getContext = (text) => { return info.memoryLength ? text.slice(info.memory
 
 // Extract the last cluster in the RegEx' AND check then filter out non-word/non-whitespace symbols to TRY and assemble the intended words.
 const format = (entry) => entry["keys"].slice(entry["keys"].includes(",") || entry["keys"].includes(".*") ? entry["keys"].regexLastIndexOf(/(,|\.\*)/g) : 0, entry["keys"].includes('#') ? entry["keys"].indexOf('#') : entry["keys"].length).replace(/[^\w-\s]/g, ',').split(',').map(e => e.trim()).filter(e => e.length > 1);
-const addDescription = (entry, value = 0) => 
-{
+const addDescription = (entry, value = 0) => {
     let searchText = lines.join('\n');
     const expressions = entry["keys"].replace(/#.*/, '').split(',')
-    
+  
     // Test if it would pass EVERY expression.
-    if (expressions.every(exp => {const regEx = new RegExp(exp, 'i'); if (regEx.test(searchText)) {return true;}}))
-    {
-    const regEx = new RegExp(expressions.pop(), 'ig');
-    // Find a match for the last expression and grab the most recent word for positioning. Filter out undefined/false values.
-    const result = [...searchText.matchAll(regEx)].pop().filter(Boolean).pop()
-    if (result) { searchText = searchText.slice(0, searchText.toLowerCase().lastIndexOf(result.toLowerCase())) + result.slice(0, -result.length) + entry["entry"] + ' ' + result + searchText.slice(searchText.toLowerCase().lastIndexOf(result.toLowerCase()) + result.length) }
-    lines = searchText.split('\n');
+    if (expressions.every(exp => {
+        const regEx = new RegExp(exp, 'i');
+        if (regEx.test(searchText)) {
+          return true;
+        }
+      })) {
+      const regEx = new RegExp(expressions.pop(), 'ig');
+      // Find a match for the last expression and grab the most recent word for positioning. Filter out undefined/false values.
+      const result = [...searchText.matchAll(regEx)].pop().filter(Boolean).pop()
+      if (result && value == 0) {
+        searchText = searchText.slice(0, searchText.toLowerCase().lastIndexOf(result.toLowerCase())) + result.slice(0, -result.length) + entry["entry"] + ' ' + (result) + searchText.slice(searchText.toLowerCase().lastIndexOf(result.toLowerCase()) + result.length)
+      } else if (result && value != 0) 
+      {
+        searchText = searchText.slice(0, searchText.toLowerCase().lastIndexOf(result.toLowerCase()) + result.length) + ' ' + entry["entry"] + searchText.slice(searchText.toLowerCase().lastIndexOf(result.toLowerCase()) + result.length)
+      }
+  
+      lines = searchText.split('\n');
     }
-}
+  }
 
 const addAuthorsNote = (entry, value = 0) => state.memory.authorsNote = `${entry["entry"]}`
 const showWorldEntry = (entry, value = 0) => entry.isNotHidden = true
 const addPositionalEntry = (entry, value = 0) => { spliceContext((value != 0 ? -(value) : lines.length), entry["entry"]) }
+const addMemoryEntry = (entry, value = 0) => { spliceMemory((value != 0 ? -(value) : memoryLines.length), entry["entry"])}
 const addTrailingEntry = (entry, value = 0) => {
 
     // TODO: Create unified function with [d] attribute.
@@ -132,7 +147,7 @@ const getContextualProperties = (search) => {
                     if (typeof value == 'string') {
 
                         const match = regExMatch(value, search)
-                        if (match.length > 0) {
+                        if (match) {
                             paths.push(path.replace(/undefined\.\.?/, '').split('.'));
                             values.push(match);
                         }
@@ -221,16 +236,13 @@ const insertJSON = (text) => {
 
             const { float, sprawl, inline } = dataStorage[data]["_config"];
 
+            let find = regExMatch(dataStorage[data][synonymsPath], lines.join('\n'));
             let finalLineIndex;
-            // Determine if the Object should be present, somewhere.
-            const quickSearch = regExMatch(dataStorage[data][synonymsPath], lines.join('\n'));
-            const checkWords = quickSearch.length > 0 ? quickSearch.flatMap(element => element.replace(/[^A-Za-z 0-9]/g, ',').split(',')).filter(element => element.length > 0) : ['_undefined'];
-            let finalWord = '_undefined';
-
-            lines.filter(line => !line.includes('[{')).forEach(line => {
-                if (checkWords.some(word => { if (line.toLowerCase().includes(word.toLowerCase())) { finalWord = word; return true; } })) { finalLineIndex = lines.indexOf(line); }
-            })
-            if (finalLineIndex >= 0 || (float && checkWords[0] != '_undefined')) {
+            if (find)
+            {lines.filter(line => !line.includes('[{')).forEach(line => {
+                if (line.includes(find[0])) { finalLineIndex = lines.indexOf(line); }
+            })}
+            if (finalLineIndex >= 0 || (float)) {
                 let string = JSON.stringify(dataStorage[data], globalReplacer).replace(/\\/g, '');
 
                 if (state.settings["filter"]) { string = string.replace(/"|{|}/g, ''); }
@@ -498,7 +510,7 @@ state.commandList = {
         execute:
             (args) => {
 
-                const attribute = args[0].replace(/\[|\]/, '');
+                const attribute = args[0].replace(/\[|\]/g, '');
                 
                 const value = Number(args.slice(1).join(''))
                 console.log(attribute, value)
@@ -531,6 +543,7 @@ const entryFunctions = {
     'e': () => { }, // [e] tells the custom keyword check to only run the above functions if every keyword of the entry matches.
     'd': {"func": addDescription, "range": state.settings.ewi['d']}, // [d] adds the first sentence of the entry as a short, parenthesized descriptor to the last mention of the revelant keyword(s) e.g John (a business man)
     'r': () => { }, // [r] picks randomly between entries with the same matching keys. e.g 'you.*catch#[rp=1]' and 'you.*catch#[rd]' has 50% each to be picked.
+    'm': {"func": addMemoryEntry, "range": state.settings.ewi['m']},
     'p': {"func": addPositionalEntry, "range": state.settings.ewi['p']}, // Inserts the <entry> <value> amount of lines into context, e.g [p=1] inserts it one line into context.
     'w': () => { }, // [w] assigns the weight attribute, the higher value the more recent/relevant it will be in context/frontMemory/intermediateMemory etc.
     't': {"func": addTrailingEntry, "range": state.settings.ewi['t']} // [t] adds the entry at a line relative to the activator in context. [t=2] will trail context two lines behind the activating word.
@@ -560,7 +573,7 @@ const processWorldEntries = () => {
             const lastTurnString = lines.slice(-entryFunctions[hasRange[hasRange.length - 1][0]]["range"]).join('\n')
             const basicCheck = regExMatch(wEntry["keys"], lastTurnString)
             //console.log(`Checking if '${wEntry["keys"]}' passes check: ${basicCheck.length > 0 ? true : false}`)// Only process attributes of entries detected on the previous turn. (Using the presumed native functionality of substring acceptance instead of RegEx wholeword match)
-            if (basicCheck.length > 0) {
+            if (basicCheck) {
                 try // We try to do something. If code goes kaboom then we just catch the error and proceed. This is to deal with non-attribute assigned entries e.g those with empty bracket-encapsulations []
                 {
 
