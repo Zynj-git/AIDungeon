@@ -2,10 +2,11 @@
 // The first row is ignored and can be used to list these properties.
 // Only keys and entry are required, isNotHidden will default to true (providing any value will set it to false). 'id' is optional, but required for re-importing/merging.
 
+// NOTE: Use unique IDs to ensure entries with same entry/keys are permitted.
 function uniqueBy(a, key)
 {
     let seen = new Set();
-    return a.filter(item => { return seen.has(key(item[0])) ? false : seen.add(key(item[0]));});
+    return a.filter(item => { return seen.has(key(item)) ? false : seen.add(key(item));});
 }
 
 function chunk (arr, len) // Divides the columns of keyword / entry into pairs of two (relevant when using multiple column pairs per sheet)
