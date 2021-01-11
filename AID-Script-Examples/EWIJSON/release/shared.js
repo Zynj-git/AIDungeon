@@ -26,8 +26,8 @@ state.config = {
     synonymsPath: '_synonyms',
     pathSymbol: '.'
 }
-if (!state.settings.ewi) {state.settings.ewi = {}}
-ewiAttribConfig.forEach(attr => {if (!state.settings.ewi.hasOwnProperty(attr)) {state.settings.ewi[attr] = {"range": 4}}})
+if (!state.settings.ewi) { state.settings.ewi = {} }
+ewiAttribConfig.forEach(attr => { if (!state.settings.ewi.hasOwnProperty(attr)) { state.settings.ewi[attr] = { "range": 4 } } })
 console.log(`Turn: ${info.actionCount}`)
 let { entriesFromJSON } = state.settings;
 const { whitelistPath, synonymsPath, pathSymbol } = state.config;
@@ -61,17 +61,20 @@ const regExMatch = (expressions, string) => {
     const result = [];
     // Test the multi-lines individually, last/bottom line qualifying becomes result.
     const lines = expressions.split(/\n/g);
-    lines.forEach(line => {
-      const expressions = line.slice(0, line.includes('#') ? line.indexOf('#') : line.length).split(/(?<!\\),/g);
-      if (expressions.every(exp => {
-          const regEx = new RegExp(exp, 'i');
-          return regEx.test(string)
-        })) {
-        result.push([...string.matchAll(new RegExp(expressions.pop(), 'gi'))].pop())
-      }
-    })
+    try {
+        lines.forEach(line => {
+            const expressions = line.slice(0, line.includes('#') ? line.indexOf('#') : line.length).split(/(?<!\\),/g);
+            if (expressions.every(exp => {
+                const regEx = new RegExp(exp, 'i');
+                return regEx.test(string)
+            })) {
+                result.push([...string.matchAll(new RegExp(expressions.pop(), 'gi'))].pop())
+            }
+        })
+    }
+    catch (error) { }
     return result.pop()
-  }
+}
 const lens = (obj, path) => path.split('.').reduce((o, key) => o && o[key] ? o[key] : null, obj);
 // TODO: Find a reliable method of emergency deleting specific points in Object.
 const delLens = (obj, path) => path.split('.').reduce((o, key) => o && o[key] ? o[key] : delete obj[o][key]);
@@ -85,33 +88,37 @@ const getContext = (text) => { return info.memoryLength ? text.slice(info.memory
 const format = (entry) => entry["keys"].slice(entry["keys"].includes(",") || entry["keys"].includes(".*") ? entry["keys"].regexLastIndexOf(/(,|\.\*)/g) : 0, entry["keys"].includes('#') ? entry["keys"].indexOf('#') : entry["keys"].length).replace(/[^\w-\s]/g, ',').split(',').map(e => e.trim()).filter(e => e.length > 1);
 const addDescription = (entry, value = 0) => {
     let searchText = lines.join('\n');
-    const expressions = entry["keys"].replace(/#.*/, '').split(',')
-  
+    const expressions = entry["keys"].replace(/#.*/, '').split(',');
+
     // Test if it would pass EVERY expression.
-    if (expressions.every(exp => {
-        const regEx = new RegExp(exp, 'i');
-        if (regEx.test(searchText)) {
-          return true;
+    try {
+
+        if (expressions.every(exp => {
+            const regEx = new RegExp(exp, 'i');
+            if (regEx.test(searchText)) {
+                return true;
+            } }))
+        {
+            const regEx = new RegExp(expressions.pop(), 'ig');
+            // Find a match for the last expression and grab the most recent word for positioning. Filter out undefined/false values.
+            const result = [...searchText.matchAll(regEx)].pop().filter(Boolean).pop()
+            if (result && value == 0) {
+                searchText = searchText.slice(0, searchText.toLowerCase().lastIndexOf(result.toLowerCase())) + result.slice(0, -result.length) + entry["entry"] + ' ' + (result) + searchText.slice(searchText.toLowerCase().lastIndexOf(result.toLowerCase()) + result.length)
+            } else if (result && value != 0) {
+                searchText = searchText.slice(0, searchText.toLowerCase().lastIndexOf(result.toLowerCase()) + result.length) + ' ' + entry["entry"] + searchText.slice(searchText.toLowerCase().lastIndexOf(result.toLowerCase()) + result.length)
+            }
+
+            lines = searchText.split('\n');
         }
-      })) {
-      const regEx = new RegExp(expressions.pop(), 'ig');
-      // Find a match for the last expression and grab the most recent word for positioning. Filter out undefined/false values.
-      const result = [...searchText.matchAll(regEx)].pop().filter(Boolean).pop()
-      if (result && value == 0) {
-        searchText = searchText.slice(0, searchText.toLowerCase().lastIndexOf(result.toLowerCase())) + result.slice(0, -result.length) + entry["entry"] + ' ' + (result) + searchText.slice(searchText.toLowerCase().lastIndexOf(result.toLowerCase()) + result.length)
-      } else if (result && value != 0) 
-      {
-        searchText = searchText.slice(0, searchText.toLowerCase().lastIndexOf(result.toLowerCase()) + result.length) + ' ' + entry["entry"] + searchText.slice(searchText.toLowerCase().lastIndexOf(result.toLowerCase()) + result.length)
-      }
-  
-      lines = searchText.split('\n');
-    }
+
+        }
+    catch (error) {}
   }
 
 const addAuthorsNote = (entry, value = 0) => state.memory.authorsNote = `${entry["entry"]}`
 const showWorldEntry = (entry, value = 0) => entry.isNotHidden = true
 const addPositionalEntry = (entry, value = 0) => { spliceContext((value != 0 ? -(value) : lines.length), entry["entry"]) }
-const addMemoryEntry = (entry, value = 0) => { spliceMemory((value != 0 ? -(value) : memoryLines.length), entry["entry"])}
+const addMemoryEntry = (entry, value = 0) => { spliceMemory((value != 0 ? -(value) : memoryLines.length), entry["entry"]) }
 const addTrailingEntry = (entry, value = 0) => {
 
     // TODO: Create unified function with [d] attribute.
@@ -238,10 +245,11 @@ const insertJSON = (text) => {
 
             let find = regExMatch(dataStorage[data][synonymsPath], lines.join('\n'));
             let finalLineIndex;
-            if (find)
-            {lines.filter(line => !line.includes('[{')).forEach(line => {
-                if (line.includes(find[0])) { finalLineIndex = lines.indexOf(line); }
-            })}
+            if (find) {
+                lines.filter(line => !line.includes('[{')).forEach(line => {
+                    if (line.includes(find[0])) { finalLineIndex = lines.indexOf(line); }
+                })
+            }
             if (finalLineIndex >= 0 || (float)) {
                 let string = JSON.stringify(dataStorage[data], globalReplacer).replace(/\\/g, '');
 
@@ -265,18 +273,15 @@ const entriesFromJSONLines = () => {
     const JSONString = JSONLines.join('\n');
     const normalWorldEntries = worldEntries.filter(element => !element["keys"].includes('.'));
     normalWorldEntries.forEach(element =>
-        element["keys"].split(',').some(keyword => 
-            {
-                if (JSONString.toLowerCase().includes(keyword.toLowerCase()) && !text.includes(element["entry"])) 
-                {
-                    
-                    
-                    if (info.memoryLength + contextMemoryLength + element["entry"].length <= info.maxChars / 2) 
-                    {
-                        spliceMemory(memory.split('\n').length, element["entry"]); return true;
-                    }
+        element["keys"].split(',').some(keyword => {
+            if (JSONString.toLowerCase().includes(keyword.toLowerCase()) && !text.includes(element["entry"])) {
+
+
+                if (info.memoryLength + contextMemoryLength + element["entry"].length <= info.maxChars / 2) {
+                    spliceMemory(memory.split('\n').length, element["entry"]); return true;
                 }
-            }))
+            }
+        }))
 }
 const parseGen = (text) => { state.generate.process = false; const string = fixDepth(`${state.generate.sections.primer}${text}`); const toParse = string.match(/{.*}/); if (toParse) { const obj = JSON.parse(toParse[0]); worldEntriesFromObject(obj, state.generate.root.split(' ')[0]); state.message = `Generated Object for ${state.generate.root} as type ${state.generate.types[0]}\nResult: ${JSON.stringify(obj)}` } else { state.message = `Failed to parse AI Output for Object ${state.generate.root} type ${state.generate.type[0]}` } }
 const parseAsRoot = (text, root) => { const toParse = text.match(/{.*}/g); if (toParse) { toParse.forEach(string => { const obj = JSON.parse(string); worldEntriesFromObject(obj, root); text = text.replace(string, ''); }) } }
@@ -511,11 +516,11 @@ state.commandList = {
             (args) => {
 
                 const attribute = args[0].replace(/\[|\]/g, '');
-                
+
                 const value = Number(args.slice(1).join(''))
                 console.log(attribute, value)
-                if (state.settings.ewi.hasOwnProperty(attribute)) {state.settings.ewi[attribute]["range"] = value; state.message = `Search Range of [${attribute}] set to ${value}!`}
-                else {state.message = `[${attribute}] is not configureable for range!`}
+                if (state.settings.ewi.hasOwnProperty(attribute)) { state.settings.ewi[attribute]["range"] = value; state.message = `Search Range of [${attribute}] set to ${value}!` }
+                else { state.message = `[${attribute}] is not configureable for range!` }
             }
     },
     from:
@@ -538,15 +543,15 @@ state.commandList = {
 
 
 const entryFunctions = {
-    'a': {"func": addAuthorsNote, "range": state.settings.ewi['a']}, // [a] adds it as authorsNote, only one authorsNote at a time.
-    's': {"func": showWorldEntry, "range": state.settings.ewi['s']}, // [r] reveals the entry once mentioned, used in conjuction with [e] to only reveal if all keywords are mentioned at once.
+    'a': { "func": addAuthorsNote, "range": state.settings.ewi['a'] }, // [a] adds it as authorsNote, only one authorsNote at a time.
+    's': { "func": showWorldEntry, "range": state.settings.ewi['s'] }, // [r] reveals the entry once mentioned, used in conjuction with [e] to only reveal if all keywords are mentioned at once.
     'e': () => { }, // [e] tells the custom keyword check to only run the above functions if every keyword of the entry matches.
-    'd': {"func": addDescription, "range": state.settings.ewi['d']}, // [d] adds the first sentence of the entry as a short, parenthesized descriptor to the last mention of the revelant keyword(s) e.g John (a business man)
+    'd': { "func": addDescription, "range": state.settings.ewi['d'] }, // [d] adds the first sentence of the entry as a short, parenthesized descriptor to the last mention of the revelant keyword(s) e.g John (a business man)
     'r': () => { }, // [r] picks randomly between entries with the same matching keys. e.g 'you.*catch#[rp=1]' and 'you.*catch#[rd]' has 50% each to be picked.
-    'm': {"func": addMemoryEntry, "range": state.settings.ewi['m']},
-    'p': {"func": addPositionalEntry, "range": state.settings.ewi['p']}, // Inserts the <entry> <value> amount of lines into context, e.g [p=1] inserts it one line into context.
+    'm': { "func": addMemoryEntry, "range": state.settings.ewi['m'] },
+    'p': { "func": addPositionalEntry, "range": state.settings.ewi['p'] }, // Inserts the <entry> <value> amount of lines into context, e.g [p=1] inserts it one line into context.
     'w': () => { }, // [w] assigns the weight attribute, the higher value the more recent/relevant it will be in context/frontMemory/intermediateMemory etc.
-    't': {"func": addTrailingEntry, "range": state.settings.ewi['t']} // [t] adds the entry at a line relative to the activator in context. [t=2] will trail context two lines behind the activating word.
+    't': { "func": addTrailingEntry, "range": state.settings.ewi['t'] } // [t] adds the entry at a line relative to the activator in context. [t=2] will trail context two lines behind the activating word.
 }
 
 // To avoid complicating it with measurements of the additonal string, and at the cost of slightly less flexibility, we assign different functions to handle the positioning.
@@ -565,11 +570,11 @@ const processWorldEntries = () => {
     entries.sort((a, b) => a["keys"].split('#').slice(-1)[0].match(/(?<=w=)\d+/) - b["keys"].split('#').slice(-1)[0].match(/(?<=w=)\d+/)).filter(e => e["keys"].includes('#')).forEach(wEntry => // Take a quick sprint through the worldEntries list and process its elements.
     {
         const regEx = /(\w(=\d*)?)/gi
-        let attribPairs = regEx.test(wEntry["keys"]) ? wEntry["keys"].slice(wEntry["keys"].lastIndexOf('#')).match(regEx).map(e => e.split('=')).filter(e => entryFunctions[e[0]].hasOwnProperty('func')) : []       
+        let attribPairs = regEx.test(wEntry["keys"]) ? wEntry["keys"].slice(wEntry["keys"].lastIndexOf('#')).match(regEx).map(e => e.split('=')).filter(e => entryFunctions[e[0]].hasOwnProperty('func')) : []
         if (attribPairs && attribPairs.length > 0) {
 
-             // What we check the keywords against, this time around we basically check where in the context the last history element is then slice forward.
-            const hasRange = attribPairs.filter(a => entryFunctions[a[0]].hasOwnProperty('range'))     
+            // What we check the keywords against, this time around we basically check where in the context the last history element is then slice forward.
+            const hasRange = attribPairs.filter(a => entryFunctions[a[0]].hasOwnProperty('range'))
             const lastTurnString = lines.slice(-entryFunctions[hasRange[hasRange.length - 1][0]]["range"]).join('\n')
             const basicCheck = regExMatch(wEntry["keys"], lastTurnString)
             //console.log(`Checking if '${wEntry["keys"]}' passes check: ${basicCheck.length > 0 ? true : false}`)// Only process attributes of entries detected on the previous turn. (Using the presumed native functionality of substring acceptance instead of RegEx wholeword match)
