@@ -72,7 +72,7 @@ const regExMatch = (expressions, string) => {
             }
         })
     }
-    catch (error) { }
+    catch (error) { console.log(`An invalid RegEx was detected!\n${JSON.stringify(error)}`); state.message = `An invalid RegEx was detected!\n${JSON.stringify(error)}`; }
     return result.pop()
 }
 const lens = (obj, path) => path.split('.').reduce((o, key) => o && o[key] ? o[key] : null, obj);
@@ -112,7 +112,7 @@ const addDescription = (entry, value = 0) => {
         }
 
         }
-    catch (error) {}
+        catch (error) { console.log(`An invalid RegEx was detected!\n${JSON.stringify(error)}`); state.message = `An invalid RegEx was detected!\n${JSON.stringify(error)}`; }
   }
 
 const addAuthorsNote = (entry, value = 0) => state.memory.authorsNote = `${entry["entry"]}`
@@ -269,10 +269,9 @@ const insertJSON = (text) => {
 
 
 const entriesFromJSONLines = () => {
-    const JSONLines = lines.filter(line => line.startsWith('['));
+    const JSONLines = lines.filter(line => /\[\{.*\}\]/.test(line));
     const JSONString = JSONLines.join('\n');
-    const normalWorldEntries = worldEntries.filter(element => !element["keys"].includes('.'));
-    normalWorldEntries.forEach(element =>
+    worldEntries.forEach(element =>
         element["keys"].split(',').some(keyword => {
             if (JSONString.toLowerCase().includes(keyword.toLowerCase()) && !text.includes(element["entry"])) {
 
@@ -575,7 +574,7 @@ const processWorldEntries = () => {
 
             // What we check the keywords against, this time around we basically check where in the context the last history element is then slice forward.
             const hasRange = attribPairs.filter(a => entryFunctions[a[0]].hasOwnProperty('range'))
-            const lastTurnString = lines.slice(-entryFunctions[hasRange[hasRange.length - 1][0]]["range"]).join('\n')
+            const lastTurnString = lines.filter(line => !/\[\{.*\}\]/.test(line)).slice(-entryFunctions[hasRange[hasRange.length - 1][0]]["range"]).join('\n');
             const basicCheck = regExMatch(wEntry["keys"], lastTurnString)
             //console.log(`Checking if '${wEntry["keys"]}' passes check: ${basicCheck.length > 0 ? true : false}`)// Only process attributes of entries detected on the previous turn. (Using the presumed native functionality of substring acceptance instead of RegEx wholeword match)
             if (basicCheck) {
