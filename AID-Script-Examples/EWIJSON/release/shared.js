@@ -182,13 +182,22 @@ const getKey = (keys, obj) => { return keys.split('.').reduce((a, b) => { if (ty
 
 const consumeWorldEntries = () => {
 
-    worldEntries.filter(wEntry => (wEntry["keys"].includes('.') && !wEntry["keys"].includes('#'))).forEach(wEntry => {
+    worldEntries.filter(wEntry => ((wEntry["keys"].includes('.') || wEntry["keys"].startsWith('!')) && (!wEntry["keys"].includes('#')))).forEach(wEntry => {
         removeWorldEntry(worldEntries.indexOf(wEntry))
-        setProperty(wEntry["keys"].toLowerCase().split(',').filter(element => element.includes('.')).map(element => element.trim()).join(''), wEntry["entry"], dataStorage);
+        if (wEntry["keys"].startsWith('!'))
+        { 
+            const root = wEntry["keys"].match(/(?<=!)[^.]*/)[0];
+            try {
+                    const object = JSON.parse(wEntry["entry"].match(/{.*}/)[0]);
+                    dataStorage[root] = object;
+                }
+            catch (error) {console.log(error); state.message = `Failed to parse implicit conversion of !${root}. Verify the entry's format!`}
+        }
+        else {setProperty(wEntry["keys"].toLowerCase().split(',').filter(element => element.includes('.')).map(element => element.trim()).join(''), wEntry["entry"], dataStorage);}
     })
 }
 
-//const sanitizeWhitelist = () => { const index = worldEntries.findIndex(element => element["keys"].includes('_whitelist')); if (index >= 0) {worldEntries[index]["keys"] = '_whitelist.';}}
+const sanitizeWhitelist = () => { const index = worldEntries.findIndex(element => element["keys"].includes('_whitelist')); if (index >= 0) {worldEntries[index]["keys"] = '_whitelist.';}}
 const parityMode = () => worldEntriesFromObject(dataStorage, '');
 const trackRoots = () => { const list = Object.keys(dataStorage); const index = worldEntries.findIndex(element => element["keys"] == 'rootList'); if (index < 0) { addWorldEntry('rootList', list, isNotHidden = true) } else { updateWorldEntry(index, 'rootList', list, isNotHidden = true) } }
 const globalWhitelist = [getWhitelist(), getContextualProperties(getHistoryString(-state.settings.searchTurnsRange)).flat()].flat();
@@ -333,7 +342,7 @@ state.commandList = {
                 const setValue = args.slice(1).join(' ');
 
                 console.log(setKeys, setValue)
-                if (dataStorage) { setProperty(setKeys, setValue, dataStorage); state.message = `${setKeys} set to ${setValue}`; } // Immediately reflect the changes in state.data
+                if (dataStorage) { setProperty(setKeys, setValue, dataStorage); state.message = `${setKeys} set to ${setValue}`; if (state.settings["parityMode"]) { parityMode() } } // Immediately reflect the changes in state.data
                 return
             }
     },
@@ -347,7 +356,7 @@ state.commandList = {
             (args) => {
 
                 // TODO: Permit the consumption of specific entries, currently this is also inadvertently execute /hide
-                //sanitizeWhitelist();
+                sanitizeWhitelist();
                 consumeWorldEntries();
                 const path = args.join('').toLowerCase().trim();
                 if (dataStorage && dataStorage.hasOwnProperty(args[0].split('.')[0].toLowerCase().trim())) {

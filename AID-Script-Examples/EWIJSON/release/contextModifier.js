@@ -17,15 +17,15 @@ const modifier = (text) => {
 
     const execute = {
 
-      /*  "sanitizeWhitelist":
+        "sanitizeWhitelist":
         {
             "req": true,
             "args": null,
             "exec": sanitizeWhitelist
-        }, */
+        },
         "consume":
         {
-            "req": true,
+            "req": worldEntries,
             "args": null,
             "exec": consumeWorldEntries
         },
@@ -43,7 +43,7 @@ const modifier = (text) => {
         },
         "insertWorldEntriesFoundInJSONLines":
         {
-            "req": state.settings["entriesFromJSON"],
+            "req": (worldEntries && state.settings["entriesFromJSON"]),
             "args": null,
             "exec": entriesFromJSONLines
         },
@@ -55,13 +55,13 @@ const modifier = (text) => {
         },
         "trackRoots":
         {
-            "req": true,
+            "req": worldEntries,
             "args": null,
             "exec": trackRoots
         },
         "parityMode":
         {
-            "req": state.settings["parityMode"],
+            "req": worldEntries && state.settings["parityMode"],
             "args": null,
             "exec": parityMode
         }
@@ -71,9 +71,9 @@ const modifier = (text) => {
     for (action in execute) { if (execute[action]["req"]) {execute[action]["exec"](execute[action]["args"])} }
 
 
-    let combinedMemory = memoryLines.join('\n').replace(/\n$/, '')
+    let combinedMemory = memoryLines.join('\n')
 
-    let combinedLines = lines.join('\n').replace(/\n$/, '').replace(/\]\n\[/g, '][').slice(-(info.maxChars - combinedMemory.length - 1)).replace(/^[^\[]*.]/g, '');
+    let combinedLines = lines.join('\n').replace(/\]\n\[/g, '][').slice(-(info.maxChars - combinedMemory.length - 1)).replace(/^[^\[]*.]/g, '');
     const finalText = [combinedMemory, combinedLines].join("\n");
     
     // Debug to check if the context is intact and properly utilized, optimally the numbers should always match
