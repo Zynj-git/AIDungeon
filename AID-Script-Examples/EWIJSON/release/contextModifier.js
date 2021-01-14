@@ -3,6 +3,7 @@ let contextMemory = getMemory(text);
 let context = getContext(text);
 let lines = context.split('\n');
 let memoryLines = contextMemory.split('\n');
+
 let modifiedText = text.toLowerCase();
 let modifiedContext = context.toLowerCase();
 let memoryLinesLength = memoryLines.length
@@ -25,7 +26,7 @@ const modifier = (text) => {
         },
         "consume":
         {
-            "req": worldEntries,
+            "req": true,
             "args": null,
             "exec": consumeWorldEntries
         },
@@ -43,25 +44,25 @@ const modifier = (text) => {
         },
         "insertWorldEntriesFoundInJSONLines":
         {
-            "req": (worldEntries && state.settings["entriesFromJSON"]),
+            "req": state.settings["entriesFromJSON"],
             "args": null,
             "exec": entriesFromJSONLines
         },
         "worldEntriesAttributeProcessing":
         {
-            "req": (worldEntries && worldEntries.length > 0),
+            "req": worldEntries.length > 0,
             "args": null,
             "exec": processWorldEntries
         },
         "trackRoots":
         {
-            "req": worldEntries,
+            "req": true,
             "args": null,
             "exec": trackRoots
         },
         "parityMode":
         {
-            "req": worldEntries && state.settings["parityMode"],
+            "req": state.settings["parityMode"],
             "args": null,
             "exec": parityMode
         }
@@ -72,8 +73,7 @@ const modifier = (text) => {
 
 
     let combinedMemory = memoryLines.join('\n')
-
-    let combinedLines = lines.join('\n').replace(/\]\n\[/g, '][').slice(-(info.maxChars - combinedMemory.length - 1)).replace(/^[^\[]*.]/g, '');
+    let combinedLines = lines.join('\n').slice(-(info.maxChars - combinedMemory.length - 1));
     const finalText = [combinedMemory, combinedLines].join("\n");
     
     // Debug to check if the context is intact and properly utilized, optimally the numbers should always match

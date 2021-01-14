@@ -97,8 +97,8 @@ const addDescription = (entry, value = 0) => {
             const regEx = new RegExp(exp, 'i');
             if (regEx.test(searchText)) {
                 return true;
-            } }))
-        {
+            }
+        })) {
             const regEx = new RegExp(expressions.pop(), 'ig');
             // Find a match for the last expression and grab the most recent word for positioning. Filter out undefined/false values.
             const result = [...searchText.matchAll(regEx)].pop().filter(Boolean).pop()
@@ -111,9 +111,9 @@ const addDescription = (entry, value = 0) => {
             lines = searchText.split('\n');
         }
 
-        }
-        catch (error) { console.log(`An invalid RegEx was detected!\n${JSON.stringify(error)}`); state.message = `An invalid RegEx was detected!\n${JSON.stringify(error)}`; }
-  }
+    }
+    catch (error) { console.log(`An invalid RegEx was detected!\n${JSON.stringify(error)}`); state.message = `An invalid RegEx was detected!\n${JSON.stringify(error)}`; }
+}
 
 const addAuthorsNote = (entry, value = 0) => state.memory.authorsNote = `${entry["entry"]}`
 const showWorldEntry = (entry, value = 0) => entry.isNotHidden = true
@@ -137,42 +137,30 @@ const getWhitelist = () => dataStorage.hasOwnProperty(whitelistPath) && typeof d
 // TODO: Feed it the positional argument of the Object for float searches.
 // TODO: Only retrieve the absolute necessities of information, currently its a slight rework of the function utilized in 'createWorldEntriesFromObject' func.
 const getContextualProperties = (search) => {
-
-    function buildSynonyms(replacer) {
+    function replacer(replace) {
         let m = new Map();
-        return function (field, value) {
-            let path = m.get(this) + (Array.isArray(this) ? `[${field}]` : '.' + field);
+        return function (key, value) {
+            let path = m.get(this) + (Array.isArray(this) ? `[${key}]` : '.' + key);
 
             if (value === Object(value)) {
                 m.set(value, path);
             }
-            const final = replacer.call(this, field, value, path.replace(/undefined\.\.?/, ''));
+            const final = replace.call(this, key, value, path.replace(/undefined\.\.?/, ''));
 
-            {
-                if (typeof final != 'object') {
-                    if (typeof value == 'string') {
-                        const match = regExMatch(value, search)
-                        if (match) {
-                            paths.push(path.replace(/undefined\.\.?/, '').split('.'));
-                            values.push(match);
-                        }
-                    }
 
-                }
+            if (typeof final == 'string' && Boolean(final) && regExMatch(value, search)) {
+                paths.push(path.split('.'));
             }
+
+
             return final;
         }
     }
-
-    const paths = []
-    const values = []
-    JSON.stringify(dataStorage[synonymsPath], buildSynonyms(function (field, value, path) {
+    const paths = [];
+    JSON.stringify(dataStorage[synonymsPath], replacer(function (key, value, path) {
         return value;
     }));
-
-    const finalSynonyms = [...paths.flat().map(element => element.replace(synonymsPath, '').replace('_config', '')), ...values.flat().map(element => element.replace(synonymsPath, '').replace('_config', ''))]
-
-    return finalSynonyms
+    return [...paths.flat()]
 }
 
 const setProperty = (keys, value, obj) => { const property = keys.split('.').pop(); const path = keys.split('.')[1] ? keys.split('.').slice(0, -1).join('.') : keys.replace('.', ''); if (property[1]) { getKey(path, obj)[property] = value ? value : null; } else { dataStorage[path] = value; } }
@@ -182,20 +170,19 @@ const consumeWorldEntries = () => {
 
     worldEntries.filter(wEntry => ((wEntry["keys"].includes('.') || wEntry["keys"].startsWith('!')) && (!wEntry["keys"].includes('#')))).forEach(wEntry => {
         removeWorldEntry(worldEntries.indexOf(wEntry))
-        if (wEntry["keys"].startsWith('!'))
-        { 
+        if (wEntry["keys"].startsWith('!')) {
             const root = wEntry["keys"].match(/(?<=!)[^.]*/)[0];
             try {
-                    const object = JSON.parse(wEntry["entry"].match(/{.*}/)[0]);
-                    dataStorage[root] = object;
-                }
-            catch (error) {console.log(error); state.message = `Failed to parse implicit conversion of !${root}. Verify the entry's format!`}
+                const object = JSON.parse(wEntry["entry"].match(/{.*}/)[0]);
+                dataStorage[root] = object;
+            }
+            catch (error) { console.log(error); state.message = `Failed to parse implicit conversion of !${root}. Verify the entry's format!` }
         }
-        else {setProperty(wEntry["keys"].toLowerCase().split(',').filter(element => element.includes('.')).map(element => element.trim()).join(''), wEntry["entry"], dataStorage);}
+        else { setProperty(wEntry["keys"].toLowerCase().split(',').filter(element => element.includes('.')).map(element => element.trim()).join(''), wEntry["entry"], dataStorage); }
     })
 }
 
-const sanitizeWhitelist = () => { const index = worldEntries.findIndex(element => element["keys"].includes('_whitelist')); if (index >= 0) {worldEntries[index]["keys"] = '_whitelist.';}}
+const sanitizeWhitelist = () => { const index = worldEntries.findIndex(element => element["keys"].includes('_whitelist')); if (index >= 0) { worldEntries[index]["keys"] = '_whitelist.'; } }
 const parityMode = () => worldEntriesFromObject(dataStorage, '');
 const trackRoots = () => { const list = Object.keys(dataStorage); const index = worldEntries.findIndex(element => element["keys"] == 'rootList'); if (index < 0) { addWorldEntry('rootList', list, isNotHidden = true) } else { updateWorldEntry(index, 'rootList', list, isNotHidden = true) } }
 const globalWhitelist = [getWhitelist(), getContextualProperties(getHistoryString(-state.settings.searchTurnsRange)).flat()].flat();
@@ -219,13 +206,13 @@ const spliceContext = (pos, string) => {
 
     let adjustedLines = 0;
     if ((linesLength + memoryLength) + string.length > info.maxChars) { const adjustor = lines.join('\n').slice(string.length).split('\n'); adjustedLines = lines.length - adjustor.length; lines = adjustor; }
-    linesCopy.splice(pos - adjustedLines, 0, string)
+    lines.splice(pos - adjustedLines, 0, string)
     return
 }
 
 const spliceMemory = (pos, string) => {
     contextMemoryLength += string.length;
-    memoryLinesCopy.splice(pos, 0, string);
+    lines.splice(pos, 0, string);
     return
 }
 
