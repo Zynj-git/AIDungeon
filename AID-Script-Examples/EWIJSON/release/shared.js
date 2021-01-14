@@ -212,7 +212,7 @@ const spliceContext = (pos, string) => {
 
 const spliceMemory = (pos, string) => {
     contextMemoryLength += string.length;
-    lines.splice(pos, 0, string);
+    memoryLines.splice(pos, 0, string);
     return
 }
 
