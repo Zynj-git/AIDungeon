@@ -150,9 +150,7 @@ const getContextualProperties = (search) => {
 
             {
                 if (typeof final != 'object') {
-                    // TODO: Insert a function to check the qualification of AND/OR sequences.
                     if (typeof value == 'string') {
-
                         const match = regExMatch(value, search)
                         if (match) {
                             paths.push(path.replace(/undefined\.\.?/, '').split('.'));
@@ -221,13 +219,13 @@ const spliceContext = (pos, string) => {
 
     let adjustedLines = 0;
     if ((linesLength + memoryLength) + string.length > info.maxChars) { const adjustor = lines.join('\n').slice(string.length).split('\n'); adjustedLines = lines.length - adjustor.length; lines = adjustor; }
-    lines.splice(pos - adjustedLines, 0, string)
+    linesCopy.splice(pos - adjustedLines, 0, string)
     return
 }
 
 const spliceMemory = (pos, string) => {
     contextMemoryLength += string.length;
-    memoryLines.splice(pos, 0, string);
+    memoryLinesCopy.splice(pos, 0, string);
     return
 }
 
@@ -583,7 +581,7 @@ const processWorldEntries = () => {
 
             // What we check the keywords against, this time around we basically check where in the context the last history element is then slice forward.
             const hasRange = attribPairs.filter(a => entryFunctions[a[0]].hasOwnProperty('range'))
-            const lastTurnString = lines.filter(line => !/\[\{.*\}\]/.test(line)).slice(-entryFunctions[hasRange[hasRange.length - 1][0]]["range"]).join('\n');
+            const lastTurnString = lines.slice(-entryFunctions[hasRange[hasRange.length - 1][0]]["range"]).join('\n');
             const basicCheck = regExMatch(wEntry["keys"], lastTurnString)
             //console.log(`Checking if '${wEntry["keys"]}' passes check: ${basicCheck.length > 0 ? true : false}`)// Only process attributes of entries detected on the previous turn. (Using the presumed native functionality of substring acceptance instead of RegEx wholeword match)
             if (basicCheck) {
