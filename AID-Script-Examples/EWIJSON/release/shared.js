@@ -238,21 +238,24 @@ const insertJSON = (text) => {
             const { float, sprawl, inline } = dataStorage[data]["_config"];
 
             let find = regExMatch(dataStorage[data][synonymsPath], lines.join('\n'));
-            let finalLineIndex;
-            if (find) {
+            
+            if (find) 
+            {
+                let finalLineIndex;
                 lines.filter(line => !line.includes('[{')).forEach(line => {
                     if (line.includes(find[0])) { finalLineIndex = lines.indexOf(line); }
                 })
-            }
-            if (finalLineIndex >= 0 || (float)) {
-                let string = JSON.stringify(dataStorage[data], globalReplacer).replace(/\\/g, '');
+            
+                if (finalLineIndex >= 0 || (float)) {
+                    let string = JSON.stringify(dataStorage[data], globalReplacer).replace(/\\/g, '');
 
-                if (state.settings["filter"]) { string = string.replace(/"|{|}/g, ''); }
+                    if (state.settings["filter"]) { string = string.replace(/"|{|}/g, ''); }
 
-                if (string.length > 4 && float) {
-                    float.includes('ML') ? spliceMemory(memoryLines.length, `[${string}]`) : spliceContext(float, `[${string}]`);
+                    if (string.length > 4 && float) {
+                        float.includes('ML') ? spliceMemory(memoryLines.length, `[${string}]`) : spliceContext(float, `[${string}]`);
+                    }
+                    else if (string.length > 4 && !lines.some(line => line.includes(string))) { spliceContext(finalLineIndex, `[${string}]`); };
                 }
-                else if (string.length > 4 && !lines.some(line => line.includes(string))) { spliceContext(finalLineIndex, `[${string}]`); };
             }
 
         }
