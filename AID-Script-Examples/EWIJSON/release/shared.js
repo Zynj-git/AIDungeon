@@ -65,7 +65,7 @@ const regExMatch = (expressions, string) => {
         lines.forEach(line => {
             const expressions = line.slice(0, line.includes('#') ? line.indexOf('#') : line.length).split(/(?<!\\),/g);
             if (expressions.every(exp => {
-                const regEx = new RegExp(exp, 'i');
+                const regEx = new RegExp(exp.replace(/\\/g, ''), 'i');
                 return regEx.test(string)
             })) {
                 result.push([...string.matchAll(new RegExp(expressions.pop(), 'gi'))].pop())
@@ -134,19 +134,25 @@ const addTrailingEntry = (entry, value = 0) => {
 
 const getWhitelist = () => dataStorage.hasOwnProperty(whitelistPath) && typeof dataStorage[whitelistPath] == 'string' ? dataStorage[whitelistPath].toLowerCase().split(/,|\n/g).map(element => element.trim()) : []
 
-// TODO: Feed it the positional argument of the Object for float searches.
-// TODO: Only retrieve the absolute necessities of information, currently its a slight rework of the function utilized in 'createWorldEntriesFromObject' func.
 const getContextualProperties = (search) => {
+
+    // Toggle the wildcard state to search down full path.
+    // If the current path does not include the wildcard path, toggle it to false.
+    let wildcard = false;
+    let current = '';
     function replacer(replace) {
         let m = new Map();
         return function (key, value) {
             let path = m.get(this) + (Array.isArray(this) ? `[${key}]` : '.' + key);
-
+            let display = path.replace(/undefined\.\.?/, '')
             if (value === Object(value)) {
                 m.set(value, path);
             }
-            const final = replace.call(this, key, value, path.replace(/undefined\.\.?/, ''));
+            const final = replace.call(this, key, value, display);
 
+            if (key.includes('/*')) { wildcard = true; current = display }
+            if (wildcard && display.includes(current)) { paths.push(path.split('.')) }
+            else { wildcard = false; }
 
             if (typeof final == 'string' && Boolean(final) && regExMatch(value, search)) {
                 paths.push(path.split('.'));
@@ -160,7 +166,7 @@ const getContextualProperties = (search) => {
     JSON.stringify(dataStorage[synonymsPath], replacer(function (key, value, path) {
         return value;
     }));
-    return [...paths.flat()]
+    return [...paths.flat()].map(e => e.replace('/*', ''))
 }
 
 const setProperty = (keys, value, obj) => { const property = keys.split('.').pop(); const path = keys.split('.')[1] ? keys.split('.').slice(0, -1).join('.') : keys.replace('.', ''); if (property[1]) { getKey(path, obj)[property] = value ? value : null; } else { dataStorage[path] = value; } }
@@ -238,14 +244,13 @@ const insertJSON = (text) => {
             const { float, sprawl, inline } = dataStorage[data]["_config"];
 
             let find = regExMatch(dataStorage[data][synonymsPath], lines.join('\n'));
-            
-            if (find) 
-            {
+
+            if (find) {
                 let finalLineIndex;
                 lines.filter(line => !line.includes('[{')).forEach(line => {
                     if (line.includes(find[0])) { finalLineIndex = lines.indexOf(line); }
                 })
-            
+
                 if (finalLineIndex >= 0 || (float)) {
                     let string = JSON.stringify(dataStorage[data], globalReplacer).replace(/\\/g, '');
 
