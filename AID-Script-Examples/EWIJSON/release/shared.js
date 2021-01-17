@@ -12,6 +12,7 @@ let dataStorage = state.data;
 let contextMemoryLength = 0; // Keep count of additional context added.
 if (!state.generate) { state.generate = {} }
 if (!state.settings) { state.settings = {} }
+if (!state.settings.globalWhitelist) {state.settings.globalWhitelist = []}
 // If key (setting[0]) is not in state.settings, initiate it with setting[1] as default value.
 const initSettings = [['entriesFromJSON', true], ['filter', false], ['searchTurnsRange', 4], ['parityMode', false]]
 initSettings.forEach(setting => { if (!Object.keys(state.settings).includes(setting[0])) { state.settings[setting[0]] = setting[1] } })
@@ -24,13 +25,16 @@ state.config = {
     prefixSymbol: '/',
     whitelistPath: '_whitelist',
     synonymsPath: '_synonyms',
+    configPath: '_config',
+    wildcardPath: '/*',
     pathSymbol: '.'
 }
 if (!state.settings.ewi) { state.settings.ewi = {} }
 ewiAttribConfig.forEach(attr => { if (!state.settings.ewi.hasOwnProperty(attr)) { state.settings.ewi[attr] = { "range": 4 } } })
 console.log(`Turn: ${info.actionCount}`)
 let { entriesFromJSON } = state.settings;
-const { whitelistPath, synonymsPath, pathSymbol } = state.config;
+const { whitelistPath, synonymsPath, pathSymbol, wildcardPath, configPath } = state.config;
+const internalPaths = [whitelistPath, synonymsPath]
 
 // https://www.tutorialspoint.com/group-by-element-in-array-javascript
 const groupElementsBy = arr => {
@@ -54,8 +58,10 @@ String.prototype.regexLastIndexOf = function (regex, startpos) { regex = (regex.
 const getHistoryString = (turns) => history.slice(turns).map(element => element["text"]).join(' ') // Returns a single string of the text.
 const getHistoryText = (turns) => history.slice(turns).map(element => element["text"]) // Returns an array of text.
 const getActionTypes = (turns) => history.slice(turns).map(element => element["type"]) // Returns the action types of the previous turns in an array.
-const getAttributes = (keys) => { const attrib = keys.match(/([a-z](=\d+)?)/g); if (attrib) { return attrib.map(attrib => attrib.split('=')) } } // Pass it a bracket-encapsulated string and it returns an array of [attribute, value] pairs if possible.
 
+// Ensure that '_synonyms' is processed first in the loop. It's executed if (Object.keys(dataStorage)[0] != synonymsPath)
+// NOTE: Could have unintended side effects of the re-assignment. If it causes issues, check if this can be reworked.
+const fixOrder = () => { dataStorage = Object.assign({ "_synonyms": {} }, dataStorage); state.data = dataStorage}
 const regExMatch = (expressions, string) => {
 
     const result = [];
@@ -68,11 +74,11 @@ const regExMatch = (expressions, string) => {
                 const regEx = new RegExp(exp.replace(/\\/g, ''), 'i');
                 return regEx.test(string)
             })) {
-                result.push([...string.matchAll(new RegExp(expressions.pop(), 'gi'))].pop())
+                result.push([...string.matchAll(new RegExp(expressions.pop(), 'gi'))].filter(Boolean).pop())
             }
         })
     }
-    catch (error) { console.log(`An invalid RegEx was detected!\n${JSON.stringify(error)}`); state.message = `An invalid RegEx was detected!\n${JSON.stringify(error)}`; }
+    catch (error) { console.log(`An invalid RegEx was detected!\n${error.name}: ${error.message}`); state.message = `An invalid RegEx was detected!\n${error.name}: ${error.message}`; }
     return result.pop()
 }
 const lens = (obj, path) => path.split('.').reduce((o, key) => o && o[key] ? o[key] : null, obj);
@@ -85,34 +91,16 @@ const getMemory = (text) => { return info.memoryLength ? text.slice(0, info.memo
 const getContext = (text) => { return info.memoryLength ? text.slice(info.memoryLength) : text } // If memoryLength is set then slice from the end of memory to the end of text, else return the entire text.
 
 // Extract the last cluster in the RegEx' AND check then filter out non-word/non-whitespace symbols to TRY and assemble the intended words.
-const format = (entry) => entry["keys"].slice(entry["keys"].includes(",") || entry["keys"].includes(".*") ? entry["keys"].regexLastIndexOf(/(,|\.\*)/g) : 0, entry["keys"].includes('#') ? entry["keys"].indexOf('#') : entry["keys"].length).replace(/[^\w-\s]/g, ',').split(',').map(e => e.trim()).filter(e => e.length > 1);
 const addDescription = (entry, value = 0) => {
     let searchText = lines.join('\n');
-    const expressions = entry["keys"].replace(/#.*/, '').split(',');
-
-    // Test if it would pass EVERY expression.
-    try {
-
-        if (expressions.every(exp => {
-            const regEx = new RegExp(exp, 'i');
-            if (regEx.test(searchText)) {
-                return true;
-            }
-        })) {
-            const regEx = new RegExp(expressions.pop(), 'ig');
-            // Find a match for the last expression and grab the most recent word for positioning. Filter out undefined/false values.
-            const result = [...searchText.matchAll(regEx)].pop().filter(Boolean).pop()
-            if (result && value == 0) {
-                searchText = searchText.slice(0, searchText.toLowerCase().lastIndexOf(result.toLowerCase())) + result.slice(0, -result.length) + entry["entry"] + ' ' + (result) + searchText.slice(searchText.toLowerCase().lastIndexOf(result.toLowerCase()) + result.length)
-            } else if (result && value != 0) {
-                searchText = searchText.slice(0, searchText.toLowerCase().lastIndexOf(result.toLowerCase()) + result.length) + ' ' + entry["entry"] + searchText.slice(searchText.toLowerCase().lastIndexOf(result.toLowerCase()) + result.length)
-            }
-
-            lines = searchText.split('\n');
-        }
-
+    // Find a match for the last expression and grab the most recent word for positioning. Filter out undefined/false values.
+    const result = regExMatch(entry["keys"], searchText).pop()
+    if (result && value == 0) {
+        searchText = searchText.slice(0, searchText.toLowerCase().lastIndexOf(result.toLowerCase())) + result.slice(0, -result.length) + entry["entry"] + ' ' + (result) + searchText.slice(searchText.toLowerCase().lastIndexOf(result.toLowerCase()) + result.length)
+    } else if (result && value != 0) {
+        searchText = searchText.slice(0, searchText.toLowerCase().lastIndexOf(result.toLowerCase()) + result.length) + ' ' + entry["entry"] + searchText.slice(searchText.toLowerCase().lastIndexOf(result.toLowerCase()) + result.length)
     }
-    catch (error) { console.log(`An invalid RegEx was detected!\n${JSON.stringify(error)}`); state.message = `An invalid RegEx was detected!\n${JSON.stringify(error)}`; }
+    lines = searchText.split('\n');
 }
 
 const addAuthorsNote = (entry, value = 0) => state.memory.authorsNote = `${entry["entry"]}`
@@ -121,11 +109,9 @@ const addPositionalEntry = (entry, value = 0) => { spliceContext((value != 0 ? -
 const addMemoryEntry = (entry, value = 0) => { spliceMemory((value != 0 ? -(value) : memoryLines.length), entry["entry"]) }
 const addTrailingEntry = (entry, value = 0) => {
 
-    // TODO: Create unified function with [d] attribute.
     let finalIndex = -1;
-    const searchKeys = format(entry);
-    lines.forEach((line, i) => { if (searchKeys.some(key => line.toLowerCase().includes(key.toLowerCase()))) { finalIndex = i; } })
-    console.log(searchKeys, finalIndex)
+    const find = regExMatch(entry["keys"], lines.join('\n'));
+    lines.forEach((line, i) => { if (line.includes(find[0])) { finalIndex = i; } })
     if (finalIndex >= 0) {
         spliceContext((finalIndex) - value, entry["entry"])
     }
@@ -133,13 +119,13 @@ const addTrailingEntry = (entry, value = 0) => {
 }
 
 const getWhitelist = () => dataStorage.hasOwnProperty(whitelistPath) && typeof dataStorage[whitelistPath] == 'string' ? dataStorage[whitelistPath].toLowerCase().split(/,|\n/g).map(element => element.trim()) : []
+const globalReplacer = () => {
 
-const getContextualProperties = (search) => {
-
+    const search = lines.join('\n')
     // Toggle the wildcard state to search down full path.
     // If the current path does not include the wildcard path, toggle it to false.
-    let wildcard = false;
-    let current = '';
+    let wildcards = [];
+    const whitelist = getWhitelist();
     function replacer(replace) {
         let m = new Map();
         return function (key, value) {
@@ -149,13 +135,38 @@ const getContextualProperties = (search) => {
                 m.set(value, path);
             }
             const final = replace.call(this, key, value, display);
+            let current;
+            // If the key is in the _whitelist, then implicitly push it.
+            if (Boolean(key) && (whitelist.includes(key))) {
+                //console.log(`Whitelisted: ${key}`)
+                paths.push(key)
+            }
+            // Key is a wildcard and its value qualifies the regEx match.
+            else if (key.includes(wildcardPath) && Boolean(value) && regExMatch(value, search)) {
 
-            if (key.includes('/*')) { wildcard = true; current = display }
-            if (wildcard && display.includes(current)) { paths.push(path.split('.')) }
-            else { wildcard = false; }
+                const wildcard = display.slice(display.indexOf('.') + 1);
+                const list = display.split('.');
+                const index = list.indexOf(wildcard.slice(wildcard.lastIndexOf('.') + 1));
+                //console.log(display, list, wildcard, index)
+                wildcards.push([list[index].replace(wildcardPath, ''), index])
+                //console.log(`Wildcard: ${list[index].replace(wildcardPath, '')}, Index: ${index}`)
+            }
 
-            if (typeof final == 'string' && Boolean(final) && regExMatch(value, search)) {
-                paths.push(path.split('.'));
+            // The current path contains one of the wildcards.
+            else if (wildcards.some(e => {
+                //console.log(`Array: ${display.split('.')}`)
+                if (display.split('.')[e[1]] == e[0]) {
+                    current = e[0];
+                    //console.log(`Current: ${current}`)
+                    return true
+                }
+            })) {
+                const array = display.split('.')
+                paths.push(array)
+                //console.log(`Wildcarded: ${display.slice(display.indexOf(current))}`)
+            } else if (typeof value == 'string' && Boolean(value) && regExMatch(value, search)) {
+                paths.push(display.split('.'));
+                //console.log(`Qualified: ${display.split('.')}`)
             }
 
 
@@ -163,39 +174,38 @@ const getContextualProperties = (search) => {
         }
     }
     const paths = [];
-    JSON.stringify(dataStorage[synonymsPath], replacer(function (key, value, path) {
+    JSON.stringify(dataStorage, replacer(function (key, value, path) {
         return value;
     }));
-    return [...paths.flat()].map(e => e.replace('/*', ''))
+    return [...new Set([...whitelist, ...paths.flat()])].filter(e => internalPaths.every(i => !i.includes(e))).map(e => e.replace(wildcardPath, ''))
 }
-
+// globalWhitelist - Should only make one call to it per turn in context modifiers. Other modifiers access it via state.
+const getGlobalWhitelist = () => state.settings.globalWhitelist = globalReplacer();
 const setProperty = (keys, value, obj) => { const property = keys.split('.').pop(); const path = keys.split('.')[1] ? keys.split('.').slice(0, -1).join('.') : keys.replace('.', ''); if (property[1]) { getKey(path, obj)[property] = value ? value : null; } else { dataStorage[path] = value; } }
 const getKey = (keys, obj) => { return keys.split('.').reduce((a, b) => { if (typeof a[b] != "object" || a[b] == null) { a[b] = {} } if (!a.hasOwnProperty(b)) { a[b] = {} } return a && a[b] }, obj) }
 
 const consumeWorldEntries = () => {
 
-    worldEntries.filter(wEntry => ((wEntry["keys"].includes('.') || wEntry["keys"].startsWith('!')) && (!wEntry["keys"].includes('#')))).forEach(wEntry => {
-        removeWorldEntry(worldEntries.indexOf(wEntry))
+    // Consume and process entries whose keys start with '!' or contains '.' and does not contain a '#'.
+    const regEx = /(^!|\.)(?!.*#)/
+    worldEntries.filter(wEntry => regEx.test(wEntry["keys"])).forEach(wEntry => {
         if (wEntry["keys"].startsWith('!')) {
             const root = wEntry["keys"].match(/(?<=!)[^.]*/)[0];
             try {
                 const object = JSON.parse(wEntry["entry"].match(/{.*}/)[0]);
                 dataStorage[root] = object;
+                removeWorldEntry(worldEntries.indexOf(wEntry));
             }
             catch (error) { console.log(error); state.message = `Failed to parse implicit conversion of !${root}. Verify the entry's format!` }
         }
-        else { setProperty(wEntry["keys"].toLowerCase().split(',').filter(element => element.includes('.')).map(element => element.trim()).join(''), wEntry["entry"], dataStorage); }
+        else { setProperty(wEntry["keys"].toLowerCase().split(',').filter(element => element.includes('.')).map(element => element.trim()).join(''), wEntry["entry"], dataStorage); removeWorldEntry(worldEntries.indexOf(wEntry)); }
+
     })
 }
 
 const sanitizeWhitelist = () => { const index = worldEntries.findIndex(element => element["keys"].includes('_whitelist')); if (index >= 0) { worldEntries[index]["keys"] = '_whitelist.'; } }
 const parityMode = () => worldEntriesFromObject(dataStorage, '');
 const trackRoots = () => { const list = Object.keys(dataStorage); const index = worldEntries.findIndex(element => element["keys"] == 'rootList'); if (index < 0) { addWorldEntry('rootList', list, isNotHidden = true) } else { updateWorldEntry(index, 'rootList', list, isNotHidden = true) } }
-const globalWhitelist = [getWhitelist(), getContextualProperties(getHistoryString(-state.settings.searchTurnsRange)).flat()].flat();
-const globalReplacer = (key, value) => { if (value == null || value.constructor != Object) { return value == null ? undefined : value } return Object.keys(value).sort((a, b) => globalWhitelist.indexOf(a) - globalWhitelist.indexOf(b)).filter(element => globalWhitelist.includes(element)).reduce((s, k) => { s[k] = value[k]; return s }, {}) }
-const localWhitelist = getContextualProperties(getHistoryString(-1)).flat();
-const localReplacer = (name, val) => { if (localWhitelist.some(element => element.includes(name)) && val) { return Array.isArray(val) ? val.join(', ') : val } else { return undefined } };
-
 // Close opened brackets for the string before attempting to JSON.parse() it - slight increase to success rate.
 const getDepth = (string) => { const opened = string.match(/{/g); const closed = string.match(/}/g); return (opened ? opened.length : 0) - (closed ? closed.length : 0) }
 const fixDepth = (string) => { let count = getDepth(string); while (count > 0) { count--; string += `}`; } return string }
@@ -228,20 +238,20 @@ const spliceMemory = (pos, string) => {
 // For parity: 'globalReplacer' might need to be shifted out with a local one and processed on each individual Object as search-length within context will vary depending on float and the blockers in RegEx.
 const insertJSON = (text) => {
 
-
-    // An Object that stores meta-info for comparison and ordering during processing - e.g to adjust positions as things are pushed around.
-    const masterObject = {}
+    // Cleanup edge-cases of empty Objects in the presented string.
+    const { globalWhitelist } = state.settings;
+    const invalid = /((("|')[^"']*("|'):)\s*({}|null)),?\s*/g;
+    const clean = /,\s*(?=})/g;
+    console.log(`Global Whitelist: ${globalWhitelist}`)
     const configValues = [['float', null], ['sprawl', false], ['inline', false]]
-
-
     for (const data in dataStorage) {
 
         if (typeof dataStorage[data] == 'object') {
-            if (!dataStorage[data].hasOwnProperty("_config") || typeof dataStorage[data]["_config"] != 'object' || dataStorage[data]["_config"] == null) { dataStorage[data]["_config"] = {} }
-            configValues.forEach(setting => { if (!dataStorage[data]["_config"].hasOwnProperty(setting[0])) { dataStorage[data]["_config"][setting[0]] = setting[1] } })
+            if (!dataStorage[data].hasOwnProperty(configPath) || typeof dataStorage[data][configPath] != 'object' || dataStorage[data][configPath] == null) { dataStorage[data][configPath] = {} }
+            configValues.forEach(setting => { if (!dataStorage[data][configPath].hasOwnProperty(setting[0])) { dataStorage[data][configPath][setting[0]] = setting[1] } })
             if (!dataStorage[data].hasOwnProperty(synonymsPath)) { dataStorage[data][synonymsPath] = data }
 
-            const { float, sprawl, inline } = dataStorage[data]["_config"];
+            const { float, sprawl, inline } = dataStorage[data][configPath];
 
             let find = regExMatch(dataStorage[data][synonymsPath], lines.join('\n'));
 
@@ -252,7 +262,7 @@ const insertJSON = (text) => {
                 })
 
                 if (finalLineIndex >= 0 || (float)) {
-                    let string = JSON.stringify(dataStorage[data], globalReplacer).replace(/\\/g, '');
+                    let string = JSON.stringify(dataStorage[data], globalWhitelist).replace(/\\/g, '').replace(invalid, '').replace(clean, '');
 
                     if (state.settings["filter"]) { string = string.replace(/"|{|}/g, ''); }
 
@@ -266,9 +276,6 @@ const insertJSON = (text) => {
         }
     }
 }
-
-
-
 
 const entriesFromJSONLines = () => {
     const JSONLines = lines.filter(line => /\[\{.*\}\]/.test(line));
@@ -286,11 +293,13 @@ const entriesFromJSONLines = () => {
 }
 const parseGen = (text) => { state.generate.process = false; const string = fixDepth(`${state.generate.sections.primer}${text}`); const toParse = string.match(/{.*}/); if (toParse) { const obj = JSON.parse(toParse[0]); worldEntriesFromObject(obj, state.generate.root.split(' ')[0]); state.message = `Generated Object for ${state.generate.root} as type ${state.generate.types[0]}\nResult: ${JSON.stringify(obj)}` } else { state.message = `Failed to parse AI Output for Object ${state.generate.root} type ${state.generate.type[0]}` } }
 const parseAsRoot = (text, root) => { const toParse = text.match(/{.*}/g); if (toParse) { toParse.forEach(string => { const obj = JSON.parse(string); worldEntriesFromObject(obj, root); text = text.replace(string, ''); }) } }
+
+// TODO: Consider re-implementation of this ('generateObject'). Might not see a lot of use considering the energy cost and chance of failed outputs.
 const generateObject = (text) => {
 
     const { root, types } = state.generate;
     const type = types[0]
-    const getExamples = (obj, types) => { let exampleString = ``; for (const data in obj) { if (types.some(type => obj[data].hasOwnProperty(type))) { const string = JSON.stringify(obj[data], globalReplacer).replace(/\\/g, ''); if (string.length + exampleString.length <= 1000) { exampleString += '\n' + string; } } } return exampleString }
+    const getExamples = (obj, types) => { let exampleString = ``; for (const data in obj) { if (types.some(type => obj[data].hasOwnProperty(type))) { const string = JSON.stringify(obj[data], state.settings.globalWhitelist).replace(/\\/g, ''); if (string.length + exampleString.length <= 1000) { exampleString += '\n' + string; } } } return exampleString }
     const getAbout = (about) => getHistoryString(-100).split('.').filter(sentence => sentence.toLowerCase().includes(about.toLowerCase())).join('.').trim();
     const createExample = (args) => {
         const assign = args.map(element => [element, '<value>']);
@@ -336,6 +345,7 @@ state.commandList = {
 
                 console.log(setKeys, setValue)
                 if (dataStorage) { setProperty(setKeys, setValue, dataStorage); state.message = `${setKeys} set to ${setValue}`; if (state.settings["parityMode"]) { parityMode() } } // Immediately reflect the changes in state.data
+                if (state.displayStats) {updateHUD();}
                 return
             }
     },
@@ -538,10 +548,33 @@ state.commandList = {
                 state.message = `Created Object '${root}' from ${obj}!`
 
             }
+    },
+    hud:
+    {
+        name: "hud",
+        description: "Tracks the Object in the HUD",
+        args: 'true',
+        usage: '<root>',
+        execute:
+            (args) => {
+                
+                if (!state.displayStats) {state.displayStats = []}
+                //getGlobalWhitelist(getHistoryString(-10).slice(-info.maxChars))
+                const { globalWhitelist } = state.settings;
+                const root = args[0].trim();
+                const index = state.displayStats.findIndex(e => e["key"].trim() == root)
+
+                if (dataStorage.hasOwnProperty(root)) {
+                    const object = { "key": root, "value": `${JSON.stringify(dataStorage[root], globalWhitelist).replace(/\{|\}/g, '')}    ` }
+                    if (index >= 0) { state.displayStats.splice(index, 1) }
+                    else { state.displayStats.push(object) }
+                }
+
+            }
     }
 };
 
-
+const updateHUD = () => { const { globalWhitelist } = state.settings; state.displayStats.forEach((e, i) => { if (dataStorage.hasOwnProperty(e["key"].trim())) { state.displayStats[i] = { "key": `${e["key"].trim()}`, "value": `${JSON.stringify(dataStorage[e["key"].trim()], globalWhitelist).replace(/\{|\}/g, '')}    ` } } }) }
 
 const entryFunctions = {
     'a': { "func": addAuthorsNote, "range": state.settings.ewi['a'] }, // [a] adds it as authorsNote, only one authorsNote at a time.
@@ -572,9 +605,9 @@ const processWorldEntries = () => {
     {
         const regEx = /(\w(=\d*)?)/gi
         let attribPairs = regEx.test(wEntry["keys"]) ? wEntry["keys"].slice(wEntry["keys"].lastIndexOf('#')).match(regEx).map(e => e.split('=')).filter(e => entryFunctions[e[0]].hasOwnProperty('func')) : []
-        if (attribPairs && attribPairs.length > 0) {
+        if (attribPairs.length > 0) {
 
-            // What we check the keywords against, this time around we basically check where in the context the last history element is then slice forward.
+            // Check if the attribute has a custom range setting and set its search length to that range.
             const hasRange = attribPairs.filter(a => entryFunctions[a[0]].hasOwnProperty('range'))
             const lastTurnString = lines.slice(-entryFunctions[hasRange[hasRange.length - 1][0]]["range"]).join('\n');
             const basicCheck = regExMatch(wEntry["keys"], lastTurnString)
@@ -587,7 +620,7 @@ const processWorldEntries = () => {
 
 
                 }
-                catch (error) { console.log(error) } // Catch the error as it'd most likely not be destructive or otherwise detrimental.
+                catch (error) { console.log(`${error.name}: ${error.message}`) } // Catch the error as it'd most likely not be destructive or otherwise detrimental.
             }
         }
 
