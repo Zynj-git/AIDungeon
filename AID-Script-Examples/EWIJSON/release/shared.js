@@ -18,7 +18,8 @@ const initSettings = [['entriesFromJSON', true], ['filter', false], ['searchTurn
 initSettings.forEach(setting => { if (!Object.keys(state.settings).includes(setting[0])) { state.settings[setting[0]] = setting[1] } })
 const ewiAttribConfig = ['a', 'd', 'm', 'p', 's', 't']
 
-
+const invalid = /((("|')[^"']*("|'):)\s*({}|null)),?\s*/g;
+const clean = /,\s*(?=})/g;
 // Config for consistency.
 state.config = {
     prefix: /^\n> You \/|^\n> You say "\/|^\/|^\n\//gi,
@@ -240,8 +241,6 @@ const insertJSON = (text) => {
 
     // Cleanup edge-cases of empty Objects in the presented string.
     const { globalWhitelist } = state.settings;
-    const invalid = /((("|')[^"']*("|'):)\s*({}|null)),?\s*/g;
-    const clean = /,\s*(?=})/g;
     console.log(`Global Whitelist: ${globalWhitelist}`)
     const configValues = [['float', null], ['sprawl', false], ['inline', false]]
     for (const data in dataStorage) {
@@ -574,7 +573,7 @@ state.commandList = {
     }
 };
 
-const updateHUD = () => { const { globalWhitelist } = state.settings; state.displayStats.forEach((e, i) => { if (dataStorage.hasOwnProperty(e["key"].trim())) { state.displayStats[i] = { "key": `${e["key"].trim()}`, "value": `${JSON.stringify(dataStorage[e["key"].trim()], globalWhitelist).replace(/\{|\}/g, '')}    ` } } }) }
+const updateHUD = () => { const { globalWhitelist } = state.settings; state.displayStats.forEach((e, i) => { if (dataStorage.hasOwnProperty(e["key"].trim())) { state.displayStats[i] = { "key": `${e["key"].trim()}`, "value": `${JSON.stringify(dataStorage[e["key"].trim()], globalWhitelist).replace(invalid, '').replace(clean, '').replace(/\{|\}/g, '')}    ` } } }) }
 
 const entryFunctions = {
     'a': { "func": addAuthorsNote, "range": state.settings.ewi['a'] }, // [a] adds it as authorsNote, only one authorsNote at a time.
