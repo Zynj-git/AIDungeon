@@ -146,7 +146,7 @@ const globalReplacer = () => {
     // If the current path does not include the wildcard path, toggle it to false.
     let wildcards = [];
     const whitelist = getWhitelist().map(e => {if (e.includes(wildcardPath)) {wildcards.push(getWildcard(e, 1)); return e.replace(wildcardPath, '')} else {return e.split('.')}}).flat();
-    console.log(`Wildcards: ${wildcards}`)
+    //console.log(`Wildcards: ${wildcards}`)
     function replacer(replace) {
         let m = new Map();
         return function (key, value) {
@@ -262,15 +262,16 @@ const insertJSON = (text) => {
         if (typeof dataStorage[data] == 'object') {
             if (!dataStorage[data].hasOwnProperty(configPath) || typeof dataStorage[data][configPath] != 'object' || dataStorage[data][configPath] == null) { dataStorage[data][configPath] = {} }
             configValues.forEach(setting => { if (!dataStorage[data][configPath].hasOwnProperty(setting[0])) { dataStorage[data][configPath][setting[0]] = setting[1] } })
-            if (!dataStorage[data].hasOwnProperty(synonymsPath)) { dataStorage[data][synonymsPath] = `${data}#[t=1]`}
+            if (!dataStorage[data].hasOwnProperty(synonymsPath)) { dataStorage[data][synonymsPath] = `${data}#[t]`}
 
             const { float, sprawl, inline } = dataStorage[data][configPath];
 
             let string = JSON.stringify(dataStorage[data], globalWhitelist).replace(/\\/g, '').replace(invalid, '').replace(clean, '');
             if (state.settings["filter"]) { string = string.replace(/"|{|}/g, ''); }
             
-            const object = {"keys": dataStorage[data][synonymsPath].split('\n').map(e => !e.includes('#') ? e+'#[t=1]' : e).join('\n'), "entry": `[${string}]`}
-            execAttributes(object)
+            if (string.length > 4) { const object = {"keys": dataStorage[data][synonymsPath].split('\n').map(e => !e.includes('#') ? e+'#[t]' : e).join('\n'), "entry": `[${string}]`}
+            execAttributes(object) }
+            
         }
     }
 }
