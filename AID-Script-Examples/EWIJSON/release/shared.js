@@ -62,7 +62,7 @@ const getActionTypes = (turns) => history.slice(turns).map(element => element["t
 
 // Ensure that '_synonyms' is processed first in the loop. It's executed if (Object.keys(dataStorage)[0] != synonymsPath)
 // NOTE: Could have unintended side effects of the re-assignment. If it causes issues, check if this can be reworked.
-const fixOrder = () => { dataStorage = Object.assign({ "_synonyms": {} }, dataStorage); state.data = dataStorage}
+const fixOrder = () => { dataStorage = Object.assign({ "_whitelist": {},  "_synonyms": {} }, dataStorage); state.data = dataStorage}
 const regExMatch = (expressions, string) => {
 
     const result = [];
@@ -109,15 +109,28 @@ const addDescription = (entry, value = 0) => {
 
 const addAuthorsNote = (entry, value = 0) => state.memory.authorsNote = `${entry["entry"]}`
 const showWorldEntry = (entry, value = 0) => entry.isNotHidden = true
-const addPositionalEntry = (entry, value = 0) => { spliceContext((value != 0 ? -(value) : lines.length), entry["entry"]) }
-const addMemoryEntry = (entry, value = 0) => { spliceMemory((value != 0 ? -(value) : memoryLines.length), entry["entry"]) }
+const addPositionalEntry = (entry, value = 0) => 
+{ 
+    const range = entryFunctions['p']['range'];
+    const result = entry["keys"][0];
+    if (lines.slice(-range).join('\n').includes(result))
+    {spliceContext((value != 0 ? -(value) : lines.length), entry["entry"]) }
+}
+const addMemoryEntry = (entry, value = 0) => 
+{ 
+    const range = entryFunctions['m']['range'];
+    const result = entry["keys"][0];
+    if (lines.slice(-range).join('\n').includes(result))
+    {spliceMemory((value != 0 ? -(value) : memoryLines.length), entry["entry"])}
+
+}
 const addTrailingEntry = (entry, value = 0) => {
 
     const range = entryFunctions['t']['range'];
     const result = entry["keys"][0];
 
     let finalIndex = -1;
-    lines.forEach((line, i) => { if (line.includes(result)) { finalIndex = i; } })
+    lines.slice(-range).forEach((line, i) => { if (line.includes(result)) { finalIndex = i; } })
     if (finalIndex >= 0) {
         spliceContext((finalIndex) - value, entry["entry"])
     }
@@ -125,13 +138,15 @@ const addTrailingEntry = (entry, value = 0) => {
 }
 
 const getWhitelist = () => dataStorage.hasOwnProperty(whitelistPath) && typeof dataStorage[whitelistPath] == 'string' ? dataStorage[whitelistPath].toLowerCase().split(/,|\n/g).map(element => element.trim()) : []
+const getWildcard = (display, offset = 0) => { const wildcard = display.split('.').slice(offset != 0 ? 0 : 1).join('.'); const list = display.split('.'); const index = list.indexOf(wildcard.slice(wildcard.lastIndexOf('.') + 1)); return [list[index].replace(wildcardPath, ''), index + offset]}
 const globalReplacer = () => {
 
     const search = lines.join('\n')
     // Toggle the wildcard state to search down full path.
     // If the current path does not include the wildcard path, toggle it to false.
     let wildcards = [];
-    const whitelist = getWhitelist();
+    const whitelist = getWhitelist().map(e => {if (e.includes(wildcardPath)) {wildcards.push(getWildcard(e, 1)); return e.replace(wildcardPath, '')} else {return e.split('.')}}).flat();
+    console.log(`Wildcards: ${wildcards}`)
     function replacer(replace) {
         let m = new Map();
         return function (key, value) {
@@ -149,13 +164,7 @@ const globalReplacer = () => {
             }
             // Key is a wildcard and its value qualifies the regEx match.
             else if (key.includes(wildcardPath) && Boolean(value) && regExMatch(value, search)) {
-
-                const wildcard = display.slice(display.indexOf('.') + 1);
-                const list = display.split('.');
-                const index = list.indexOf(wildcard.slice(wildcard.lastIndexOf('.') + 1));
-                //console.log(display, list, wildcard, index)
-                wildcards.push([list[index].replace(wildcardPath, ''), index])
-                //console.log(`Wildcard: ${list[index].replace(wildcardPath, '')}, Index: ${index}`)
+                wildcards.push(getWildcard(display))
             }
 
             // The current path contains one of the wildcards.
@@ -263,6 +272,46 @@ const insertJSON = (text) => {
             const object = {"keys": dataStorage[data][synonymsPath].split('\n').map(e => !e.includes('#') ? e+'#[t=1]' : e).join('\n'), "entry": `[${string}]`}
             execAttributes(object)
         }
+    }
+}
+
+const entryFunctions = {
+    'a': { "func": addAuthorsNote, "range": state.settings.ewi['a'] }, // [a] adds it as authorsNote, only one authorsNote at a time.
+    's': { "func": showWorldEntry, "range": state.settings.ewi['s'] }, // [r] reveals the entry once mentioned, used in conjuction with [e] to only reveal if all keywords are mentioned at once.
+    'e': () => { }, // [e] tells the custom keyword check to only run the above functions if every keyword of the entry matches.
+    'd': { "func": addDescription, "range": state.settings.ewi['d'] }, // [d] adds the first sentence of the entry as a short, parenthesized descriptor to the last mention of the revelant keyword(s) e.g John (a business man)
+    'r': () => { }, // [r] picks randomly between entries with the same matching keys. e.g 'you.*catch#[rp=1]' and 'you.*catch#[rd]' has 50% each to be picked.
+    'm': { "func": addMemoryEntry, "range": state.settings.ewi['m'] },
+    'p': { "func": addPositionalEntry, "range": state.settings.ewi['p'] }, // Inserts the <entry> <value> amount of lines into context, e.g [p=1] inserts it one line into context.
+    'w': () => { }, // [w] assigns the weight attribute, the higher value the more recent/relevant it will be in context/frontMemory/intermediateMemory etc.
+    't': { "func": addTrailingEntry, "range": state.settings.ewi['t'] } // [t] adds the entry at a line relative to the activator in context. [t=2] will trail context two lines behind the activating word.
+}
+
+
+
+const pickRandom = () => {
+    const lists = groupElementsBy(worldEntries.filter(element => /#.*\[.*r.*\]/.test(element.keys)));
+    const result = [worldEntries.filter(element => !/#.*\[.*r.*\]/.test(element.keys))];
+    lists.forEach(element => result.push(element[Math.floor(Math.random() * element.length)]))
+    return result.flat()
+}
+const processWorldEntries = () => {
+    const entries = pickRandom(); // Ensure unique assortment of entries that adhere to the [r] attribute if present.
+    entries.filter(e => e["keys"].includes('#')).forEach(wEntry => execAttributes(wEntry));
+}
+
+// execAttributes expects an Object with properties {"key": string, "entry": string}
+const execAttributes = (entry) =>
+{
+    const process = regExMatch(entry["keys"], lines.join('\n'));
+    attributes = Boolean(process) ? process[1].filter(e => entryFunctions[e[0]].hasOwnProperty('func')) : [];
+    if (attributes.length > 0) 
+    {
+        try 
+        {
+            attributes.forEach(pair => entryFunctions[pair[0]]["func"]({"keys": process[0], "entry": entry["entry"]}, pair[1]))
+        }
+        catch (error) { console.log(`${error.name}: ${error.message}`) } 
     }
 }
 
@@ -564,46 +613,3 @@ state.commandList = {
 };
 
 const updateHUD = () => { const { globalWhitelist } = state.settings; state.displayStats.forEach((e, i) => { if (dataStorage.hasOwnProperty(e["key"].trim())) { state.displayStats[i] = { "key": `${e["key"].trim()}`, "value": `${JSON.stringify(dataStorage[e["key"].trim()], globalWhitelist).replace(invalid, '').replace(clean, '').replace(/\{|\}/g, '')}    ` } } }) }
-
-const entryFunctions = {
-    'a': { "func": addAuthorsNote, "range": state.settings.ewi['a'] }, // [a] adds it as authorsNote, only one authorsNote at a time.
-    's': { "func": showWorldEntry, "range": state.settings.ewi['s'] }, // [r] reveals the entry once mentioned, used in conjuction with [e] to only reveal if all keywords are mentioned at once.
-    'e': () => { }, // [e] tells the custom keyword check to only run the above functions if every keyword of the entry matches.
-    'd': { "func": addDescription, "range": state.settings.ewi['d'] }, // [d] adds the first sentence of the entry as a short, parenthesized descriptor to the last mention of the revelant keyword(s) e.g John (a business man)
-    'r': () => { }, // [r] picks randomly between entries with the same matching keys. e.g 'you.*catch#[rp=1]' and 'you.*catch#[rd]' has 50% each to be picked.
-    'm': { "func": addMemoryEntry, "range": state.settings.ewi['m'] },
-    'p': { "func": addPositionalEntry, "range": state.settings.ewi['p'] }, // Inserts the <entry> <value> amount of lines into context, e.g [p=1] inserts it one line into context.
-    'w': () => { }, // [w] assigns the weight attribute, the higher value the more recent/relevant it will be in context/frontMemory/intermediateMemory etc.
-    't': { "func": addTrailingEntry, "range": state.settings.ewi['t'] } // [t] adds the entry at a line relative to the activator in context. [t=2] will trail context two lines behind the activating word.
-}
-
-// To avoid complicating it with measurements of the additonal string, and at the cost of slightly less flexibility, we assign different functions to handle the positioning.
-// spliceMemory would be to position it 'at the top of context'/'end of memory' while spliceLines is for short/medium injections towards the lower part of context.
-
-// Pass the worldEntries list and check attributes, then process them.
-
-const pickRandom = () => {
-    const lists = groupElementsBy(worldEntries.filter(element => /#.*\[.*r.*\]/.test(element.keys)));
-    const result = [worldEntries.filter(element => !/#.*\[.*r.*\]/.test(element.keys))];
-    lists.forEach(element => result.push(element[Math.floor(Math.random() * element.length)]))
-    return result.flat()
-}
-const processWorldEntries = () => {
-    const entries = pickRandom() // Copy the entries to avoid in-place manipulation.
-    entries.filter(e => e["keys"].includes('#')).forEach(wEntry => execAttributes(wEntry))
-}
-
-// execAttributes expects an Object with properties {"key": string, "entry": string}
-const execAttributes = (entry) =>
-{
-    const process = regExMatch(entry["keys"], lines.join('\n'));
-    attributes = Boolean(process) ? process[1].filter(e => entryFunctions[e[0]].hasOwnProperty('func')) : [];
-    if (attributes.length > 0) 
-    {
-        try 
-        {
-            attributes.forEach(pair => entryFunctions[pair[0]]["func"]({"keys": process[0], "entry": entry["entry"]}, pair[1]))
-        }
-        catch (error) { console.log(`${error.name}: ${error.message}`) } 
-    }
-}
