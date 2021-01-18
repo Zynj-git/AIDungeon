@@ -31,7 +31,7 @@ const modifier = (text) => {
 
         "Ensure _synonyms is handled first when creating the globalWhitelist.":
         {
-            "req": Object.keys(dataStorage)[0] != synonymsPath,
+            "req": Object.keys(dataStorage)[1] != synonymsPath || Object.keys(dataStorage)[0] != whitelistPath,
             "args": null,
             "exec": fixOrder
         },
