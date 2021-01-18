@@ -12,7 +12,7 @@ let dataStorage = state.data;
 let contextMemoryLength = 0; // Keep count of additional context added.
 if (!state.generate) { state.generate = {} }
 if (!state.settings) { state.settings = {} }
-if (!state.settings.globalWhitelist) {state.settings.globalWhitelist = []}
+if (!state.settings.globalWhitelist) { state.settings.globalWhitelist = [] }
 // If key (setting[0]) is not in state.settings, initiate it with setting[1] as default value.
 const initSettings = [['entriesFromJSON', true], ['filter', false], ['searchTurnsRange', 4], ['parityMode', false]]
 initSettings.forEach(setting => { if (!Object.keys(state.settings).includes(setting[0])) { state.settings[setting[0]] = setting[1] } })
@@ -62,7 +62,7 @@ const getActionTypes = (turns) => history.slice(turns).map(element => element["t
 
 // Ensure that '_synonyms' is processed first in the loop. It's executed if (Object.keys(dataStorage)[0] != synonymsPath)
 // NOTE: Could have unintended side effects of the re-assignment. If it causes issues, check if this can be reworked.
-const fixOrder = () => { dataStorage = Object.assign({ "_whitelist": {},  "_synonyms": {} }, dataStorage); state.data = dataStorage}
+const fixOrder = () => { dataStorage = Object.assign({ "_whitelist": {}, "_synonyms": {} }, dataStorage); state.data = dataStorage }
 const regExMatch = (expressions, string) => {
 
     const result = [];
@@ -80,7 +80,7 @@ const regExMatch = (expressions, string) => {
             }
         })
     }
-    catch (error) { console.log(`An invalid RegEx was detected!\n${error.name}: ${error.message}`); state.message = `An invalid RegEx was detected!\n${error.name}: ${error.message}`;}
+    catch (error) { console.log(`An invalid RegEx was detected!\n${error.name}: ${error.message}`); state.message = `An invalid RegEx was detected!\n${error.name}: ${error.message}`; }
     return result.pop()
 }
 const lens = (obj, path) => path.split('.').reduce((o, key) => o && o[key] ? o[key] : null, obj);
@@ -109,19 +109,15 @@ const addDescription = (entry, value = 0) => {
 
 const addAuthorsNote = (entry, value = 0) => state.memory.authorsNote = `${entry["entry"]}`
 const showWorldEntry = (entry, value = 0) => entry.isNotHidden = true
-const addPositionalEntry = (entry, value = 0) => 
-{ 
+const addPositionalEntry = (entry, value = 0) => {
     const range = entryFunctions['p']['range'];
     const result = entry["keys"][0];
-    if (lines.slice(-range).join('\n').includes(result))
-    {spliceContext((value != 0 ? -(value) : lines.length), entry["entry"]) }
+    if (lines.slice(-range).join('\n').includes(result)) { spliceContext((value != 0 ? -(value) : lines.length), entry["entry"]) }
 }
-const addMemoryEntry = (entry, value = 0) => 
-{ 
+const addMemoryEntry = (entry, value = 0) => {
     const range = entryFunctions['m']['range'];
     const result = entry["keys"][0];
-    if (lines.slice(-range).join('\n').includes(result))
-    {spliceMemory((value != 0 ? -(value) : memoryLines.length), entry["entry"])}
+    if (lines.slice(-range).join('\n').includes(result)) { spliceMemory((value != 0 ? -(value) : memoryLines.length), entry["entry"]) }
 
 }
 const addTrailingEntry = (entry, value = 0) => {
@@ -138,14 +134,14 @@ const addTrailingEntry = (entry, value = 0) => {
 }
 
 const getWhitelist = () => dataStorage.hasOwnProperty(whitelistPath) && typeof dataStorage[whitelistPath] == 'string' ? dataStorage[whitelistPath].toLowerCase().split(/,|\n/g).map(element => element.trim()) : []
-const getWildcard = (display, offset = 0) => { const wildcard = display.split('.').slice(offset != 0 ? 0 : 1).join('.'); const list = display.split('.'); const index = list.indexOf(wildcard.slice(wildcard.lastIndexOf('.') + 1)); return [list[index].replace(wildcardPath, ''), index + offset]}
+const getWildcard = (display, offset = 0) => { const wildcard = display.split('.').slice(offset != 0 ? 0 : 1).join('.'); const list = display.split('.'); const index = list.indexOf(wildcard.slice(wildcard.lastIndexOf('.') + 1)); return [list[index].replace(wildcardPath, ''), index + offset] }
 const globalReplacer = () => {
 
     const search = lines.join('\n')
     // Toggle the wildcard state to search down full path.
     // If the current path does not include the wildcard path, toggle it to false.
     let wildcards = [];
-    const whitelist = getWhitelist().map(e => {if (e.includes(wildcardPath)) {wildcards.push(getWildcard(e, 1)); return e.replace(wildcardPath, '')} else {return e.split('.')}}).flat();
+    const whitelist = getWhitelist().map(e => { if (e.includes(wildcardPath)) { wildcards.push(getWildcard(e, 1)); return e.replace(wildcardPath, '') } else { return e.split('.') } }).flat();
     //console.log(`Wildcards: ${wildcards}`)
     function replacer(replace) {
         let m = new Map();
@@ -262,16 +258,18 @@ const insertJSON = (text) => {
         if (typeof dataStorage[data] == 'object') {
             if (!dataStorage[data].hasOwnProperty(configPath) || typeof dataStorage[data][configPath] != 'object' || dataStorage[data][configPath] == null) { dataStorage[data][configPath] = {} }
             configValues.forEach(setting => { if (!dataStorage[data][configPath].hasOwnProperty(setting[0])) { dataStorage[data][configPath][setting[0]] = setting[1] } })
-            if (!dataStorage[data].hasOwnProperty(synonymsPath)) { dataStorage[data][synonymsPath] = `${data}#[t]`}
+            if (!dataStorage[data].hasOwnProperty(synonymsPath)) { dataStorage[data][synonymsPath] = `${data}#[t]` }
 
             const { float, sprawl, inline } = dataStorage[data][configPath];
 
             let string = JSON.stringify(dataStorage[data], globalWhitelist).replace(/\\/g, '').replace(invalid, '').replace(clean, '');
             if (state.settings["filter"]) { string = string.replace(/"|{|}/g, ''); }
-            
-            if (string.length > 4) { const object = {"keys": dataStorage[data][synonymsPath].split('\n').map(e => !e.includes('#') ? e+'#[t]' : e).join('\n'), "entry": `[${string}]`}
-            execAttributes(object) }
-            
+
+            if (string.length > 4) {
+                const object = { "keys": dataStorage[data][synonymsPath].split('\n').map(e => !e.includes('#') ? e + '#[t]' : e).join('\n'), "entry": `[${string}]` }
+                execAttributes(object)
+            }
+
         }
     }
 }
@@ -302,17 +300,14 @@ const processWorldEntries = () => {
 }
 
 // execAttributes expects an Object with properties {"key": string, "entry": string}
-const execAttributes = (entry) =>
-{
+const execAttributes = (entry) => {
     const process = regExMatch(entry["keys"], lines.join('\n'));
     attributes = Boolean(process) ? process[1].filter(e => entryFunctions[e[0]].hasOwnProperty('func')) : [];
-    if (attributes.length > 0) 
-    {
-        try 
-        {
-            attributes.forEach(pair => entryFunctions[pair[0]]["func"]({"keys": process[0], "entry": entry["entry"]}, pair[1]))
+    if (attributes.length > 0) {
+        try {
+            attributes.forEach(pair => entryFunctions[pair[0]]["func"]({ "keys": process[0], "entry": entry["entry"] }, pair[1]))
         }
-        catch (error) { console.log(`${error.name}: ${error.message}`) } 
+        catch (error) { console.log(`${error.name}: ${error.message}`) }
     }
 }
 
@@ -384,7 +379,7 @@ state.commandList = {
 
                 console.log(setKeys, setValue)
                 if (dataStorage) { setProperty(setKeys, setValue, dataStorage); state.message = `${setKeys} set to ${setValue}`; if (state.settings["parityMode"]) { parityMode() } } // Immediately reflect the changes in state.data
-                if (state.displayStats) {updateHUD();}
+                if (state.displayStats) { updateHUD(); }
                 return
             }
     },
@@ -596,8 +591,8 @@ state.commandList = {
         usage: '<root>',
         execute:
             (args) => {
-                
-                if (!state.displayStats) {state.displayStats = []}
+
+                if (!state.displayStats) { state.displayStats = [] }
                 //getGlobalWhitelist(getHistoryString(-10).slice(-info.maxChars))
                 const { globalWhitelist } = state.settings;
                 const root = args[0].trim();
