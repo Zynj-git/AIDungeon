@@ -80,7 +80,7 @@ const regExMatch = (expressions, string) => {
             }
         })
     }
-    catch (error) { console.log(`An invalid RegEx was detected!\n${error.name}: ${error.message}`);}
+    catch (error) { console.log(`An invalid RegEx was detected!\n${error.name}: ${error.message}`; state.message = `An invalid RegEx was detected!\n${error.name}: ${error.message}`;);}
     return result.pop()
 }
 const lens = (obj, path) => path.split('.').reduce((o, key) => o && o[key] ? o[key] : null, obj);
