@@ -112,12 +112,12 @@ const showWorldEntry = (entry, value = 0) => entry.isNotHidden = true
 const addPositionalEntry = (entry, value = 0) => {
     const range = entryFunctions['p']['range'];
     const result = entry["keys"][0];
-    if (lines.slice(-range).join('\n').includes(result)) { spliceContext((value != 0 ? -(value) : lines.length), entry["entry"]) }
+    if (lines.slice(-range).join('\n').includes(result)) { spliceContext((Boolean(value) ? -(value) : lines.length), entry["entry"]) }
 }
 const addMemoryEntry = (entry, value = 0) => {
     const range = entryFunctions['m']['range'];
     const result = entry["keys"][0];
-    if (lines.slice(-range).join('\n').includes(result)) { spliceMemory((value != 0 ? -(value) : memoryLines.length), entry["entry"]) }
+    if (lines.slice(-range).join('\n').includes(result)) { spliceMemory((Boolean(value) ? -(value) : memoryLines.length), entry["entry"]) }
 
 }
 const addTrailingEntry = (entry, value = 0) => {
@@ -305,7 +305,7 @@ const execAttributes = (entry) => {
     attributes = Boolean(process) ? process[1].filter(e => entryFunctions[e[0]].hasOwnProperty('func')) : [];
     if (attributes.length > 0) {
         try {
-            attributes.forEach(pair => entryFunctions[pair[0]]["func"]({ "keys": process[0], "entry": entry["entry"] }, pair[1]))
+            attributes.forEach(pair => {entryFunctions[pair[0]]["func"]({ "keys": process[0], "entry": entry["entry"] }, pair[1])})
         }
         catch (error) { console.log(`${error.name}: ${error.message}`) }
     }
