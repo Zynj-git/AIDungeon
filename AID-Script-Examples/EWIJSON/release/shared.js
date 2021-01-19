@@ -98,10 +98,10 @@ const addDescription = (entry, value = 0) => {
     const result = entry["keys"].pop()
     let search = lines.slice(-range).join('\n');
     // Find a match for the last expression and grab the most recent word for positioning. Filter out undefined/false values.
-    if (search.includes(result) && result && value == 0) {
+    if (search.includes(result) && result && !Boolean(value)) {
         search = search.slice(0, search.toLowerCase().lastIndexOf(result.toLowerCase())) + result.slice(0, -result.length) + entry["entry"] + ' ' + (result) + search.slice(search.toLowerCase().lastIndexOf(result.toLowerCase()) + result.length)
         lines = search.split('\n');
-    } else if (search.includes(result) && result && value != 0) {
+    } else if (search.includes(result) && result && Boolean(value)) {
         search = search.slice(0, search.toLowerCase().lastIndexOf(result.toLowerCase()) + result.length) + ' ' + entry["entry"] + search.slice(search.toLowerCase().lastIndexOf(result.toLowerCase()) + result.length)
         lines = search.split('\n');
     }
