@@ -1,12 +1,3 @@
-// Design Document: https://docs.google.com/document/d/1YGdOtaunrcTlTWG7I9pwgXKxZeEYe3FR8eT96cZ-d28/edit
-// TODO: Create AND/OR logic gates for synonym fetching.
-// TODO: Create dynamic RegEx searches constructed from the Object root as a requirement and 'other Objects of the same type' as disqualifiers.
-//       Note that the order has to be changed completely as at the current point of insertion these processes are already completed (preemtively).
-//       Rewriting the 'globalReplacer' to redefine itself by the conditions of each individual Object is a possible solution, would ensure that unique edge-cases are handled.
-//       Also allows float and sprawler detection range to function independently of what's in the full context.
-
-// DONE: Dynamic configuration of Objects. Float position and insertion. Sprawler enabler. Reverse logic is reversed to permit interaction with the full extent of context via spliceContext() from anywhere, e.g when and if asynchronus functions become relevant.
-
 if (!state.data) { state.data = {} } //
 let dataStorage = state.data;
 let contextMemoryLength = 0; // Keep count of additional context added.
@@ -24,6 +15,7 @@ const clean = /,\s*(?=})/g;
 state.config = {
     prefix: /^\n> You \/|^\n> You say "\/|^\/|^\n\//gi,
     prefixSymbol: '/',
+    libraryPath: '_exp',
     whitelistPath: '_whitelist',
     synonymsPath: '_synonyms',
     configPath: '_config',
@@ -34,8 +26,8 @@ if (!state.settings.ewi) { state.settings.ewi = {} }
 ewiAttribConfig.forEach(attr => { if (!state.settings.ewi.hasOwnProperty(attr)) { state.settings.ewi[attr] = { "range": 4 } } })
 console.log(`Turn: ${info.actionCount}`)
 let { entriesFromJSON } = state.settings;
-const { whitelistPath, synonymsPath, pathSymbol, wildcardPath, configPath } = state.config;
-const internalPaths = [whitelistPath, synonymsPath]
+const { whitelistPath, synonymsPath, pathSymbol, wildcardPath, configPath, libraryPath } = state.config;
+const internalPaths = [whitelistPath, synonymsPath, libraryPath]
 
 // https://www.tutorialspoint.com/group-by-element-in-array-javascript
 const groupElementsBy = arr => {
@@ -66,12 +58,13 @@ const fixOrder = () => { dataStorage = Object.assign({ "_whitelist": {}, "_synon
 const regExMatch = (expressions, string) => {
 
     const result = [];
+    const attributes = /#\[/;
     // Test the multi-lines individually, last/bottom line qualifying becomes result.
     const lines = expressions.split(/\n/g);
     try {
         lines.forEach(line => {
             // Construct a pair of [0] expressions and [1] meta-info.
-            const expressions = [line.slice(0, line.includes('#') ? line.indexOf('#') : line.length).split(/(?<!\\),/g), line.includes('#') ? line.slice(line.indexOf('#') + 1) : ""];
+            const expressions = [line.slice(0, attributes.test(line) ? line.lastIndexOf('#') : line.length).split(/(?<!\\),/g), attributes.test(line) ? line.slice(line.lastIndexOf('#') + 1) : ""];
             if (expressions[0].every(exp => {
                 const regEx = new RegExp(exp.replace(/\\/g, ''), 'i');
                 return regEx.test(string)
@@ -80,7 +73,7 @@ const regExMatch = (expressions, string) => {
             }
         })
     }
-    catch (error) { console.log(`An invalid RegEx was detected!\n${error.name}: ${error.message}`); state.message = `An invalid RegEx was detected!\n${error.name}: ${error.message}`; }
+    catch (error) { console.log(`An invalid RegEx was detected!\n${error.name}: ${error.message}`) }
     return result.pop()
 }
 const lens = (obj, path) => path.split('.').reduce((o, key) => o && o[key] ? o[key] : null, obj);
@@ -135,6 +128,7 @@ const addTrailingEntry = (entry, value = 0) => {
 
 const getWhitelist = () => dataStorage.hasOwnProperty(whitelistPath) && typeof dataStorage[whitelistPath] == 'string' ? dataStorage[whitelistPath].toLowerCase().split(/,|\n/g).map(element => element.trim()) : []
 const getWildcard = (display, offset = 0) => { const wildcard = display.split('.').slice(offset != 0 ? 0 : 1).join('.'); const list = display.split('.'); const index = list.indexOf(wildcard.slice(wildcard.lastIndexOf('.') + 1)); return [list[index].replace(wildcardPath, ''), index + offset] }
+const getPlaceholder = (value) => value.replace(/<([^<>]*)>/g, match => dataStorage[libraryPath][match.replace(/<|>/g, '')])
 const globalReplacer = () => {
 
     const search = lines.join('\n')
@@ -159,7 +153,7 @@ const globalReplacer = () => {
                 paths.push(key)
             }
             // Key is a wildcard and its value qualifies the regEx match.
-            else if (key.includes(wildcardPath) && Boolean(value) && regExMatch(value, search)) {
+            else if (key.includes(wildcardPath) && Boolean(value) && regExMatch(getPlaceholder(value), search)) {
                 wildcards.push(getWildcard(display))
             }
 
@@ -175,7 +169,7 @@ const globalReplacer = () => {
                 const array = display.split('.')
                 paths.push(array)
                 //console.log(`Wildcarded: ${display.slice(display.indexOf(current))}`)
-            } else if (display.startsWith(synonymsPath) && typeof value == 'string' && Boolean(value) && regExMatch(value, search)) {
+            } else if (display.startsWith(synonymsPath) && typeof value == 'string' && Boolean(value) && regExMatch(getPlaceholder(value), search)) {
                 paths.push(display.split('.'));
                 //console.log(`Qualified: ${display.split('.')}`)
             }
