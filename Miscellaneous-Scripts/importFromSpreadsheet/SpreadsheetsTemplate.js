@@ -52,7 +52,7 @@ function importValuesFromRange(values)
       worldEntryDict["keys"] = values[j][0];
       worldEntryDict["entry"] = values[j][1]; 
       worldEntryDict['isNotHidden'] = values[j][2].toString() ? values[j][2] : true;
-      worldEntryDict['id'] = values[j][3];
+      values[j][3] ? worldEntryDict['id'] = values[j][3] : {};
       masterWorldEntryDict.push(worldEntryDict)
     }
   }
