@@ -295,7 +295,7 @@ const processWorldEntries = () => {
 
 // execAttributes expects an Object with properties {"key": string, "entry": string}
 const execAttributes = (entry) => {
-    const process = regExMatch(entry["keys"], lines.join('\n'));
+    const process = regExMatch(getPlaceholder(entry["keys"]), lines.join('\n'));
     attributes = Boolean(process) ? process[1].filter(e => entryFunctions[e[0]].hasOwnProperty('func')) : [];
     if (attributes.length > 0) {
         try {
