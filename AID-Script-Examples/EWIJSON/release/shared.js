@@ -11,6 +11,7 @@ const ewiAttribConfig = ['a', 'd', 'm', 'p', 's', 't']
 
 const invalid = /((("|')[^"']*("|'):)\s*({}|null)),?\s*/g;
 const clean = /,\s*(?=})/g;
+const listener = /<l=[^>]*>|<\/l>/g
 // Config for consistency.
 state.config = {
     prefix: /^\n> You \/|^\n> You say "\/|^\/|^\n\//gi,
@@ -22,6 +23,11 @@ state.config = {
     wildcardPath: '/*',
     pathSymbol: '.'
 }
+
+const placeholder = /\$\{[^{}]*}/
+const openListener = '<l';
+const closeListener = '</l>'
+
 if (!state.settings.ewi) { state.settings.ewi = {} }
 ewiAttribConfig.forEach(attr => { if (!state.settings.ewi.hasOwnProperty(attr)) { state.settings.ewi[attr] = { "range": 4 } } })
 console.log(`Turn: ${info.actionCount}`)
@@ -57,6 +63,7 @@ const getActionTypes = (turns) => history.slice(turns).map(element => element["t
 const fixOrder = () => { dataStorage = Object.assign({ "_whitelist": {}, "_synonyms": {} }, dataStorage); state.data = dataStorage }
 const regExMatch = (expressions, string) => {
 
+    if (typeof expressions != 'string') {console.log(`Invalid Expressions: ${expressions}`); return}
     const result = [];
     const attributes = /#\[/;
     // Test the multi-lines individually, last/bottom line qualifying becomes result.
@@ -128,7 +135,31 @@ const addTrailingEntry = (entry, value = 0) => {
 
 const getWhitelist = () => dataStorage.hasOwnProperty(whitelistPath) && typeof dataStorage[whitelistPath] == 'string' ? dataStorage[whitelistPath].toLowerCase().split(/,|\n/g).map(element => element.trim()) : []
 const getWildcard = (display, offset = 0) => { const wildcard = display.split('.').slice(offset != 0 ? 0 : 1).join('.'); const list = display.split('.'); const index = list.indexOf(wildcard.slice(wildcard.lastIndexOf('.') + 1)); return [list[index].replace(wildcardPath, ''), index + offset] }
-const getPlaceholder = (value) => value.replace(/<([^<>]*)>/g, match => dataStorage[libraryPath][match.replace(/<|>/g, '')])
+const getPlaceholder = (value) => typeof value == 'string' ? value.replace(placeholder, match => dataStorage[libraryPath][match.replace(/\$\{|\}/g, '')]) : value
+const updateListener = (object, key, value, final, search) => {
+    if (typeof final == "string" && typeof value == "string" && value.includes(closeListener)) {
+
+        // /<l=[^>]*>|<\/l>/g
+
+        const array = value.split(/(?<!\\),/g)
+        //console.log(array)
+        const result = array.map(e => {
+            console.log(e)
+            const find = e.match(/(?<=<l\s*=\s*)[^>]*(?=>)/g)[0]
+
+            const expression = getPlaceholder(find)
+            const match = regExMatch(expression, search)
+            if (match) {
+                //console.log(e.replace(/(?<=>)[^<]*(?=<)/g, match[0][0]))
+                return e.replace(/(?<=>)[^<]*(?=<)/g, match[0][0])
+            } else {
+                return e
+            }
+
+        })
+        object[key] = result.join(',')
+    }
+}
 const globalReplacer = () => {
 
     const search = lines.join('\n')
@@ -151,10 +182,16 @@ const globalReplacer = () => {
             if (Boolean(key) && (whitelist.includes(key))) {
                 //console.log(`Whitelisted: ${key}`)
                 paths.push(key)
+                if (typeof value == 'string' && value.includes(closeListener)) {
+                    updateListener(this, key, value, final, search)
+                  }
             }
             // Key is a wildcard and its value qualifies the regEx match.
             else if (key.includes(wildcardPath) && Boolean(value) && regExMatch(getPlaceholder(value), search)) {
                 wildcards.push(getWildcard(display))
+                if (typeof value == 'string' && value.includes(closeListener)) {
+                    updateListener(this, key, value, final, search)
+                  }
             }
 
             // The current path contains one of the wildcards.
@@ -168,9 +205,15 @@ const globalReplacer = () => {
             })) {
                 const array = display.split('.')
                 paths.push(array)
+                if (typeof value == 'string' && value.includes(closeListener)) {
+                    updateListener(this, key, value, final, search)
+                  }
                 //console.log(`Wildcarded: ${display.slice(display.indexOf(current))}`)
             } else if (display.startsWith(synonymsPath) && typeof value == 'string' && Boolean(value) && regExMatch(getPlaceholder(value), search)) {
                 paths.push(display.split('.'));
+                if (typeof value == 'string' && value.includes(closeListener)) {
+                    updateListener(this, key, value, final, search)
+                  }
                 //console.log(`Qualified: ${display.split('.')}`)
             }
 
@@ -256,7 +299,7 @@ const insertJSON = (text) => {
 
             const { float, sprawl, inline } = dataStorage[data][configPath];
 
-            let string = JSON.stringify(dataStorage[data], globalWhitelist).replace(/\\/g, '').replace(invalid, '').replace(clean, '');
+            let string = JSON.stringify(dataStorage[data], globalWhitelist).replace(/\\/g, '').replace(invalid, '').replace(clean, '').replace(listener, '');
             if (state.settings["filter"]) { string = string.replace(/"|{|}/g, ''); }
 
             if (string.length > 4) {
@@ -299,7 +342,7 @@ const execAttributes = (entry) => {
     attributes = Boolean(process) ? process[1].filter(e => entryFunctions[e[0]].hasOwnProperty('func')) : [];
     if (attributes.length > 0) {
         try {
-            attributes.forEach(pair => {entryFunctions[pair[0]]["func"]({ "keys": process[0], "entry": entry["entry"] }, pair[1])})
+            attributes.forEach(pair => { entryFunctions[pair[0]]["func"]({ "keys": process[0], "entry": entry["entry"] }, pair[1]) })
         }
         catch (error) { console.log(`${error.name}: ${error.message}`) }
     }
@@ -593,7 +636,7 @@ state.commandList = {
                 const index = state.displayStats.findIndex(e => e["key"].trim() == root)
 
                 if (dataStorage.hasOwnProperty(root)) {
-                    const object = { "key": root, "value": `${JSON.stringify(dataStorage[root], globalWhitelist).replace(/\{|\}/g, '')}    ` }
+                    const object = { "key": root, "value": `${JSON.stringify(dataStorage[root], globalWhitelist).replace(/\{|\}/g, '').replace(invalid, '').replace(clean, '').replace(/\{|\}/g, '').replace(listener, '')}    ` }
                     if (index >= 0) { state.displayStats.splice(index, 1) }
                     else { state.displayStats.push(object) }
                 }
@@ -602,4 +645,4 @@ state.commandList = {
     }
 };
 
-const updateHUD = () => { const { globalWhitelist } = state.settings; state.displayStats.forEach((e, i) => { if (dataStorage.hasOwnProperty(e["key"].trim())) { state.displayStats[i] = { "key": `${e["key"].trim()}`, "value": `${JSON.stringify(dataStorage[e["key"].trim()], globalWhitelist).replace(invalid, '').replace(clean, '').replace(/\{|\}/g, '')}    ` } } }) }
+const updateHUD = () => { const { globalWhitelist } = state.settings; state.displayStats.forEach((e, i) => { if (dataStorage.hasOwnProperty(e["key"].trim())) { state.displayStats[i] = { "key": `${e["key"].trim()}`, "value": `${JSON.stringify(dataStorage[e["key"].trim()], globalWhitelist).replace(invalid, '').replace(clean, '').replace(/\{|\}/g, '').replace(listener, '')}    ` } } }) }
