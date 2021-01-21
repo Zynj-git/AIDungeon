@@ -1,3 +1,5 @@
+state.data = {} // When processing context, rebuild data. Input modifier interacts with "cached" version.
+dataStorage = state.data;
 delete state.message
 let contextMemory = getMemory(text);
 let context = getContext(text);
@@ -22,11 +24,11 @@ const modifier = (text) => {
             "args": null,
             "exec": sanitizeWhitelist
         },
-        "Consume all entries then build them as Objects in dataStorage.":
+        "Build qualified entries as Objects in dataStorage.":
         {
             "req": true,
             "args": null,
-            "exec": consumeWorldEntries
+            "exec": buildObjects
         },
 
         "Ensure _synonyms is handled first when creating the globalWhitelist.":
@@ -51,7 +53,7 @@ const modifier = (text) => {
         "Insert the Objects as JSON- lines.":
         {
             "req": true,
-            "args": modifiedContext,
+            "args": null,
             "exec": insertJSON
         },
         "Process the EWI Attribute entries.":
@@ -71,12 +73,6 @@ const modifier = (text) => {
             "req": true,
             "args": null,
             "exec": trackRoots
-        },
-        "If parity mode is enabled, reconstruct and display all Objects as entries in the World Information interface.":
-        {
-            "req": state.settings["parityMode"],
-            "args": null,
-            "exec": parityMode
         },
         "Refresh the variables presented in the HUD.":
         {
