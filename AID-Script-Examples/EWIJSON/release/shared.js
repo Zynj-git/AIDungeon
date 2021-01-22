@@ -134,19 +134,30 @@ const getPlaceholder = (value) => typeof value == 'string' ? value.replace(place
 const updateListener = (object, key, value, search, display, visited) => {
     // Check if it has previously qualified in 'visited' instead of running regExMatch on each node.
     const qualified = visited.some(e => e.includes(display.split('.')[0]));
-    if (qualified) {
+    if (qualified) 
+    {
         const array = value.split(/(?<!\\),/g)
         const result = array.map(e => {
-            const find = e.match(/(?<=<l\s*=\s*)[^>]*(?=>)/g)[0]
-            const expression = getPlaceholder(find)
-            const match = regExMatch(`${expression}`, search)
-            if (match) {
-                return e.replace(/(?<=>)[^<]*(?=<)/g, match[0][0])
-            } else {
-                return e
-            }
-        })
-        object[key] = result.join(',')
+            const find = e.match(/(?<=<l\s*=\s*)[^>]*(?=>)/g)
+            if (find)
+                {
+                    const expression = getPlaceholder(find[0])
+                    const match = regExMatch(`${expression}`, search) 
+                    if (match) 
+                    {
+                        return e.replace(/(?<=>)[^<]*(?=<)/g, match[0][0])
+                    } 
+                    
+                }
+            else { return e }
+            })
+
+        const keys = display.toLowerCase().trim()
+        const setKeys = display.includes('.') ? keys : `${keys}.`;
+        const setValue = result.join(',')
+        const index = getEntryIndex(setKeys);
+        index >= 0 ? updateWorldEntry(index, setKeys, setValue, isNotHidden = true) : addWorldEntry(setKeys, setValue, isNotHidden = true)
+
     }
 }
 const globalReplacer = () => {
