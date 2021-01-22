@@ -1,4 +1,4 @@
-if (!state.data) {state.data = {}}
+if (!state.data) { state.data = {} }
 let dataStorage = state.data;
 let contextMemoryLength = 0; // Keep count of additional context added.
 if (!state.generate) { state.generate = {} }
@@ -70,16 +70,16 @@ const regExMatch = (expressions, string) => {
     try {
         lines.forEach(line => {
             // Construct a pair of [0] expressions and [1] meta-info.
-            const expressions = [line.slice(0, attributes.test(line) ? line.lastIndexOf('#') : line.length).split(/(?<!\\),/g), attributes.test(line) ? line.slice(line.lastIndexOf('#') + 1) : ""];
-            if (expressions[0].every(exp => {
+            const pairs = [line.slice(0, attributes.test(line) ? line.lastIndexOf('#') : line.length).split(/(?<!\\),/g), attributes.test(line) ? line.slice(line.lastIndexOf('#') + 1) : ""];
+            if (pairs[0].every(exp => {
                 const regEx = new RegExp(exp.replace(/\\/g, ''), 'i');
                 return regEx.test(string)
             })) {
-                result.push([[...string.matchAll(new RegExp(expressions[0].pop(), 'gi'))].filter(Boolean).pop(), Boolean(expressions[1]) ? expressions[1].match(/(\w(=\d*)?)/gi).map(e => e.split('=')) : []])
+                result.push([[...string.matchAll(new RegExp(pairs[0].pop(), 'gi'))].filter(Boolean).pop(), Boolean(pairs[1]) ? pairs[1].match(/(\w(=\d*)?)/gi).map(e => e.split('=')) : []])
             }
         })
     }
-    catch (error) { console.log(`An invalid RegEx was detected!\n${error.name}: ${error.message}`); state.message = `An invalid RegEx was detected!\n${error.name}: ${error.message}` } 
+    catch (error) { console.log(`An invalid RegEx was detected!\n${error.name}: ${error.message}`); state.message = `An invalid RegEx was detected!\n${error.name}: ${error.message}` }
     return result.pop()
 }
 const lens = (obj, path) => path.split('.').reduce((o, key) => o && o[key] ? o[key] : null, obj);
@@ -186,10 +186,15 @@ const globalReplacer = () => {
             const final = replace.call(this, key, value, display);
             let current;
             // If the key is in the _whitelist, then implicitly push it.
-            if (Boolean(key) && (whitelist.includes(key))) {
+            if (Boolean(key) && (whitelist.includes(key))) 
+            {
                 paths.push(key)
-                if (value.includes(closeListener)) { updateListener(this, key, value, search, display, visited); }
-            } else if (typeof value == 'string') {
+                if (typeof value == 'string' && value.includes(closeListener)) 
+                    { 
+                        updateListener(this, key, value, search, display, visited); 
+                    }
+            } 
+            else if (typeof value == 'string') {
                 const match = regExMatch(getPlaceholder(value), search);
                 if (value.includes(closeListener)) { updateListener(this, key, value, search, display, visited); }
                 // Key is a wildcard and its value qualifies the regEx match.
@@ -410,7 +415,7 @@ state.commandList = {
             (args) => {
 
                 const keys = args[0].toLowerCase().trim()
-                const setKeys = keys.includes('.') ?  keys : `${keys}.`;
+                const setKeys = keys.includes('.') ? keys : `${keys}.`;
                 const setValue = args.slice(1).join(' ');
                 const index = getEntryIndex(setKeys);
 
@@ -440,6 +445,21 @@ state.commandList = {
             }
 
     },
+    delete:
+    {
+        name: 'delete',
+        description: 'Deletes all dot-separated entries that match the provided argument.',
+        args: true,
+        usage: '<root> or <root>.<path>',
+        execute:
+            (args) => {
+
+                const keys = args[0].toLowerCase().trim();
+                const setKeys = keys.includes('.') ? keys : `${keys}.`;
+                worldEntries.filter(e => e["keys"].toLowerCase().startsWith(setKeys)).forEach(e => removeWorldEntry(worldEntries.indexOf(e)))
+                state.message = `Deleted all entries matching: ${keys}`;
+            }
+    },
     show:
     {
         name: 'show',
@@ -450,7 +470,7 @@ state.commandList = {
             (args) => {
 
                 const keys = args[0].toLowerCase()
-                worldEntries.forEach(e => {if (e["keys"].toLowerCase().startsWith(keys)) {e["isNotHidden"] = true;}})
+                worldEntries.forEach(e => { if (e["keys"].toLowerCase().startsWith(keys)) { e["isNotHidden"] = true; } })
                 state.message = `Showing all entries starting with ${keys} in World Information!`;
                 return
             }
@@ -465,7 +485,7 @@ state.commandList = {
             (args) => {
 
                 const keys = args[0].toLowerCase()
-                worldEntries.forEach(e => {if (e["keys"].toLowerCase().startsWith(keys)) {e["isNotHidden"] = false;}})
+                worldEntries.forEach(e => { if (e["keys"].toLowerCase().startsWith(keys)) { e["isNotHidden"] = false; } })
                 state.message = `Hiding all entries starting with ${keys} in World Information!`;
                 return
             }
