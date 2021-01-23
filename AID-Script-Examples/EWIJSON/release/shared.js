@@ -138,7 +138,7 @@ const updateListener = (object, key, value, search, display, visited) => {
     {
         const array = value.split(/(?<!\\),/g)
         const result = array.map(e => {
-            const find = e.match(/(?<=<l\s*=\s*)[^>]*(?=>)/g)
+            const find = e.match(/(?<=<l=)[^>]*(?=>)/g)
             if (find)
                 {
                     const expression = getPlaceholder(find[0])
@@ -146,7 +146,8 @@ const updateListener = (object, key, value, search, display, visited) => {
                     if (match) 
                     {
                         return e.replace(/(?<=>)[^<]*(?=<)/g, match[0][0])
-                    } 
+                    }
+                    else { return e}
                     
                 }
             else { return e }
@@ -186,7 +187,7 @@ const globalReplacer = () => {
             // Find and store whether the Object qualifies to avoid repeated calls to regExMatch.
             // Without this, it'll call regExMatch for each node. While with this one may run:
             // visited.some(e => e.includes(node))
-            if (dataStorage.hasOwnProperty(root) && !visited.some(e => e[0].includes(root))) {
+            if (dataStorage.hasOwnProperty(root) && dataStorage[root].hasOwnProperty(synonymsPath) && !visited.some(e => e[0].includes(root))) {
                 const match = regExMatch(getPlaceholder(dataStorage[root][synonymsPath]), search)
                 if (match) { visited.push([root, match[0][0]]) }
             }
@@ -236,7 +237,7 @@ const globalReplacer = () => {
     JSON.stringify(dataStorage, replacer(function (key, value, path) {
         return value;
     }));
-    return [...new Set([...whitelist, ...paths.flat()])].filter(e => internalPaths.every(i => !i.includes(e))).map(e => e.replace(wildcardPath, ''))
+    return [...new Set([...whitelist, ...paths.flat()])].filter(e => !internalPaths.includes(e)).map(e => e.replace(wildcardPath, ''))
 }
 
 // globalWhitelist - Should only make one call to it per turn in context modifiers. Other modifiers access it via state.
