@@ -131,7 +131,7 @@ const addTrailingEntry = (entry, value = 0) => {
 const getWhitelist = () => dataStorage.hasOwnProperty(whitelistPath) && typeof dataStorage[whitelistPath] == 'string' ? dataStorage[whitelistPath].toLowerCase().split(/,|\n/g).map(e => e.trim()) : []
 const getWildcard = (display, offset = 0) => { const wildcard = display.split('.').slice(offset != 0 ? 0 : 1).join('.'); const list = display.split('.'); const index = list.indexOf(wildcard.slice(wildcard.lastIndexOf('.') + 1)); return [list[index].replace(wildcardPath, ''), index + offset] }
 const getPlaceholder = (value) => typeof value == 'string' ? value.replace(placeholder, match => dataStorage[libraryPath][match.replace(/\$\{|\}/g, '')]) : value
-const updateListener = (object, key, value, search, display, visited) => {
+const updateListener = (value, search, display, visited) => {
     // Check if it has previously qualified in 'visited' instead of running regExMatch on each node.
     const qualified = visited.some(e => e.includes(display.split('.')[0]));
     if (qualified) 
@@ -203,12 +203,13 @@ const globalReplacer = () => {
                 paths.push(key)
                 if (typeof value == 'string' && value.includes(closeListener)) 
                     { 
-                        updateListener(this, key, value, search, display, visited); 
+                        updateListener(value, search, display, visited); 
                     }
             } 
             else if (typeof value == 'string') {
-                const match = regExMatch(getPlaceholder(value), search);
-                if (value.includes(closeListener)) { updateListener(this, key, value, search, display, visited); }
+                // Only match paths in `_synonyms`.
+                const match = display.startsWith(synonymsPath) ? regExMatch(getPlaceholder(value), search) : undefined;
+                if (value.includes(closeListener)) { updateListener(value, search, display, visited); }
                 // Key is a wildcard and its value qualifies the regEx match.
                 if (key.includes(wildcardPath) && Boolean(value) && match) {
                     wildcards.push(getWildcard(display))
@@ -224,7 +225,7 @@ const globalReplacer = () => {
                     const array = display.split('.')
                     paths.push(array)
 
-                } else if (display.startsWith(synonymsPath) && typeof value == 'string' && Boolean(value) && match) {
+                } else if (display.startsWith(synonymsPath) && Boolean(value) && match) {
                     paths.push(display.split('.'));
                 }
 
@@ -365,15 +366,23 @@ const entriesFromJSONLines = () => {
     const JSONLines = lines.filter(line => /\[\{.*\}\]/.test(line));
     const JSONString = JSONLines.join('\n');
     worldEntries.forEach(e =>
-        e["keys"].split(',').some(keyword => {
-            if (JSONString.toLowerCase().includes(keyword.toLowerCase()) && !text.includes(e["entry"])) {
+        {
+            if (e["keys"].includes('.') && !e["keys"].includes('#')) 
+            {
+                e["keys"].split(',').some(keyword => 
+                {
+                    if (JSONString.toLowerCase().includes(keyword.toLowerCase()) && !text.includes(e["entry"])) 
+                    {
 
 
-                if (info.memoryLength + contextMemoryLength + e["entry"].length <= info.maxChars / 2) {
-                    spliceMemory(memory.split('\n').length, e["entry"]); return true;
-                }
+                        if (info.memoryLength + contextMemoryLength + e["entry"].length <= info.maxChars / 2) 
+                        {
+                        spliceMemory(memory.split('\n').length, e["entry"]); return true;
+                        }
+                    }
+                })
             }
-        }))
+        })
 }
 const parseGen = (text) => { state.generate.process = false; const string = fixDepth(`${state.generate.sections.primer}${text}`); const toParse = string.match(/{.*}/); if (toParse) { const obj = JSON.parse(toParse[0]); worldEntriesFromObject(obj, state.generate.root.split(' ')[0]); state.message = `Generated Object for ${state.generate.root} as type ${state.generate.types[0]}\nResult: ${JSON.stringify(obj)}` } else { state.message = `Failed to parse AI Output for Object ${state.generate.root} type ${state.generate.type[0]}` } }
 const parseAsRoot = (text, root) => { const toParse = text.match(/{.*}/g); if (toParse) { toParse.forEach(string => { const obj = JSON.parse(string); worldEntriesFromObject(obj, root); text = text.replace(string, ''); }) } }
