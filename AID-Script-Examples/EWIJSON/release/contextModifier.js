@@ -50,17 +50,29 @@ const modifier = (text) => {
             "exec": generateObject
         },
 
-        "Insert the Objects as JSON- lines.":
+        "Push the Objects to sort.":
         {
             "req": true,
             "args": null,
             "exec": insertJSON
         },
-        "Process the EWI Attribute entries.":
+        "Push the EWI Attribute entries to sort.":
         {
             "req": worldEntries.length > 0,
             "args": null,
             "exec": processWorldEntries
+        },
+        "Sort and process the above by most recent mention.":
+        {
+            "req": true,
+            "args": null,
+            "exec": sortObjects
+        },
+        "Insert Memory Stack":
+        {
+            "req": true,
+            "args": null,
+            "exec": insertMemoryStack
         },
         "Check the inserted JSON- lines for the presence of worldEntries keywords.":
         {
@@ -90,7 +102,7 @@ const modifier = (text) => {
     const finalText = [combinedMemory, combinedLines].join("\n");
 
     // Debug to check if the context is intact and properly utilized, optimally the numbers should always match
-    console.log(`Final Text: ${finalText.length}`, `Max Text: ${info.maxChars}`, `MemoryLength: ${info.memoryLength}`)
+    console.log(`Final Text: ${finalText.length}`, `Max Text: ${info.maxChars}`, `MemoryLength: ${info.memoryLength}`, `Total Memory: ${info.memoryLength + contextMemoryLength}`)
     return { text: finalText }
 
 }

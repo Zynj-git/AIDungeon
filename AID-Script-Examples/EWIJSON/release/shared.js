@@ -109,10 +109,15 @@ const addPositionalEntry = (entry, value = 0) => {
     const result = entry["keys"][0];
     if (lines.slice(-range).join('\n').includes(result)) { spliceContext((Boolean(value) ? -(value) : lines.length), entry["entry"]) }
 }
+
 const addMemoryEntry = (entry, value = 0) => {
     const range = entryFunctions['m']['range'];
     const result = entry["keys"][0];
-    if (lines.slice(-range).join('\n').includes(result)) { spliceMemory((Boolean(value) ? -(value) : memoryLines.length), entry["entry"]) }
+    if ( (info.memoryLength + contextMemoryLength + entry["entry"].length) < (info.maxChars/2) && lines.slice(-range).join('\n').includes(result)) 
+    { 
+        contextMemoryLength += entry["entry"].length
+        memoryStack.push([Boolean(value) ? -(value) : memoryLines.length, entry["entry"]]) 
+    }
 
 }
 const addTrailingEntry = (entry, value = 0) => {
@@ -134,24 +139,21 @@ const getPlaceholder = (value) => typeof value == 'string' ? value.replace(place
 const updateListener = (value, search, display, visited) => {
     // Check if it has previously qualified in 'visited' instead of running regExMatch on each node.
     const qualified = visited.some(e => e.includes(display.split('.')[0]));
-    if (qualified) 
-    {
+    if (qualified) {
         const array = value.split(/(?<!\\),/g)
         const result = array.map(e => {
             const find = e.match(/(?<=<l=)[^>]*(?=>)/g)
-            if (find)
-                {
-                    const expression = getPlaceholder(find[0])
-                    const match = regExMatch(`${expression}`, search) 
-                    if (match) 
-                    {
-                        return e.replace(/(?<=>)[^<]*(?=<)/g, match[0][0])
-                    }
-                    else { return e}
-                    
+            if (find) {
+                const expression = getPlaceholder(find[0])
+                const match = regExMatch(`${expression}`, search)
+                if (match) {
+                    return e.replace(/(?<=>)[^<]*(?=<)/g, match[0][0])
                 }
+                else { return e }
+
+            }
             else { return e }
-            })
+        })
 
         const keys = display.toLowerCase().trim()
         const setKeys = display.includes('.') ? keys : `${keys}.`;
@@ -198,14 +200,12 @@ const globalReplacer = () => {
             const final = replace.call(this, key, value, display);
             let current;
             // If the key is in the _whitelist, then implicitly push it.
-            if (Boolean(key) && (whitelist.includes(key))) 
-            {
+            if (Boolean(key) && (whitelist.includes(key))) {
                 paths.push(key)
-                if (typeof value == 'string' && value.includes(closeListener)) 
-                    { 
-                        updateListener(value, search, display, visited); 
-                    }
-            } 
+                if (typeof value == 'string' && value.includes(closeListener)) {
+                    updateListener(value, search, display, visited);
+                }
+            }
             else if (typeof value == 'string') {
                 // Only match paths in `_synonyms`.
                 const match = display.startsWith(synonymsPath) ? regExMatch(getPlaceholder(value), search) : undefined;
@@ -293,10 +293,15 @@ const spliceContext = (pos, string) => {
     return
 }
 
+const memoryStack = [];
+const insertMemoryStack = () => memoryStack.forEach(e => spliceMemory(e[0], e[1]));
 const spliceMemory = (pos, string) => {
+    
+    
     contextMemoryLength += string.length;
     memoryLines.splice(pos, 0, string);
     return
+
 }
 
 const cleanString = (string) => string.replace(/\\/g, '').replace(listener, '').replace(invalid, '').replace(clean, '');
@@ -318,7 +323,7 @@ const insertJSON = () => {
 
             if (string.length > 4) {
                 const object = { "keys": dataStorage[data][synonymsPath].split('\n').map(e => !e.includes('#') ? e + '#[t]' : e).join('\n'), "entry": `[${string}]` }
-                execAttributes(object)
+                sortList.push(object)
             }
 
         }
@@ -336,9 +341,8 @@ const entryFunctions = {
     'w': () => { }, // [w] assigns the weight attribute, the higher value the more recent/relevant it will be in context/frontMemory/intermediateMemory etc.
     't': { "func": addTrailingEntry, "range": state.settings.ewi['t'] } // [t] adds the entry at a line relative to the activator in context. [t=2] will trail context two lines behind the activating word.
 }
-
-
-
+// A master list that is used for sorting before processing entries.
+const sortList = []
 const pickRandom = () => {
     const lists = groupElementsBy(worldEntries.filter(e => /#.*\[.*r.*\]/.test(e.keys)));
     const result = [worldEntries.filter(e => !/#.*\[.*r.*\]/.test(e.keys))];
@@ -347,42 +351,51 @@ const pickRandom = () => {
 }
 const processWorldEntries = () => {
     const entries = pickRandom(); // Ensure unique assortment of entries that adhere to the [r] attribute if present.
-    entries.filter(e => e["keys"].includes('#')).forEach(wEntry => execAttributes(wEntry));
+    entries.filter(e => e["keys"].includes('#')).forEach(wEntry => sortList.push(wEntry));
 }
 
-// execAttributes expects an Object with properties {"key": string, "entry": string}
-const execAttributes = (entry) => {
-    const process = regExMatch(getPlaceholder(entry["keys"]), lines.join('\n'));
-    attributes = Boolean(process) ? process[1].filter(e => entryFunctions[e[0]].hasOwnProperty('func')) : [];
-    if (attributes.length > 0) {
+const execAttributes = (keys, entry, attributes) => {
+    const array = Boolean(attributes) ? attributes.filter(e => entryFunctions[e[0]].hasOwnProperty('func')) : [];
+    if (array.length > 0) {
         try {
-            attributes.forEach(pair => { entryFunctions[pair[0]]["func"]({ "keys": process[0], "entry": entry["entry"] }, pair[1]) })
+            array.forEach(pair => { entryFunctions[pair[0]]["func"]({ "keys": keys, "entry": entry }, pair[1]) })
         }
         catch (error) { console.log(`${error.name}: ${error.message}`) }
     }
 }
 
+// Sort all Objects/entries by the order of most-recent mention before processing.
+// expects sortList to be populated by Objects with properties {"key": string, "entry": string}
+const sortObjects = () => {
+    const search = lines.join('\n')
+    sortList.map(e => {
+        const match = regExMatch(getPlaceholder(e["keys"]), search);
+        if (Boolean(match)) {
+            return [search.lastIndexOf(match[0].length > 1 ? match[0].pop() : match[0]), match, e["entry"]];
+        }
+    })
+        .filter(Boolean)
+        .sort((a, b) => b[0] - a[0])
+        .map(e => { return [e[1], e[2]] })
+        .forEach(e => execAttributes(e[0][0], e[1], e[0][1]))
+}
+
 const entriesFromJSONLines = () => {
     const JSONLines = lines.filter(line => /\[\{.*\}\]/.test(line));
     const JSONString = JSONLines.join('\n');
-    worldEntries.forEach(e =>
-        {
-            if (e["keys"].includes('.') && !e["keys"].includes('#')) 
-            {
-                e["keys"].split(',').some(keyword => 
-                {
-                    if (JSONString.toLowerCase().includes(keyword.toLowerCase()) && !text.includes(e["entry"])) 
-                    {
+    worldEntries.forEach(e => {
+        if (e["keys"].includes('.') && !e["keys"].includes('#')) {
+            e["keys"].split(',').some(keyword => {
+                if (JSONString.toLowerCase().includes(keyword.toLowerCase()) && !text.includes(e["entry"])) {
 
 
-                        if (info.memoryLength + contextMemoryLength + e["entry"].length <= info.maxChars / 2) 
-                        {
+                    if (info.memoryLength + contextMemoryLength + e["entry"].length <= info.maxChars / 2) {
                         spliceMemory(memory.split('\n').length, e["entry"]); return true;
-                        }
                     }
-                })
-            }
-        })
+                }
+            })
+        }
+    })
 }
 const parseGen = (text) => { state.generate.process = false; const string = fixDepth(`${state.generate.sections.primer}${text}`); const toParse = string.match(/{.*}/); if (toParse) { const obj = JSON.parse(toParse[0]); worldEntriesFromObject(obj, state.generate.root.split(' ')[0]); state.message = `Generated Object for ${state.generate.root} as type ${state.generate.types[0]}\nResult: ${JSON.stringify(obj)}` } else { state.message = `Failed to parse AI Output for Object ${state.generate.root} type ${state.generate.type[0]}` } }
 const parseAsRoot = (text, root) => { const toParse = text.match(/{.*}/g); if (toParse) { toParse.forEach(string => { const obj = JSON.parse(string); worldEntriesFromObject(obj, root); text = text.replace(string, ''); }) } }
