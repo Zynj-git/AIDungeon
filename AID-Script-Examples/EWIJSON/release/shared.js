@@ -132,7 +132,7 @@ const regExMatch = (keys) =>
     return [result.pop(), key]
 }
 
-const getAttributes = (string) => string.match(Expressions["attributes"]).map(e => e.includes('=') ? e.split(Expressions["split"]) : [e, 0])
+const getAttributes = (string) => { const match = string.match(Expressions["attributes"]); if (match) { return match.map(e => e.includes('=') ? e.split(Expressions["split"]) : [e, 0]) } }
 const lens = (obj, path) => path.split('.').reduce((o, key) => o && o[key] ? o[key] : null, obj);
 const replaceLast = (x, y, z) => { let a = x.split(""); let length = y.length; if (x.lastIndexOf(y) != -1) { for (let i = x.lastIndexOf(y); i < x.lastIndexOf(y) + length; i++) { if (i == x.lastIndexOf(y)) { a[i] = z; } else { delete a[i]; } } } return a.join(""); }
 const getMemory = (text) => { return info.memoryLength ? text.slice(0, info.memoryLength) : '' } // If memoryLength is set then slice of the beginning until the end of memoryLength, else return an empty string.
@@ -421,7 +421,8 @@ const entryFunctions = {
     'm': { "func": addMemoryEntry, "range": state.settings.ewi['m'] },
     'p': { "func": addPositionalEntry, "range": state.settings.ewi['p'] }, // Inserts the <entry> <value> amount of lines into context, e.g [p=1] inserts it one line into context.
     'w': () => {}, // [w] assigns the weight attribute, the higher value the more recent/relevant it will be in context/frontMemory/intermediateMemory etc.
-    't': { "func": addTrailingEntry, "range": state.settings.ewi['t'] } // [t] adds the entry at a line relative to the activator in context. [t=2] will trail context two lines behind the activating word.
+    't': { "func": addTrailingEntry, "range": state.settings.ewi['t'] }, // [t] adds the entry at a line relative to the activator in context. [t=2] will trail context two lines behind the activating word.
+    'l': () => {}
 }
 // A master list that is used for sorting before processing entries.
 const sortList = []
@@ -440,7 +441,7 @@ const processWorldEntries = () =>
 
 const execAttributes = (keys, entry, attributes) =>
 {
-    console.log(`ATTRIBUTES: ${attributes}`)
+    console.log(`Attributes: ${JSON.stringify(attributes)}`)
     const array = Boolean(attributes) ? attributes.filter(e => entryFunctions[e[0]].hasOwnProperty('func')) : [];
     if (array.length > 0)
     {
@@ -460,16 +461,17 @@ const sortObjects = () =>
     sortList.map(e =>
         {
             const match = regExMatch(getPlaceholder(e["keys"]));
-            console.log(`SORT OBJECTS MATCH: ${match}`)
+
             if (Boolean(match[0]))
             {
-                return [search.lastIndexOf(match.length > 1 ? match[0].pop() : match), match, e["entry"]];
+                return { "index": search.lastIndexOf(match.length > 1 ? match[0][match[0].length - 1] : match), "matches": match, "entry": e["entry"] };
             }
         })
     .filter(Boolean)
-    .sort((a, b) => b[0] - a[0])
-    .map(e => { return [e[1], e[2]] })
-    .forEach(e => execAttributes(e[0][0], e[1], /#\[.*\]/.test(e[0][1]) ? getAttributes(e[0][1].slice(e[0][1].lastIndexOf('#'))) : []))
+    .sort((a, b) => b["index"] - a["index"])
+    .forEach(e => { console.log(e["matches"], e["entry"]);
+        execAttributes(e["matches"][0], e["entry"], /#\[.*\]/.test(e["matches"][1]) ? getAttributes(e["matches"][1].slice(e["matches"][1].lastIndexOf('#'))) : undefined) })
+
 }
 
 const entriesFromJSONLines = () =>
