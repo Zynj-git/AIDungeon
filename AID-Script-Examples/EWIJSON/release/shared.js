@@ -115,7 +115,7 @@ const regExMatch = (keys) =>
         {
 
             const length = getAttributes(line.slice(/#\[.*\]/.test(line) ? line.lastIndexOf('#') : 0)).find(e => e[0] == 'l')
-            const string = lines.slice(length ? -length[1] : 0).join('\n');
+            const string = getHistoryString(length ? -length[1] : 0).slice(-info.maxChars);
             const expressions = line.slice(0, /#\[.*\]/.test(line) ? line.lastIndexOf('#') : line.length).split(/(?<!\\),/g);
             if (expressions.every(exp => { const regEx = new RegExp(exp.replace(/\\/g, ''), 'i'); return regEx.test(string); }))
             {
