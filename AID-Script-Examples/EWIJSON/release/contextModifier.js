@@ -43,13 +43,6 @@ const modifier = (text) => {
             "args": null,
             "exec": getGlobalWhitelist
         },
-        "If an Object is ordered for generation, shift to processing it.":
-        {
-            "req": state.generate.process,
-            "args": text,
-            "exec": generateObject
-        },
-
         "Push the Objects to sort.":
         {
             "req": true,
@@ -95,7 +88,7 @@ const modifier = (text) => {
 
     }
 
-    for (action in execute) { if (execute[action]["req"]) { execute[action]["exec"](execute[action]["args"]) } }
+    for (let action in execute) { if (execute[action]["req"]) { execute[action]["exec"](execute[action]["args"]) } }
 
     let combinedMemory = memoryLines.join('\n')
     let combinedLines = lines.join('\n').slice(-(info.maxChars - combinedMemory.length - 1));
