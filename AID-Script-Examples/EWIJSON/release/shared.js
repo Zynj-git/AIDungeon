@@ -22,7 +22,8 @@ const Expressions = {
     "listener": /<l=[^>]*>|<\/l>/g,
     "placeholder": /\$\{[^{}]*}/g,
     "attributes": /(\w(=+\d*)?)/g,
-    "split": /=+/
+    "split": /=+/,
+    "EWI": /#\[.*\]$/
 }
 // Config for consistency.
 state.config = {
@@ -132,7 +133,7 @@ const regExMatch = (keys) =>
     return [result.pop(), key]
 }
 
-const getAttributes = (string) => { const match = string.match(Expressions["attributes"]); if (match) { return match.map(e => e.includes('=') ? e.split(Expressions["split"]) : [e, 0]) } }
+const getAttributes = (string) => { const match = string.match(Expressions["attributes"]); if (Boolean(match[0])) { return match.map(e => e.includes('=') ? e.split(Expressions["split"]) : [e, 0]) } }
 const lens = (obj, path) => path.split('.').reduce((o, key) => o && o[key] ? o[key] : null, obj);
 const replaceLast = (x, y, z) => { let a = x.split(""); let length = y.length; if (x.lastIndexOf(y) != -1) { for (let i = x.lastIndexOf(y); i < x.lastIndexOf(y) + length; i++) { if (i == x.lastIndexOf(y)) { a[i] = z; } else { delete a[i]; } } } return a.join(""); }
 const getMemory = (text) => { return info.memoryLength ? text.slice(0, info.memoryLength) : '' } // If memoryLength is set then slice of the beginning until the end of memoryLength, else return an empty string.
@@ -168,9 +169,8 @@ const addPositionalEntry = (entry, value = 0) =>
 
 const addMemoryEntry = (entry, value = 0) =>
 {
-    const range = entryFunctions['m']['range'];
-    const result = entry["keys"][0];
-    if ((info.memoryLength + contextMemoryLength + entry["entry"].length) < (info.maxChars / 2) && lines.slice(-range).join('\n').includes(result))
+
+    if ((info.memoryLength + contextMemoryLength + entry["entry"].length) < (info.maxChars / 2))
     {
         contextMemoryLength += entry["entry"].length
         memoryStack.push([Boolean(value) ? -(value) : memoryLines.length, entry["entry"]])
@@ -179,12 +179,8 @@ const addMemoryEntry = (entry, value = 0) =>
 }
 const addTrailingEntry = (entry, value = 0) =>
 {
-
-    const range = entryFunctions['t']['range'];
-    const result = entry["keys"][0];
-
     let finalIndex = -1;
-    lines.slice(-range).forEach((line, i) => { if (line.includes(result)) { finalIndex = i; } })
+    lines.forEach((line, i) => { if (line.includes(entry["keys"])) { finalIndex = i; } })
     if (finalIndex >= 0)
     {
         spliceContext((finalIndex) - value, entry["entry"])
@@ -209,7 +205,7 @@ const updateListener = (value, search, display, visited) =>
             {
                 const expression = getPlaceholder(find[0])
                 const match = regExMatch(`${expression}`)
-                if (match) { return e.replace(/(?<=>)[^<]*(?=<)/g, match[0][0]) }
+                if (Boolean(match[0])) { return e.replace(/(?<=>)[^<]*(?=<)/g, match[0][0]) }
                 else { return e }
 
             }
@@ -256,7 +252,7 @@ const globalReplacer = () =>
             if (dataStorage.hasOwnProperty(root) && dataStorage[root].hasOwnProperty(synonymsPath) && !visited.some(e => e[0].includes(root)))
             {
                 const match = regExMatch(getPlaceholder(dataStorage[root][synonymsPath]))
-                if (match) { visited.push([root, match[0][0]]) }
+                if (Boolean(match[0])) { visited.push([root, match[0][0]]) }
             }
 
             if (value === Object(value)) { m.set(value, path); }
@@ -335,21 +331,6 @@ const buildObjects = () =>
 
 const sanitizeWhitelist = () => { const index = worldEntries.findIndex(e => e["keys"].includes(whitelistPath)); if (index >= 0) { worldEntries[index]["keys"] = whitelistPath + '.'; } }
 const trackRoots = () => { const list = Object.keys(dataStorage); const index = worldEntries.findIndex(e => e["keys"] == 'rootList'); if (index < 0) { addWorldEntry('rootList', list, isNotHidden = true) } else { updateWorldEntry(index, 'rootList', list, isNotHidden = true) } }
-// Close opened brackets for the string before attempting to JSON.parse() it - slight increase to success rate.
-const getDepth = (string) => { const opened = string.match(/{/g); const closed = string.match(/}/g); return (opened ? opened.length : 0) - (closed ? closed.length : 0) }
-const fixDepth = (string) =>
-{
-    let count = getDepth(string);
-    while (count > 0)
-    {
-        count--;
-        string += `}`;
-    }
-    return string
-}
-
-// TODO: If AND/OR segments are present, only map those that qualify.
-const getRootSynonyms = (root) => dataStorage[root].hasOwnProperty(synonymsPath) ? dataStorage[root][synonymsPath].split(',').map(e => e.toLowerCase().trim()) : []
 
 // spliceContext takes a position to insert a line into the full context (memoryLines and lines combined) then reconstructs it with 'memory' taking priority.
 // TODO: Sanitize and add counter, verify whether memory having priority is detrimental to the structure - 'Remember' should never be at risk of ommitance.
@@ -412,16 +393,16 @@ const insertJSON = () =>
     }
 }
 
-const entryFunctions = {
-    'a': { "func": addAuthorsNote, "range": state.settings.ewi['a'] }, // [a] adds it as authorsNote, only one authorsNote at a time.
-    's': { "func": showWorldEntry, "range": state.settings.ewi['s'] }, // [r] reveals the entry once mentioned, used in conjuction with [e] to only reveal if all keywords are mentioned at once.
+const Attributes = {
+    'a': addAuthorsNote, // [a] adds it as authorsNote, only one authorsNote at a time.
+    's': showWorldEntry, // [r] reveals the entry once mentioned, used in conjuction with [e] to only reveal if all keywords are mentioned at once.
     'e': () => {}, // [e] tells the custom keyword check to only run the above functions if every keyword of the entry matches.
-    'd': { "func": addDescription, "range": state.settings.ewi['d'] }, // [d] adds the first sentence of the entry as a short, parenthesized descriptor to the last mention of the revelant keyword(s) e.g John (a business man)
+    'd': addDescription, // [d] adds the first sentence of the entry as a short, parenthesized descriptor to the last mention of the revelant keyword(s) e.g John (a business man)
     'r': () => {}, // [r] picks randomly between entries with the same matching keys. e.g 'you.*catch#[rp=1]' and 'you.*catch#[rd]' has 50% each to be picked.
-    'm': { "func": addMemoryEntry, "range": state.settings.ewi['m'] },
-    'p': { "func": addPositionalEntry, "range": state.settings.ewi['p'] }, // Inserts the <entry> <value> amount of lines into context, e.g [p=1] inserts it one line into context.
+    'm': addMemoryEntry,
+    'p': addPositionalEntry, // Inserts the <entry> <value> amount of lines into context, e.g [p=1] inserts it one line into context.
     'w': () => {}, // [w] assigns the weight attribute, the higher value the more recent/relevant it will be in context/frontMemory/intermediateMemory etc.
-    't': { "func": addTrailingEntry, "range": state.settings.ewi['t'] }, // [t] adds the entry at a line relative to the activator in context. [t=2] will trail context two lines behind the activating word.
+    't': addTrailingEntry, // [t] adds the entry at a line relative to the activator in context. [t=2] will trail context two lines behind the activating word.
     'l': () => {}
 }
 // A master list that is used for sorting before processing entries.
@@ -436,18 +417,17 @@ const pickRandom = () =>
 const processWorldEntries = () =>
 {
     const entries = pickRandom(); // Ensure unique assortment of entries that adhere to the [r] attribute if present.
-    entries.filter(e => e["keys"].includes('#')).forEach(wEntry => sortList.push(wEntry));
+    entries.filter(e => Expressions["EWI"].test(e["keys"])).forEach(wEntry => sortList.push(wEntry));
 }
 
 const execAttributes = (keys, entry, attributes) =>
 {
-    console.log(`Attributes: ${JSON.stringify(attributes)}`)
-    const array = Boolean(attributes) ? attributes.filter(e => entryFunctions[e[0]].hasOwnProperty('func')) : [];
-    if (array.length > 0)
+    if (attributes.length > 0)
     {
         try
         {
-            array.forEach(pair => { entryFunctions[pair[0]]["func"]({ "keys": keys, "entry": entry }, pair[1]) })
+            const object = { "keys": keys, "entry": entry };
+            attributes.forEach(pair => { Attributes[pair[0]](object, pair[1]) })
         }
         catch (error) { console.log(`${error.name}: ${error.message}`) }
     }
