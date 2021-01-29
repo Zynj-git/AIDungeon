@@ -10,11 +10,9 @@ let modifiedText = text.toLowerCase();
 let modifiedContext = context.toLowerCase();
 let memoryLinesLength = memoryLines.length
 
-// Adjusted and re-created from spliceContext()
-let fullContextLines = [...memoryLines, ...lines];
 
-
-const modifier = (text) => {
+const modifier = (text) =>
+{
     // Position the various attribute tags, push them into temporary lists etc.
     const execute = {
 
@@ -43,29 +41,17 @@ const modifier = (text) => {
             "args": null,
             "exec": getGlobalWhitelist
         },
-        "Push the Objects to sort.":
+        "Sort and execute the Object entries.":
         {
             "req": true,
             "args": null,
             "exec": insertJSON
         },
-        "Push the EWI Attribute entries to sort.":
+        "Sort and execute the EWI Attribute entries.":
         {
             "req": worldEntries.length > 0,
             "args": null,
-            "exec": processWorldEntries
-        },
-        "Sort and process the above by most recent mention.":
-        {
-            "req": true,
-            "args": null,
-            "exec": sortObjects
-        },
-        "Insert Memory Stack":
-        {
-            "req": true,
-            "args": null,
-            "exec": insertMemoryStack
+            "exec": processEWI
         },
         "Check the inserted JSON- lines for the presence of worldEntries keywords.":
         {

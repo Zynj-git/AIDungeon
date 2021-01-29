@@ -1,18 +1,15 @@
+console.log(`Turn: ${info.actionCount}`)
 if (!state.data) { state.data = {} }
 let dataStorage = state.data;
 let contextMemoryLength = 0; // Keep count of additional context added.
 if (!state.generate) { state.generate = {} }
 if (!state.settings) { state.settings = {} }
 if (!state.settings.globalWhitelist) { state.settings.globalWhitelist = [] }
-// If key (setting[0]) is not in state.settings, initiate it with setting[1] as default value.
-const initSettings = [
-    ['entriesFromJSON', true],
-    ['filter', false],
-    ['searchTurnsRange', 4],
-    ['parityMode', false]
-]
-initSettings.forEach(setting => { if (!Object.keys(state.settings).includes(setting[0])) { state.settings[setting[0]] = setting[1] } })
-const ewiAttribConfig = ['a', 'd', 'm', 'p', 's', 't']
+const DefaultSettings = {
+    'entriesFromJSON': true,
+    'filter': false,
+}
+for (const setting in DefaultSettings) { if (!state.settings.hasOwnProperty(setting)) { state.settings[setting] = DefaultSettings[setting]}}
 
 // Expressions hold re-usable RegEx.
 const Expressions = {
@@ -25,6 +22,8 @@ const Expressions = {
     "split": /=+/,
     "EWI": /#\[.*\]$/
 }
+const track = (value, attribute) => { if (!Tracker.hasOwnProperty(attribute)) {Tracker[attribute] = [];} const index = Tracker[attribute].findIndex(x => x.includes(value)); index >= 0 ? Tracker[attribute][index].push(value) : Tracker[attribute].push([value]); const result = Tracker[attribute].find(e => e.includes(value)).length; return result > 1 ? result - 1 : 0};
+const Tracker = { }
 // Config for consistency.
 state.config = {
     prefix: /^\n> You \/|^\n> You say "\/|^\/|^\n\//gi,
@@ -38,10 +37,6 @@ state.config = {
     openListener: '<l',
     closeListener: '</l>'
 }
-
-if (!state.settings.ewi) { state.settings.ewi = {} }
-ewiAttribConfig.forEach(attr => { if (!state.settings.ewi.hasOwnProperty(attr)) { state.settings.ewi[attr] = { "range": 4 } } })
-console.log(`Turn: ${info.actionCount}`)
 let { entriesFromJSON } = state.settings;
 const { whitelistPath, synonymsPath, pathSymbol, wildcardPath, configPath, libraryPath, openListener, closeListener } = state.config;
 const internalPaths = [whitelistPath, synonymsPath, libraryPath]
@@ -115,7 +110,7 @@ const regExMatch = (keys) =>
         array.forEach(line =>
         {
 
-            const length = getAttributes(line.slice(/#\[.*\]/.test(line) ? line.lastIndexOf('#') : 0)).find(e => e[0] == 'l')
+            const length = getAttributes(line).find(e => e[0] == 'l')
             const string = getHistoryString(length ? -length[1] : 0).slice(-info.maxChars);
             const expressions = line.slice(0, /#\[.*\]/.test(line) ? line.lastIndexOf('#') : line.length).split(/(?<!\\),/g);
             if (expressions.every(exp => { const regEx = new RegExp(exp.replace(/\\/g, ''), 'i'); return regEx.test(string); }))
@@ -133,7 +128,7 @@ const regExMatch = (keys) =>
     return [result.pop(), key]
 }
 
-const getAttributes = (string) => { const match = string.match(Expressions["attributes"]); if (Boolean(match[0])) { return match.map(e => e.includes('=') ? e.split(Expressions["split"]) : [e, 0]) } }
+const getAttributes = (string) => { const index = string.search(Expressions["EWI"]); if (index >= 0) { const match = string.slice(index).match(Expressions["attributes"]); if (Boolean(match[0])) { return match.map(e => e.includes('=') ? e.split(Expressions["split"]) : [e, 0]) } } }
 const lens = (obj, path) => path.split('.').reduce((o, key) => o && o[key] ? o[key] : null, obj);
 const replaceLast = (x, y, z) => { let a = x.split(""); let length = y.length; if (x.lastIndexOf(y) != -1) { for (let i = x.lastIndexOf(y); i < x.lastIndexOf(y) + length; i++) { if (i == x.lastIndexOf(y)) { a[i] = z; } else { delete a[i]; } } } return a.join(""); }
 const getMemory = (text) => { return info.memoryLength ? text.slice(0, info.memoryLength) : '' } // If memoryLength is set then slice of the beginning until the end of memoryLength, else return an empty string.
@@ -142,9 +137,8 @@ const getContext = (text) => { return info.memoryLength ? text.slice(info.memory
 // Extract the last cluster in the RegEx' AND check then filter out non-word/non-whitespace symbols to TRY and assemble the intended words.
 const addDescription = (entry, value = 0) =>
 {
-    const range = entryFunctions['d']['range'];
     const result = entry["keys"].pop()
-    let search = lines.slice(-range).join('\n');
+    let search = lines.join('\n');
     // Find a match for the last expression and grab the most recent word for positioning. Filter out undefined/false values.
     if (search.includes(result) && result && !Boolean(value))
     {
@@ -158,22 +152,16 @@ const addDescription = (entry, value = 0) =>
     }
 }
 
-const addAuthorsNote = (entry, value = 0) => state.memory.authorsNote = `${entry["entry"]}`
-const showWorldEntry = (entry, value = 0) => entry.isNotHidden = true
-const addPositionalEntry = (entry, value = 0) =>
-{
-    const range = entryFunctions['p']['range'];
-    const result = entry["keys"][0];
-    if (lines.slice(-range).join('\n').includes(result)) { spliceContext((Boolean(value) ? -(value) : lines.length), entry["entry"]) }
-}
-
+// Reference to Object is severed during processing, so index it instead.
+const addAuthorsNote = (entry, value = 0) => { const index = getEntryIndex(entry["keys"]); if (index >= 0) { state.memory.authorsNote = `${entry["entry"]}` } }
+const showWorldEntry = (entry, value = 0) => { const index = getEntryIndex(entry["keys"]); if (index >= 0) { worldEntries[index].isNotHidden = true; } }
+const addPositionalEntry = (entry, value = 0) => {spliceContext((Boolean(value) ? -(value - track(value, 'p')) : lines.length - track(value, 'lines')), entry["entry"]); }
 const addMemoryEntry = (entry, value = 0) =>
 {
 
     if ((info.memoryLength + contextMemoryLength + entry["entry"].length) < (info.maxChars / 2))
     {
-        contextMemoryLength += entry["entry"].length
-        memoryStack.push([Boolean(value) ? -(value) : memoryLines.length, entry["entry"]])
+        spliceMemory(Boolean(value) ? -(value - track(value, 'm')) : (memoryLines.length - track(value, 'memoryLines')), entry["entry"]);
     }
 
 }
@@ -183,7 +171,7 @@ const addTrailingEntry = (entry, value = 0) =>
     lines.forEach((line, i) => { if (line.includes(entry["keys"])) { finalIndex = i; } })
     if (finalIndex >= 0)
     {
-        spliceContext((finalIndex) - value, entry["entry"])
+        spliceContext((finalIndex - track(finalIndex, 't')) - value, entry["entry"])
     }
     return;
 }
@@ -351,12 +339,8 @@ const spliceContext = (pos, string) =>
     return
 }
 
-const memoryStack = [];
-const insertMemoryStack = () => memoryStack.forEach(e => spliceMemory(e[0], e[1]));
 const spliceMemory = (pos, string) =>
 {
-
-
     contextMemoryLength += string.length;
     memoryLines.splice(pos, 0, string);
     return
@@ -364,16 +348,14 @@ const spliceMemory = (pos, string) =>
 }
 
 const cleanString = (string) => string.replace(/\\/g, '').replace(Expressions["listener"], '').replace(Expressions["invalid"], '').replace(Expressions["clean"], '');
-//[tavern|inn, Keysworth, tavern-keeper|tavernkeeper], [${obj}, look|watch|spectate, hair]
-
-// TODO: Get the sprawler into a functional state, but that depends on supplimental functions such as 'getRootSynonyms' and the 'globalReplacer'.
-// For parity: 'globalReplacer' might need to be shifted out with a local one and processed on each individual Object as search-length within context will vary depending on float and the blockers in RegEx.
 const insertJSON = () =>
 {
 
     // Cleanup edge-cases of empty Objects in the presented string.
     const { globalWhitelist } = state.settings;
     console.log(`Global Whitelist: ${globalWhitelist}`)
+
+    const list = []
     for (const data in dataStorage)
     {
 
@@ -386,11 +368,12 @@ const insertJSON = () =>
             if (string.length > 4)
             {
                 const object = { "keys": dataStorage[data][synonymsPath].split('\n').map(e => !e.includes('#') ? e + '#[t]' : e).join('\n'), "entry": `[${string}]` }
-                sortList.push(object)
+                list.push(object)
             }
 
         }
     }
+    if (list.length > 0) {sortObjects(list)};
 }
 
 const Attributes = {
@@ -405,8 +388,6 @@ const Attributes = {
     't': addTrailingEntry, // [t] adds the entry at a line relative to the activator in context. [t=2] will trail context two lines behind the activating word.
     'l': () => {}
 }
-// A master list that is used for sorting before processing entries.
-const sortList = []
 const pickRandom = () =>
 {
     const lists = groupElementsBy(worldEntries.filter(e => /#.*\[.*r.*\]/.test(e.keys)));
@@ -414,12 +395,12 @@ const pickRandom = () =>
     lists.forEach(e => result.push(e[Math.floor(Math.random() * e.length)]))
     return result.flat()
 }
-const processWorldEntries = () =>
+const getEWI = () =>
 {
     const entries = pickRandom(); // Ensure unique assortment of entries that adhere to the [r] attribute if present.
-    entries.filter(e => Expressions["EWI"].test(e["keys"])).forEach(wEntry => sortList.push(wEntry));
+    return entries.filter(e => Expressions["EWI"].test(e["keys"]))
 }
-
+const processEWI = () => sortObjects(getEWI());
 const execAttributes = (keys, entry, attributes) =>
 {
     if (attributes.length > 0)
@@ -435,22 +416,26 @@ const execAttributes = (keys, entry, attributes) =>
 
 // Sort all Objects/entries by the order of most-recent mention before processing.
 // expects sortList to be populated by Objects with properties {"key": string, "entry": string}
-const sortObjects = () =>
+const sortObjects = (list) =>
 {
+    
     const search = lines.join('\n')
-    sortList.map(e =>
+    list.map(e =>
         {
-            const match = regExMatch(getPlaceholder(e["keys"]));
-
-            if (Boolean(match[0]))
+            if (e.hasOwnProperty("keys"))
             {
-                return { "index": search.lastIndexOf(match.length > 1 ? match[0][match[0].length - 1] : match), "matches": match, "entry": e["entry"] };
+                const match = regExMatch(getPlaceholder(e["keys"]));
+                
+                if (Boolean(match[0]))
+                {
+                    return { "index": search.lastIndexOf(match.length > 1 ? match[0][match[0].length - 1] : match), "matches": match, "entry": e["entry"] };
+                }
             }
         })
     .filter(Boolean)
+    .filter(e => Expressions["EWI"].test(e["matches"][1]))
     .sort((a, b) => b["index"] - a["index"])
-    .forEach(e => { console.log(e["matches"], e["entry"]);
-        execAttributes(e["matches"][0], e["entry"], /#\[.*\]/.test(e["matches"][1]) ? getAttributes(e["matches"][1].slice(e["matches"][1].lastIndexOf('#'))) : undefined) })
+    .forEach(e => execAttributes(e["matches"][0], e["entry"], getAttributes(e["matches"][1])))
 
 }
 
