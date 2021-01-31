@@ -10,6 +10,8 @@ let modifiedText = text.toLowerCase();
 let modifiedContext = context.toLowerCase();
 let memoryLinesLength = memoryLines.length
 
+let copyLines = [...lines];
+let copyMemoryLines = [...memoryLines];
 
 const modifier = (text) =>
 {
@@ -55,10 +57,16 @@ const modifier = (text) =>
         },
         "Check the inserted JSON- lines for the presence of worldEntries keywords.":
         {
-            "req": state.settings["entriesFromJSON"],
+            "req": state.settings["cross"],
             "args": null,
-            "exec": entriesFromJSONLines
+            "exec": crossLines
         },
+       /*  "Add the Stacks":
+        {
+            "req": Stacks,
+            "args": null,
+            "exec": addStacks
+        }, */
         "Create an always visible entry that displays all created roots for Objects.":
         {
             "req": true,

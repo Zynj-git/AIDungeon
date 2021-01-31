@@ -6,10 +6,11 @@ if (!state.generate) { state.generate = {} }
 if (!state.settings) { state.settings = {} }
 if (!state.settings.globalWhitelist) { state.settings.globalWhitelist = [] }
 const DefaultSettings = {
-    'entriesFromJSON': true,
+    'cross': true,
     'filter': false,
+    'mode': true,
 }
-for (const setting in DefaultSettings) { if (!state.settings.hasOwnProperty(setting)) { state.settings[setting] = DefaultSettings[setting]}}
+for (const setting in DefaultSettings) { if (!state.settings.hasOwnProperty(setting)) { state.settings[setting] = DefaultSettings[setting] } }
 
 // Expressions hold re-usable RegEx.
 const Expressions = {
@@ -22,8 +23,8 @@ const Expressions = {
     "split": /=+/,
     "EWI": /#\[.*\]$/
 }
-const track = (value, attribute) => { if (!Tracker.hasOwnProperty(attribute)) {Tracker[attribute] = [];} const index = Tracker[attribute].findIndex(x => x.includes(value)); index >= 0 ? Tracker[attribute][index].push(value) : Tracker[attribute].push([value]); const result = Tracker[attribute].find(e => e.includes(value)).length; return result > 1 ? result - 1 : 0};
-const Tracker = { }
+
+const Tracker = {}
 // Config for consistency.
 state.config = {
     prefix: /^\n> You \/|^\n> You say "\/|^\/|^\n\//gi,
@@ -37,7 +38,7 @@ state.config = {
     openListener: '<l',
     closeListener: '</l>'
 }
-let { entriesFromJSON } = state.settings;
+let { cross } = state.settings;
 const { whitelistPath, synonymsPath, pathSymbol, wildcardPath, configPath, libraryPath, openListener, closeListener } = state.config;
 const internalPaths = [whitelistPath, synonymsPath, libraryPath]
 
@@ -110,8 +111,9 @@ const regExMatch = (keys) =>
         array.forEach(line =>
         {
 
-            const length = getAttributes(line).find(e => e[0] == 'l')
-            const string = getHistoryString(length ? -length[1] : 0).slice(-info.maxChars);
+            const attributes = getAttributes(line);
+            const length = attributes ? attributes.find(e => e[0] == 'l') : undefined;
+            const string = state.settings["mode"] ? getHistoryString(length ? -length[1] : 0).slice(-info.maxChars) : lines.slice(length ? -length[1] : 0).join('\n');
             const expressions = line.slice(0, /#\[.*\]/.test(line) ? line.lastIndexOf('#') : line.length).split(/(?<!\\),/g);
             if (expressions.every(exp => { const regEx = new RegExp(exp.replace(/\\/g, ''), 'i'); return regEx.test(string); }))
             {
@@ -155,31 +157,44 @@ const addDescription = (entry, value = 0) =>
 // Reference to Object is severed during processing, so index it instead.
 const addAuthorsNote = (entry, value = 0) => { const index = getEntryIndex(entry["keys"]); if (index >= 0) { state.memory.authorsNote = `${entry["entry"]}` } }
 const showWorldEntry = (entry, value = 0) => { const index = getEntryIndex(entry["keys"]); if (index >= 0) { worldEntries[index].isNotHidden = true; } }
-const addPositionalEntry = (entry, value = 0) => {spliceContext((Boolean(value) ? -(value - track(value, 'p')) : lines.length - track(value, 'lines')), entry["entry"]); }
+const addPositionalEntry = (entry, value = 0) => { spliceContext((Boolean(value) ? -(value) : copyLines.length), entry["entry"]); }
 const addMemoryEntry = (entry, value = 0) =>
 {
-
     if ((info.memoryLength + contextMemoryLength + entry["entry"].length) < (info.maxChars / 2))
     {
-        spliceMemory(Boolean(value) ? -(value - track(value, 'm')) : (memoryLines.length - track(value, 'memoryLines')), entry["entry"]);
+        spliceMemory(Boolean(value) ? -(value) : (copyMemoryLines.length), entry["entry"]);
     }
 
 }
+
 const addTrailingEntry = (entry, value = 0) =>
 {
     let finalIndex = -1;
-    lines.forEach((line, i) => { if (line.includes(entry["keys"])) { finalIndex = i; } })
+    copyLines.forEach((line, i) => { if (line.includes(entry["keys"][0])) { finalIndex = i; } })
     if (finalIndex >= 0)
     {
-        spliceContext((finalIndex - track(finalIndex, 't')) - value, entry["entry"])
+        spliceContext((finalIndex) - value, entry["entry"])
     }
     return;
+}
+
+const Attributes = {
+    'a': addAuthorsNote, // [a] adds it as authorsNote, only one authorsNote at a time.
+    's': showWorldEntry, // [r] reveals the entry once mentioned, used in conjuction with [e] to only reveal if all keywords are mentioned at once.
+    'e': () => {}, // [e] tells the custom keyword check to only run the above functions if every keyword of the entry matches.
+    'd': addDescription, // [d] adds the first sentence of the entry as a short, parenthesized descriptor to the last mention of the revelant keyword(s) e.g John (a business man)
+    'r': () => {}, // [r] picks randomly between entries with the same matching keys. e.g 'you.*catch#[rp=1]' and 'you.*catch#[rd]' has 50% each to be picked.
+    'm': addMemoryEntry,
+    'p': addPositionalEntry, // Inserts the <entry> <value> amount of lines into context, e.g [p=1] inserts it one line into context.
+    'w': () => {}, // [w] assigns the weight attribute, the higher value the more recent/relevant it will be in context/frontMemory/intermediateMemory etc.
+    't': addTrailingEntry, // [t] adds the entry at a line relative to the activator in context. [t=2] will trail context two lines behind the activating word.
+    'l': () => {}
 }
 
 const getWhitelist = () => { const index = getEntryIndex('_whitelist.'); return index >= 0 ? worldEntries[index]["entry"].toLowerCase().split(/,|\n/g).map(e => e.trim()) : [] }
 const getWildcard = (display, offset = 0) => { const wildcard = display.split('.').slice(offset != 0 ? 0 : 1).join('.'); const list = display.split('.'); const index = list.indexOf(wildcard.slice(wildcard.lastIndexOf('.') + 1)); return [list[index].replace(wildcardPath, ''), index + offset] }
 const getPlaceholder = (value) => typeof value == 'string' ? value.replace(Expressions["placeholder"], match => dataStorage[libraryPath][match.replace(/\$\{|\}/g, '')]) : value
-const updateListener = (value, search, display, visited) =>
+const updateListener = (value, display, visited) =>
 {
     // Check if it has previously qualified in 'visited' instead of running regExMatch on each node.
     const qualified = visited.some(e => e.includes(display.split('.')[0]));
@@ -248,18 +263,16 @@ const globalReplacer = () =>
             const final = replace.call(this, key, value, display);
             let current;
 
-            // If the key is in the _whitelist, then implicitly push it.
             if (Boolean(key) && (whitelist.includes(key)))
             {
-                paths.push(key);
-                if (typeof value == 'string' && value.includes(closeListener)) { updateListener(value, search, display, visited); }
+                if (typeof value == 'string' && value.includes(closeListener)) { updateListener(value, display, visited); }
             }
 
             else if (typeof value == 'string')
             {
                 // Only match paths in `_synonyms`.
                 const match = display.startsWith(synonymsPath) ? regExMatch(getPlaceholder(value)) : undefined;
-                if (value.includes(closeListener)) { updateListener(value, search, display, visited); }
+                if (value.includes(closeListener)) { updateListener(value, display, visited); }
                 // Key is a wildcard and its value qualifies the regEx match.
                 if (key.includes(wildcardPath) && Boolean(value) && Boolean(match[0])) { wildcards.push(getWildcard(display)) }
                 // The current path contains one of the wildcards.
@@ -268,7 +281,7 @@ const globalReplacer = () =>
                     const array = display.split('.');
                     paths.push(array);
                 }
-                else if (display.startsWith(synonymsPath) && Boolean(value) && Boolean(match[0])) { paths.push(display.split('.')); }
+                else if (display.startsWith(synonymsPath) && Boolean(value) && Boolean(match[0])) { paths.push([display.split('.'), lines.join('\n').lastIndexOf(match[0][match[0].length - 1])]); }
 
             }
             return final;
@@ -276,7 +289,7 @@ const globalReplacer = () =>
     }
 
     JSON.stringify(dataStorage, replacer(function(key, value, path) { return value; }));
-    return [...new Set([...whitelist, ...paths.flat()])].filter(e => !internalPaths.includes(e)).map(e => e.replace(wildcardPath, ''))
+    return [...new Set([...whitelist, ...paths.sort((a, b) => a[1] - b[1]).map(e => e[0]).flat()])].filter(e => !internalPaths.includes(e)).map(e => e.replace(wildcardPath, ''))
 }
 
 // globalWhitelist - Should only make one call to it per turn in context modifiers. Other modifiers access it via state.
@@ -373,21 +386,9 @@ const insertJSON = () =>
 
         }
     }
-    if (list.length > 0) {sortObjects(list)};
+    if (list.length > 0) { sortObjects(list) };
 }
 
-const Attributes = {
-    'a': addAuthorsNote, // [a] adds it as authorsNote, only one authorsNote at a time.
-    's': showWorldEntry, // [r] reveals the entry once mentioned, used in conjuction with [e] to only reveal if all keywords are mentioned at once.
-    'e': () => {}, // [e] tells the custom keyword check to only run the above functions if every keyword of the entry matches.
-    'd': addDescription, // [d] adds the first sentence of the entry as a short, parenthesized descriptor to the last mention of the revelant keyword(s) e.g John (a business man)
-    'r': () => {}, // [r] picks randomly between entries with the same matching keys. e.g 'you.*catch#[rp=1]' and 'you.*catch#[rd]' has 50% each to be picked.
-    'm': addMemoryEntry,
-    'p': addPositionalEntry, // Inserts the <entry> <value> amount of lines into context, e.g [p=1] inserts it one line into context.
-    'w': () => {}, // [w] assigns the weight attribute, the higher value the more recent/relevant it will be in context/frontMemory/intermediateMemory etc.
-    't': addTrailingEntry, // [t] adds the entry at a line relative to the activator in context. [t=2] will trail context two lines behind the activating word.
-    'l': () => {}
-}
 const pickRandom = () =>
 {
     const lists = groupElementsBy(worldEntries.filter(e => /#.*\[.*r.*\]/.test(e.keys)));
@@ -418,17 +419,16 @@ const execAttributes = (keys, entry, attributes) =>
 // expects sortList to be populated by Objects with properties {"key": string, "entry": string}
 const sortObjects = (list) =>
 {
-    
     const search = lines.join('\n')
     list.map(e =>
         {
             if (e.hasOwnProperty("keys"))
             {
                 const match = regExMatch(getPlaceholder(e["keys"]));
-                
+
                 if (Boolean(match[0]))
                 {
-                    return { "index": search.lastIndexOf(match.length > 1 ? match[0][match[0].length - 1] : match), "matches": match, "entry": e["entry"] };
+                    return { "index": search.lastIndexOf(match[0][match[0].length - 1]), "matches": match, "entry": e["entry"] };
                 }
             }
         })
@@ -439,7 +439,7 @@ const sortObjects = (list) =>
 
 }
 
-const entriesFromJSONLines = () =>
+const crossLines = () =>
 {
     const JSONLines = lines.filter(line => /\[\{.*\}\]/.test(line));
     const JSONString = JSONLines.join('\n');
@@ -463,19 +463,7 @@ const entriesFromJSONLines = () =>
         }
     })
 }
-const parseGen = (text) =>
-{
-    state.generate.process = false;
-    const string = fixDepth(`${state.generate.sections.primer}${text}`);
-    const toParse = string.match(/{.*}/);
-    if (toParse)
-    {
-        const obj = JSON.parse(toParse[0]);
-        worldEntriesFromObject(obj, state.generate.root.split(' ')[0]);
-        state.message = `Generated Object for ${state.generate.root} as type ${state.generate.types[0]}\nResult: ${JSON.stringify(obj)}`
-    }
-    else { state.message = `Failed to parse AI Output for Object ${state.generate.root} type ${state.generate.type[0]}` }
-}
+
 const parseAsRoot = (text, root) =>
 {
     const toParse = text.match(/{.*}/g);
@@ -588,13 +576,13 @@ state.commandList = {
     cross:
     {
         name: 'cross',
-        description: `Toggles fetching of World Information from JSON Lines: ${state.settings["entriesFromJSON"]}`,
+        description: `Toggles fetching of World Information from JSON Lines: ${state.settings["cross"]}`,
         args: false,
         execute: (args) =>
         {
 
-            state.settings["entriesFromJSON"] = !state.settings["entriesFromJSON"];
-            state.message = `World Information from JSON Lines: ${state.settings["entriesFromJSON"]}`
+            state.settings["cross"] = !state.settings["cross"];
+            state.message = `World Information from JSON Lines: ${state.settings["cross"]}`
             return
         }
     },
@@ -614,7 +602,7 @@ state.commandList = {
     {
         name: "from",
         description: 'Creates an Object with the given root from the passed JSON- line.',
-        args: 'true',
+        args: true,
         usage: '<root> <JSON- Line/Object>',
         execute: (args) =>
         {
@@ -629,7 +617,7 @@ state.commandList = {
     {
         name: "hud",
         description: "Tracks the Object in the HUD",
-        args: 'true',
+        args: true,
         usage: '<root>',
         execute: (args) =>
         {
@@ -648,5 +636,19 @@ state.commandList = {
             }
 
         }
+    },
+    mode:
+    {
+        name: "mode",
+        description: "Switches between actions (true) or lines (false) for conditions.",
+        args: false,
+        usage: '',
+        execute: (args) =>
+        {
+            state.settings.mode = !state.settings.mode
+            state.message = `Conditions now search amount of ${state.settings.mode == true ? 'actions' : 'lines'}.`
+        }
     }
+
+
 };
