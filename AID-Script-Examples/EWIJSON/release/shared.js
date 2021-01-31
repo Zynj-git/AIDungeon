@@ -24,8 +24,9 @@ const Expressions = {
     "EWI": /#\[.*\]$/
 }
 
-const track = (value, attribute) => { if (!Tracker.hasOwnProperty(attribute)) {Tracker[attribute] = [];} const index = Tracker[attribute].findIndex(x => x.includes(value)); index >= 0 ? Tracker[attribute][index].push(value) : Tracker[attribute].push([value]); const result = Tracker[attribute].find(e => e.includes(value)).length; return result > 1 ? result - 1 : 0};
-const Tracker = { }
+const track = (value, attribute) => { if (!Tracker.hasOwnProperty(attribute)) { Tracker[attribute] = []; } const index = Tracker[attribute].findIndex(x => x.includes(value));
+    index >= 0 ? Tracker[attribute][index].push(value) : Tracker[attribute].push([value]); const result = Tracker[attribute].find(e => e.includes(value)).length; return result > 1 ? result - 1 : 0 };
+const Tracker = {}
 
 // Config for consistency.
 state.config = {
@@ -282,7 +283,7 @@ const globalReplacer = () =>
                 else if (wildcards.some(e => { if (display.split('.')[e[1]] == e[0]) { current = e[0]; return true } }))
                 {
                     const array = display.split('.');
-                    paths.push(array);
+                    paths.push([array, 0]);
                 }
                 else if (display.startsWith(synonymsPath) && Boolean(value) && Boolean(match[0])) { paths.push([display.split('.'), lines.join('\n').lastIndexOf(match[0][match[0].length - 1])]); }
 
@@ -291,6 +292,7 @@ const globalReplacer = () =>
         }
     }
 
+    console.log(paths)
     JSON.stringify(dataStorage, replacer(function(key, value, path) { return value; }));
     return [...new Set([...whitelist, ...paths.sort((a, b) => a[1] - b[1]).map(e => e[0]).flat()])].filter(e => !internalPaths.includes(e)).map(e => e.replace(wildcardPath, ''))
 }
