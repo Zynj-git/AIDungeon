@@ -24,7 +24,9 @@ const Expressions = {
     "EWI": /#\[.*\]$/
 }
 
-const Tracker = {}
+const track = (value, attribute) => { if (!Tracker.hasOwnProperty(attribute)) {Tracker[attribute] = [];} const index = Tracker[attribute].findIndex(x => x.includes(value)); index >= 0 ? Tracker[attribute][index].push(value) : Tracker[attribute].push([value]); const result = Tracker[attribute].find(e => e.includes(value)).length; return result > 1 ? result - 1 : 0};
+const Tracker = { }
+
 // Config for consistency.
 state.config = {
     prefix: /^\n> You \/|^\n> You say "\/|^\/|^\n\//gi,
@@ -170,7 +172,8 @@ const addMemoryEntry = (entry, value = 0) =>
 const addTrailingEntry = (entry, value = 0) =>
 {
     let finalIndex = -1;
-    copyLines.forEach((line, i) => { if (line.includes(entry["keys"][0])) { finalIndex = i; } })
+    console.log(entry["keys"][0])
+    lines.forEach((line, i) => { if (line.includes(entry["keys"][0])) { finalIndex = i; } })
     if (finalIndex >= 0)
     {
         spliceContext((finalIndex) - value, entry["entry"])
