@@ -165,7 +165,7 @@ const addMemoryEntry = (entry, value = 0) =>
 {
     if ((info.memoryLength + contextMemoryLength + entry["entry"].length) < (info.maxChars / 2))
     {
-        spliceMemory(Boolean(value) ? -(value) : (copyMemoryLines.length), entry["entry"]);
+        spliceMemory(Boolean(value) ? -(value) : (copyMemoryLines.length - 1), entry["entry"]);
     }
 
 }
