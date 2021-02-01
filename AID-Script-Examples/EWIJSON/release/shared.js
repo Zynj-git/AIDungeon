@@ -173,7 +173,6 @@ const addMemoryEntry = (entry, value = 0) =>
 const addTrailingEntry = (entry, value = 0) =>
 {
     let finalIndex = -1;
-    console.log(entry["keys"][0])
     lines.forEach((line, i) => { if (line.includes(entry["keys"][0])) { finalIndex = i; } })
     if (finalIndex >= 0)
     {
@@ -292,7 +291,7 @@ const globalReplacer = () =>
         }
     }
 
-    console.log(paths)
+
     JSON.stringify(dataStorage, replacer(function(key, value, path) { return value; }));
     return [...new Set([...whitelist, ...paths.sort((a, b) => a[1] - b[1]).map(e => e[0]).flat()])].filter(e => !internalPaths.includes(e)).map(e => e.replace(wildcardPath, ''))
 }
