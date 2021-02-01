@@ -450,7 +450,7 @@ const crossLines = () =>
     const JSONString = JSONLines.join('\n');
     worldEntries.forEach(e =>
     {
-        if (e["keys"].includes('.') && !e["keys"].includes('#'))
+        if (!e["keys"].includes('.')) // Handle regular entries - EWI likely fails test.
         {
             e["keys"].split(',').some(keyword =>
             {
@@ -460,11 +460,22 @@ const crossLines = () =>
 
                     if (info.memoryLength + contextMemoryLength + e["entry"].length <= info.maxChars / 2)
                     {
-                        spliceMemory(memory.split('\n').length, e["entry"]);
+                        spliceMemory(memoryLines.length - 1, e["entry"]);
                         return true;
                     }
                 }
             })
+        }
+        if (Expressions["EWI"].test(e["keys"])) // Handle EWI entries.
+        {
+            if (regExMatch(e["keys"] && !text.includes(e["entry"])))
+            {
+                if (info.memoryLength + contextMemoryLength + e["entry"].length <= info.maxChars / 2)
+                    {
+                        spliceMemory(memoryLines.length - 1, e["entry"]);
+                        return true;
+                    }
+            }
         }
     })
 }
