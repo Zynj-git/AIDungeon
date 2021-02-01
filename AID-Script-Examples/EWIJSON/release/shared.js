@@ -443,7 +443,7 @@ const sortObjects = (list) =>
     .forEach(e => execAttributes(e["matches"][0], e["entry"], getAttributes(e["matches"][1])))
 
 }
-
+// TEST
 const crossLines = () =>
 {
     const JSONLines = lines.filter(line => /\[\{.*\}\]/.test(line));
