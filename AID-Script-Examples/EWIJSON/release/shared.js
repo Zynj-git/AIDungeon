@@ -19,13 +19,21 @@ const Expressions = {
     "clean": /,\s*(?=})/g,
     "listener": /<l=[^>]*>|<\/l>/g,
     "placeholder": /\$\{[^{}]*}/g,
-    "attributes": /(\w(=+\d*)?)/g,
+    "attributes": /(\w(=+-*\d*)?)/g,
     "split": /=+/,
-    "EWI": /#\[.*\]$/
+    "EWI": /#\[.*\]$/,
+    "flags": /(?<=^\/.*\/)([ygmiu]+)/,
+    "expectFlags": /(?<=^\/.*\/)/
 }
 
-const track = (value, attribute) => { if (!Tracker.hasOwnProperty(attribute)) { Tracker[attribute] = []; } const index = Tracker[attribute].findIndex(x => x.includes(value));
-    index >= 0 ? Tracker[attribute][index].push(value) : Tracker[attribute].push([value]); const result = Tracker[attribute].find(e => e.includes(value)).length; return result > 1 ? result - 1 : 0 };
+const track = (value, attribute) =>
+{
+    if (!Tracker.hasOwnProperty(attribute)) { Tracker[attribute] = []; }
+    const index = Tracker[attribute].findIndex(x => x.includes(value));
+    index >= 0 ? Tracker[attribute][index].push(value) : Tracker[attribute].push([value]);
+    const result = Tracker[attribute].find(e => e.includes(value)).length;
+    return result > 1 ? result - 1 : 0
+};
 const Tracker = {}
 
 // Config for consistency.
@@ -92,8 +100,8 @@ String.prototype.regexLastIndexOf = function(regex, startpos)
     }
     return lastIndexOf;
 }
-const getHistoryString = (turns) => history.slice(turns).map(e => e["text"]).join(' ') // Returns a single string of the text.
-const getHistoryText = (turns) => history.slice(turns).map(e => e["text"]) // Returns an array of text.
+const getHistoryString = (start, end = undefined) => history.slice(start, end).map(e => e["text"]).join('\n') // Returns a single string of the text.
+const getHistoryText = (start, end) => history.slice(start, end).map(e => e["text"]) // Returns an array of text.
 const getActionTypes = (turns) => history.slice(turns).map(e => e["type"]) // Returns the action types of the previous turns in an array.
 
 // Ensure that '_synonyms' is processed first in the loop. It's executed if (Object.keys(dataStorage)[0] != synonymsPath)
@@ -101,6 +109,15 @@ const fixOrder = () =>
 {
     dataStorage = Object.assign({ "_whitelist": {}, "_synonyms": {} }, dataStorage);
     state.data = dataStorage
+}
+const getSlice = (string) =>
+{
+    const attributes = getAttributes(string);
+    const length = attributes ? attributes.find(e => e[0] == 'l') || [undefined, undefined] :
+        
+            [undefined, undefined]
+        ;
+    return state.settings["mode"] ? getHistoryText(length[1] > 0 ? -length[1] : 0, length[1] >= 0 ? lines.length : length[1]).slice(-lines.length) : lines.slice(length[1] > 0 ? -length[1] : 0, length[1] >= 0 ? lines.length : length[1]);
 }
 const regExMatch = (keys) =>
 {
@@ -113,15 +130,25 @@ const regExMatch = (keys) =>
     {
         array.forEach(line =>
         {
+            const string = getSlice(line).join('\n')
 
-            const attributes = getAttributes(line);
-            const length = attributes ? attributes.find(e => e[0] == 'l') : undefined;
-            const string = state.settings["mode"] ? getHistoryString(length ? -length[1] : 0).slice(-info.maxChars) : lines.slice(length ? -length[1] : 0).join('\n');
             const expressions = line.slice(0, /#\[.*\]/.test(line) ? line.lastIndexOf('#') : line.length).split(/(?<!\\),/g);
-            if (expressions.every(exp => { const regEx = new RegExp(exp.replace(/\\/g, ''), 'i'); return regEx.test(string); }))
+            if (expressions.every(exp =>
+                {
+                    const regExRaw = exp;
+                    const regExString = regExRaw.replace(/(^\/)|(\/.*)$/g, '').replace(/\\/g, '');
+                    const regExFlags = Expressions["flags"].test(regExRaw) ? [...new Set([...regExRaw.match(Expressions["flags"]).join('').split(''), 'g'])].join('') : Expressions["expectFlags"].test(regExRaw) ? 'g' : 'gi';
+                    const regEx = new RegExp(regExString, regExFlags);
+                    return regEx.test(string);
+                }))
+
             {
                 key = line;
-                result.push([...string.matchAll(new RegExp(expressions.pop(), 'gi'))].filter(Boolean).pop());
+                const regExRawLast = expressions.pop();
+                const regExString = regExRawLast.replace(/(^\/)|(\/.*)$/g, '').replace(/\\/g, '');
+                const regExFlags = Expressions["flags"].test(regExRawLast) ? [...new Set([...regExRawLast.match(Expressions["flags"]).join('').split(''), 'g'])].join('') : Expressions["expectFlags"].test(regExRawLast) ? 'g' : 'gi'
+                const regEx = new RegExp(regExString, regExFlags);
+                result.push([...string.matchAll(regEx)].filter(Boolean).pop());
             }
         })
     }
@@ -129,11 +156,12 @@ const regExMatch = (keys) =>
     {
         console.log(`An invalid RegEx was detected!\n${error.name}: ${error.message}`);
         state.message = `An invalid RegEx was detected!\n${error.name}: ${error.message}`
+
     }
     return [result.pop(), key]
 }
 
-const getAttributes = (string) => { const index = string.search(Expressions["EWI"]); if (index >= 0) { const match = string.slice(index).match(Expressions["attributes"]); if (Boolean(match[0])) { return match.map(e => e.includes('=') ? e.split(Expressions["split"]) : [e, 0]) } } }
+const getAttributes = (string) => { const index = string.search(Expressions["EWI"]); if (index >= 0) { const match = string.slice(index).match(Expressions["attributes"]); if (Boolean(match)) { return match.map(e => e.includes('=') ? e.split(Expressions["split"]) : [e, 0]).map(e => [e[0], Number(e[1])]) } } }
 const lens = (obj, path) => path.split('.').reduce((o, key) => o && o[key] ? o[key] : null, obj);
 const replaceLast = (x, y, z) => { let a = x.split(""); let length = y.length; if (x.lastIndexOf(y) != -1) { for (let i = x.lastIndexOf(y); i < x.lastIndexOf(y) + length; i++) { if (i == x.lastIndexOf(y)) { a[i] = z; } else { delete a[i]; } } } return a.join(""); }
 const getMemory = (text) => { return info.memoryLength ? text.slice(0, info.memoryLength) : '' } // If memoryLength is set then slice of the beginning until the end of memoryLength, else return an empty string.
@@ -158,8 +186,8 @@ const addDescription = (entry, value = 0) =>
 }
 
 // Reference to Object is severed during processing, so index it instead.
-const addAuthorsNote = (entry, value = 0) => { const index = getEntryIndex(entry["keys"]); if (index >= 0) { state.memory.authorsNote = `${entry["entry"]}` } }
-const showWorldEntry = (entry, value = 0) => { const index = getEntryIndex(entry["keys"]); if (index >= 0) { worldEntries[index].isNotHidden = true; } }
+const addAuthorsNote = (entry, value = 0) => { const index = getEntryIndex(entry["original"]); if (index >= 0) { state.memory.authorsNote = `${entry["entry"]}` } }
+const showWorldEntry = (entry, value = 0) => { const index = getEntryIndex(entry["original"]); if (index >= 0) { worldEntries[index].isNotHidden = true; } }
 const addPositionalEntry = (entry, value = 0) => { spliceContext((Boolean(value) ? -(value) : copyLines.length), entry["entry"]); }
 const addMemoryEntry = (entry, value = 0) =>
 {
@@ -173,7 +201,7 @@ const addMemoryEntry = (entry, value = 0) =>
 const addTrailingEntry = (entry, value = 0) =>
 {
     let finalIndex = -1;
-    lines.forEach((line, i) => { if (line.includes(entry["keys"][0])) { finalIndex = i; } })
+    getSlice(entry["original"]).forEach((line, i) => { if (line.includes(entry["keys"][0])) { finalIndex = i; } })
     if (finalIndex >= 0)
     {
         spliceContext((finalIndex) - value, entry["entry"])
@@ -406,14 +434,13 @@ const getEWI = () =>
     return entries.filter(e => Expressions["EWI"].test(e["keys"]))
 }
 const processEWI = () => sortObjects(getEWI());
-const execAttributes = (keys, entry, attributes) =>
+const execAttributes = (object) =>
 {
-    if (attributes.length > 0)
+    if (object["attributes"].length > 0)
     {
         try
         {
-            const object = { "keys": keys, "entry": entry };
-            attributes.forEach(pair => { Attributes[pair[0]](object, pair[1]) })
+            object["attributes"].forEach(pair => { Attributes[pair[0]](object, pair[1]) })
         }
         catch (error) { console.log(`${error.name}: ${error.message}`) }
     }
@@ -439,7 +466,7 @@ const sortObjects = (list) =>
     .filter(Boolean)
     .filter(e => Expressions["EWI"].test(e["matches"][1]))
     .sort((a, b) => b["index"] - a["index"])
-    .forEach(e => execAttributes(e["matches"][0], e["entry"], getAttributes(e["matches"][1])))
+    .forEach(e => execAttributes({ "keys": e["matches"][0], "entry": e["entry"], "attributes": getAttributes(e["matches"][1]), "original": e["matches"][1] }))
 
 }
 // TEST
@@ -470,10 +497,10 @@ const crossLines = () =>
             if (regExMatch(e["keys"] && !text.includes(e["entry"])))
             {
                 if (info.memoryLength + contextMemoryLength + e["entry"].length <= info.maxChars / 2)
-                    {
-                        spliceMemory(memoryLines.length - 1, e["entry"]);
-                        return true;
-                    }
+                {
+                    spliceMemory(memoryLines.length - 1, e["entry"]);
+                    return true;
+                }
             }
         }
     })

@@ -4,6 +4,7 @@ delete state.message
 let contextMemory = getMemory(text);
 let context = getContext(text);
 let lines = context.split('\n');
+const linesLength = context.length;
 let memoryLines = contextMemory.split('\n');
 
 let modifiedText = text.toLowerCase();
