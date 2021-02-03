@@ -472,7 +472,7 @@ const crossLines = () =>
 {
     const JSONLines = lines.filter(line => /\[\{.*\}\]/.test(line));
     const JSONString = JSONLines.join('\n');
-    if (true)
+    if (false)
     {
         worldEntries.forEach(e =>
         {
