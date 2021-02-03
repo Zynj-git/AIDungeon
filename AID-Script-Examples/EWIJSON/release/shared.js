@@ -101,7 +101,7 @@ String.prototype.regexLastIndexOf = function(regex, startpos)
     return lastIndexOf;
 }
 const getHistoryString = (start, end = undefined) => history.slice(start, end).map(e => e["text"]).join('\n') // Returns a single string of the text.
-const getHistoryText = (start, end) => history.slice(start, end).map(e => e["text"]) // Returns an array of text.
+const getHistoryText = (start, end = undefined) => history.slice(start, end).map(e => e["text"]) // Returns an array of text.
 const getActionTypes = (turns) => history.slice(turns).map(e => e["type"]) // Returns the action types of the previous turns in an array.
 
 // Ensure that '_synonyms' is processed first in the loop. It's executed if (Object.keys(dataStorage)[0] != synonymsPath)
