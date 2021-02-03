@@ -454,6 +454,7 @@ const sortObjects = (list) =>
             {
                 const match = regExMatch(getPlaceholder(e["keys"]));
 
+
                 if (Boolean(match[0]))
                 {
                     return { "index": search.lastIndexOf(match[0][match[0].length - 1]), "matches": match, "entry": e["entry"] };
@@ -471,36 +472,39 @@ const crossLines = () =>
 {
     const JSONLines = lines.filter(line => /\[\{.*\}\]/.test(line));
     const JSONString = JSONLines.join('\n');
-    worldEntries.forEach(e =>
+    if (true)
     {
-        if (!e["keys"].includes('.')) // Handle regular entries - EWI likely fails test.
+        worldEntries.forEach(e =>
         {
-            e["keys"].split(',').some(keyword =>
+            if (!e["keys"].includes('.')) // Handle regular entries - EWI likely fails test.
             {
-                if (JSONString.toLowerCase().includes(keyword.toLowerCase()) && !text.includes(e["entry"]))
+                e["keys"].split(',').some(keyword =>
                 {
+                    if (JSONString.toLowerCase().includes(keyword.toLowerCase()) && !text.includes(e["entry"]))
+                    {
 
 
+                        if (info.memoryLength + contextMemoryLength + e["entry"].length <= info.maxChars / 2)
+                        {
+                            spliceMemory(memoryLines.length - 1, e["entry"]);
+                            return true;
+                        }
+                    }
+                })
+            }
+            if (Expressions["EWI"].test(e["keys"])) // Handle EWI entries.
+            {
+                if (regExMatch(e["keys"]) && !text.includes(e["entry"]))
+                {
                     if (info.memoryLength + contextMemoryLength + e["entry"].length <= info.maxChars / 2)
                     {
                         spliceMemory(memoryLines.length - 1, e["entry"]);
                         return true;
                     }
                 }
-            })
-        }
-        if (Expressions["EWI"].test(e["keys"])) // Handle EWI entries.
-        {
-            if (regExMatch(e["keys"] && !text.includes(e["entry"])))
-            {
-                if (info.memoryLength + contextMemoryLength + e["entry"].length <= info.maxChars / 2)
-                {
-                    spliceMemory(memoryLines.length - 1, e["entry"]);
-                    return true;
-                }
             }
-        }
-    })
+        })
+    }
 }
 
 const parseAsRoot = (text, root) =>
