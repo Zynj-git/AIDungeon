@@ -198,7 +198,7 @@ const addMemoryEntry = (entry, value = 0) =>
 const addTrailingEntry = (entry, value = 0) =>
 {
     let finalIndex = -1;
-    getSlice(entry["original"]).forEach((line, i) => { if (line.includes(entry["keys"][0])) { finalIndex = i; } })
+    getSlice(entry["original"]).forEach((line, i) => { if (line.includes(entry["keys"][0])) { finalIndex = i; if (state.settings["mode"]) { line.split('\n').forEach((l, index) => {if (l.includes(entry["keys"][0])) {finalIndex = i + (index - 1)}})} } })
     if (finalIndex >= 0)
     {
         spliceContext((finalIndex) - value, entry["entry"])
