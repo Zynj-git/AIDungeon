@@ -113,10 +113,7 @@ const fixOrder = () =>
 const getSlice = (string) =>
 {
     const attributes = getAttributes(string);
-    const length = attributes ? attributes.find(e => e[0] == 'l') || [undefined, undefined] :
-        
-            [undefined, undefined]
-        ;
+    const length = attributes ? attributes.find(e => e[0] == 'l') || [undefined, undefined] : [undefined, undefined];
     return state.settings["mode"] ? getHistoryText(length[1] > 0 ? -length[1] : 0, length[1] >= 0 ? lines.length : length[1]).slice(-lines.length) : lines.slice(length[1] > 0 ? -length[1] : 0, length[1] >= 0 ? lines.length : length[1]);
 }
 const regExMatch = (keys) =>
