@@ -198,7 +198,7 @@ const getSlice = (string, mode = true) =>
     if (mode)
     {
         let measure = 0;
-        const compare = lines.length;
+        const compare = copyLines.length;
         let actions = 0;
 
         for (let i = history.length - 1; i >= 0; i--)
@@ -210,12 +210,12 @@ const getSlice = (string, mode = true) =>
                 measure += test.length;
                 actions++;
             }
-            else { if (lines.some(l => history[i]["text"].includes(l))) { actions++} break;}
+            else { if (copyLines.some(l => history[i]["text"].includes(l))) { actions++} break;}
         }
 
         return slice = getHistoryText(length[1] > 0 ? -length[1] : -actions, length[1] >= 0 ? history.length : length[1])
     }
-    else { return lines.slice(length[1] > 0 ? -length[1] : 0, length[1] >= 0 ? lines.length : length[1]); }
+    else { return copyLines.slice(length[1] > 0 ? -length[1] : 0, length[1] >= 0 ? copyLines.length : length[1]); }
 }
 const addTrailingEntry = (entry, value = 0) =>
 {
@@ -224,21 +224,21 @@ const addTrailingEntry = (entry, value = 0) =>
 
     if (state.settings.mode)
     {
-        for (let i = lines.length - 1; i >= 0; i--)
+        for (let i = copyLines.length - 1; i >= 0; i--)
         {
             for (let j = range.length - 1; j >= 0; j--)
             {
                 const action = range[j].split('\n');
                 
 
-                if (action.some(e => lines[i].includes(e) && e.includes(entry["keys"][0]))) {finalIndex = i; break;}
+                if (action.some(e => copyLines[i].includes(e) && e.includes(entry["keys"][0]))) {finalIndex = i; break;}
 
 
             }
             if (finalIndex >= 0) {break;}
         }
     }
-    else { range.forEach((line, i) => { if (line.includes(entry["keys"][0])) { console.log(i); finalIndex = i ; } }) }
+    else { range.forEach((line, i) => { if (line.includes(entry["keys"][0])) {  finalIndex = i ; } }) }
 
 
 
