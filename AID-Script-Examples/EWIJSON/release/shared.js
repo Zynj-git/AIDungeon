@@ -110,12 +110,7 @@ const fixOrder = () =>
     dataStorage = Object.assign({ "_whitelist": {}, "_synonyms": {} }, dataStorage);
     state.data = dataStorage
 }
-const getSlice = (string) =>
-{
-    const attributes = getAttributes(string);
-    const length = attributes ? attributes.find(e => e[0] == 'l') || [undefined, undefined] : [undefined, undefined];
-    return state.settings["mode"] ? getHistoryText(length[1] > 0 ? -length[1] : 0, length[1] >= 0 ? lines.length : length[1]).slice(-lines.length) : lines.slice(length[1] > 0 ? -length[1] : 0, length[1] >= 0 ? lines.length : length[1]);
-}
+
 const regExMatch = (keys) =>
 {
     if (typeof keys != 'string') { console.log(`Invalid Expressions: ${keys}`); return }
@@ -127,7 +122,7 @@ const regExMatch = (keys) =>
     {
         array.forEach(line =>
         {
-            const string = getSlice(line).join('\n')
+            const string = getSlice(line, state.settings.mode).join('\n')
 
             const expressions = line.slice(0, /#\[.*\]/.test(line) ? line.lastIndexOf('#') : line.length).split(/(?<!\\),/g);
             if (expressions.every(exp =>
@@ -151,12 +146,13 @@ const regExMatch = (keys) =>
     }
     catch (error)
     {
-        console.log(`An invalid RegEx was detected!\n${error.name}: ${error.message}`);
-        state.message = `An invalid RegEx was detected!\n${error.name}: ${error.message}`
+        console.log(`In regExMatch:\n${error.name}: ${error.message}`);
+        state.message = `In regExMatch:\n${error.name}: ${error.message}`
 
     }
     return [result.pop(), key]
 }
+
 
 const getAttributes = (string) => { const index = string.search(Expressions["EWI"]); if (index >= 0) { const match = string.slice(index).match(Expressions["attributes"]); if (Boolean(match)) { return match.map(e => e.includes('=') ? e.split(Expressions["split"]) : [e, 0]).map(e => [e[0], Number(e[1])]) } } }
 const lens = (obj, path) => path.split('.').reduce((o, key) => o && o[key] ? o[key] : null, obj);
@@ -194,11 +190,58 @@ const addMemoryEntry = (entry, value = 0) =>
     }
 
 }
+const getSlice = (string, mode = true) =>
+{
+    const attributes = getAttributes(string);
+    const length = attributes ? attributes.find(e => e[0] == 'l') || [undefined, undefined] : [undefined, undefined];
 
+    if (mode)
+    {
+        let measure = 0;
+        const compare = lines.length;
+        let actions = 0;
+
+        for (let i = history.length - 1; i >= 0; i--)
+        {
+            // How many actions can fit into lines?
+            const test = history[i]["text"].split('\n')
+            if (test.length + measure <= compare)
+            {
+                measure += test.length;
+                actions++;
+            }
+            else { if (lines.some(l => history[i]["text"].includes(l))) { actions++} break;}
+        }
+
+        return slice = getHistoryText(length[1] > 0 ? -length[1] : -actions, length[1] >= 0 ? history.length : length[1])
+    }
+    else { return lines.slice(length[1] > 0 ? -length[1] : 0, length[1] >= 0 ? lines.length : length[1]); }
+}
 const addTrailingEntry = (entry, value = 0) =>
 {
     let finalIndex = -1;
-    getSlice(entry["original"]).forEach((line, i) => { if (line.includes(entry["keys"][0])) { finalIndex = i; if (state.settings["mode"]) { line.split('\n').forEach((l, index) => {if (l.includes(entry["keys"][0])) {finalIndex = i + (index - 1)}})} } })
+    const range = getSlice(entry["original"], state.settings.mode)
+
+    if (state.settings.mode)
+    {
+        for (let i = lines.length - 1; i >= 0; i--)
+        {
+            for (let j = range.length - 1; j >= 0; j--)
+            {
+                const action = range[j].split('\n');
+                
+
+                if (action.some(e => lines[i].includes(e) && e.includes(entry["keys"][0]))) {finalIndex = i; break;}
+
+
+            }
+            if (finalIndex >= 0) {break;}
+        }
+    }
+    else { range.forEach((line, i) => { if (line.includes(entry["keys"][0])) { console.log(i); finalIndex = i ; } }) }
+
+
+
     if (finalIndex >= 0)
     {
         spliceContext((finalIndex) - value, entry["entry"])
@@ -377,7 +420,7 @@ const spliceContext = (pos, string) =>
         adjustedLines = lines.length - adjustor.length;
         lines = adjustor;
     }
-    lines.splice(pos - adjustedLines, 0, string)
+    lines.splice(pos - adjustedLines >= 0 ? pos - adjustedLines : pos, 0, string)
     return
 }
 
