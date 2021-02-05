@@ -6,13 +6,12 @@ if (!state.generate) { state.generate = {} }
 if (!state.settings) { state.settings = {} }
 if (!state.settings.globalWhitelist) { state.settings.globalWhitelist = [] }
 const DefaultSettings = {
-    'cross': true,
+    'cross': false,
     'filter': false,
     'mode': true,
 }
 for (const setting in DefaultSettings) { if (!state.settings.hasOwnProperty(setting)) { state.settings[setting] = DefaultSettings[setting] } }
 
-// Expressions hold re-usable RegEx.
 const Expressions = {
 
     "invalid": /((("|')[^"']*("|'):)\s*({}|null|"")),?\s*/g,
@@ -36,7 +35,6 @@ const track = (value, attribute) =>
 };
 const Tracker = {}
 
-// Config for consistency.
 state.config = {
     prefix: /^\n> You \/|^\n> You say "\/|^\/|^\n\//gi,
     prefixSymbol: '/',
@@ -51,7 +49,7 @@ state.config = {
 }
 let { cross } = state.settings;
 const { whitelistPath, synonymsPath, pathSymbol, wildcardPath, configPath, libraryPath, openListener, closeListener } = state.config;
-const internalPaths = [whitelistPath, synonymsPath, libraryPath]
+const Paths = [whitelistPath, synonymsPath, libraryPath]
 
 // https://www.tutorialspoint.com/group-by-e-in-array-javascript
 const groupElementsBy = arr =>
@@ -103,6 +101,7 @@ String.prototype.regexLastIndexOf = function(regex, startpos)
 const getHistoryString = (start, end = undefined) => history.slice(start, end).map(e => e["text"]).join('\n') // Returns a single string of the text.
 const getHistoryText = (start, end = undefined) => history.slice(start, end).map(e => e["text"]) // Returns an array of text.
 const getActionTypes = (turns) => history.slice(turns).map(e => e["type"]) // Returns the action types of the previous turns in an array.
+
 
 // Ensure that '_synonyms' is processed first in the loop. It's executed if (Object.keys(dataStorage)[0] != synonymsPath)
 const fixOrder = () =>
@@ -210,42 +209,50 @@ const getSlice = (string, mode = true) =>
                 measure += test.length;
                 actions++;
             }
-            else { if (copyLines.some(l => history[i]["text"].includes(l))) { actions++} break;}
+            else { if (copyLines.some(l => history[i]["text"].includes(l))) { actions++ } break; }
         }
 
         return slice = getHistoryText(length[1] > 0 ? -length[1] : -actions, length[1] >= 0 ? history.length : length[1])
     }
-    else { return copyLines.slice(length[1] > 0 ? -length[1] : 0, length[1] >= 0 ? copyLines.length : length[1]); }
+
+    else { return lines.slice(length[1] > 0 ? -length[1] : 0, length[1] >= 0 ? lines.length : length[1]); }
 }
+
+const getIndex = (find, range) =>
+{
+    let result;
+    if (range > 0)
+    { for (let i = lines.length - lines.slice(-range).length; i < lines.length; i++) { if (lines[i].includes(find)) { result = i;} } }
+    else if (range < 0)
+    { for (let i = 0; i < lines.length + range; i++) { if (lines[i].includes(find)) { result = i; } }  }
+    else { lines.forEach((l,i) => { if (l.includes(find)) {result = i;}})}
+    return result
+}
+
+
 const addTrailingEntry = (entry, value = 0) =>
 {
-    let finalIndex = -1;
-    const range = getSlice(entry["original"], state.settings.mode)
+    const attributes = getAttributes(entry["original"]);
+    const range = attributes ? attributes.find(e => e[0] == 'l') || [undefined, undefined] : [undefined, undefined];
+    const find = entry["keys"][0];
+    const index = getIndex(find, range[1]);
 
-    if (state.settings.mode)
+/*     if (state.settings.mode)
     {
         for (let i = copyLines.length - 1; i >= 0; i--)
         {
             for (let j = range.length - 1; j >= 0; j--)
             {
                 const action = range[j].split('\n');
-                
-
-                if (action.some(e => copyLines[i].includes(e) && e.includes(entry["keys"][0]))) {finalIndex = i; break;}
-
-
+                if (action.some(e => copyLines[i].includes(e) && e.includes(entry["keys"][0]))) { finalIndex = i; break; }
             }
-            if (finalIndex >= 0) {break;}
+            if (finalIndex >= 0) { break; }
         }
     }
-    else { range.forEach((line, i) => { if (line.includes(entry["keys"][0])) {  finalIndex = i ; } }) }
+    else { range.forEach((line, i) => { if (line.includes(entry["keys"][0])) { finalIndex = i + (lines.length - range.length); } }) }
+ */
+    if (index >= 0) { spliceContext((index) - (value), entry["entry"]) }
 
-
-
-    if (finalIndex >= 0)
-    {
-        spliceContext((finalIndex) - value, entry["entry"])
-    }
     return;
 }
 
@@ -361,7 +368,7 @@ const globalReplacer = () =>
 
 
     JSON.stringify(dataStorage, replacer(function(key, value, path) { return value; }));
-    return [...new Set([...whitelist, ...paths.sort((a, b) => a[1] - b[1]).map(e => e[0]).flat()])].filter(e => !internalPaths.includes(e)).map(e => e.replace(wildcardPath, ''))
+    return [...new Set([...whitelist, ...paths.sort((a, b) => a[1] - b[1]).map(e => e[0]).flat()])].filter(e => !Paths.includes(e)).map(e => e.replace(wildcardPath, ''))
 }
 
 // globalWhitelist - Should only make one call to it per turn in context modifiers. Other modifiers access it via state.
@@ -414,13 +421,15 @@ const spliceContext = (pos, string) =>
     const memoryLength = memoryLines.join('\n').length
 
     let adjustedLines = 0;
-    if ((linesLength + memoryLength) + string.length > info.maxChars)
+    if ((linesLength + memoryLength) + string.length > info.maxChars && false)
     {
         const adjustor = lines.join('\n').slice(string.length).split('\n');
         adjustedLines = lines.length - adjustor.length;
         lines = adjustor;
     }
-    lines.splice(pos - adjustedLines >= 0 ? pos - adjustedLines : pos, 0, string)
+
+    lines.splice(pos ? pos : 0, 0, string);
+    //lines.splice(pos - adjustedLines >= 0 ? pos - adjustedLines : pos, 0, string)
     return
 }
 
@@ -478,6 +487,7 @@ const execAttributes = (object) =>
 {
     if (object["attributes"].length > 0)
     {
+        console.log(JSON.stringify(object["attributes"]))
         try
         {
             object["attributes"].forEach(pair => { Attributes[pair[0]](object, pair[1]) })
@@ -496,8 +506,6 @@ const sortObjects = (list) =>
             if (e.hasOwnProperty("keys"))
             {
                 const match = regExMatch(getPlaceholder(e["keys"]));
-
-
                 if (Boolean(match[0]))
                 {
                     return { "index": search.lastIndexOf(match[0][match[0].length - 1]), "matches": match, "entry": e["entry"] };
@@ -508,7 +516,6 @@ const sortObjects = (list) =>
     .filter(e => Expressions["EWI"].test(e["matches"][1]))
     .sort((a, b) => b["index"] - a["index"])
     .forEach(e => execAttributes({ "keys": e["matches"][0], "entry": e["entry"], "attributes": getAttributes(e["matches"][1]), "original": e["matches"][1] }))
-
 }
 // TEST
 const crossLines = () =>
