@@ -251,7 +251,7 @@ const addTrailingEntry = (entry, value = 0) =>
     }
     else { range.forEach((line, i) => { if (line.includes(entry["keys"][0])) { finalIndex = i + (lines.length - range.length); } }) }
  */
-    if (index >= 0) { spliceContext((index) - (value), entry["entry"]) }
+    if (index >= 0) { spliceContext((index - value) >= 0 ? index - value : 0, entry["entry"]) }
 
     return;
 }
@@ -487,7 +487,6 @@ const execAttributes = (object) =>
 {
     if (object["attributes"].length > 0)
     {
-        console.log(JSON.stringify(object["attributes"]))
         try
         {
             object["attributes"].forEach(pair => { Attributes[pair[0]](object, pair[1]) })
