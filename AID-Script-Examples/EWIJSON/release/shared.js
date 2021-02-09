@@ -202,7 +202,6 @@ const getSlice = (string, mode = true) =>
 
         for (let i = history.length - 1; i >= 0; i--)
         {
-            // How many actions can fit into lines?
             const test = history[i]["text"].split('\n')
             if (test.length + measure <= compare)
             {
@@ -218,14 +217,12 @@ const getSlice = (string, mode = true) =>
     else { return lines.slice(length[1] > 0 ? -length[1] : 0, length[1] >= 0 ? lines.length : length[1]); }
 }
 
-const getIndex = (find, range) =>
+const getLineIndex = (find, range) =>
 {
     let result;
-    if (range > 0)
-    { for (let i = lines.length - lines.slice(-range).length; i < lines.length; i++) { if (lines[i].includes(find)) { result = i;} } }
-    else if (range < 0)
-    { for (let i = 0; i < lines.length + range; i++) { if (lines[i].includes(find)) { result = i; } }  }
-    else { lines.forEach((l,i) => { if (l.includes(find)) {result = i;}})}
+    if (range > 0) { for (let i = copyLines.length - copyLines.slice(-range).length; i < copyLines.length; i++) { console.log(copyLines[i]); if (copyLines[i].includes(find)) { result = i;} } }
+    else if (range < 0) { for (let i = 0; i < copyLines.length + range; i++) { if (copyLines[i].includes(find)) { result = i; } }  }
+    else { copyLines.forEach((l,i) => { if (l.includes(find)) {result = i;}})}
     return result
 }
 
@@ -233,9 +230,11 @@ const getIndex = (find, range) =>
 const addTrailingEntry = (entry, value = 0) =>
 {
     const attributes = getAttributes(entry["original"]);
+    
     const range = attributes ? attributes.find(e => e[0] == 'l') || [undefined, undefined] : [undefined, undefined];
+    console.log(entry["keys"][0], range);
     const find = entry["keys"][0];
-    const index = getIndex(find, range[1]);
+    const index = getLineIndex(find, range[1]);
 
 /*     if (state.settings.mode)
     {
@@ -487,10 +486,7 @@ const execAttributes = (object) =>
 {
     if (object["attributes"].length > 0)
     {
-        try
-        {
-            object["attributes"].forEach(pair => { Attributes[pair[0]](object, pair[1]) })
-        }
+        try { object["attributes"].forEach(pair => { Attributes[pair[0]](object, pair[1]) })  }
         catch (error) { console.log(`${error.name}: ${error.message}`) }
     }
 }
