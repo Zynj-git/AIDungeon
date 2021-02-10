@@ -265,7 +265,8 @@ const Attributes = {
     'p': addPositionalEntry, // Inserts the <entry> <value> amount of lines into context, e.g [p=1] inserts it one line into context.
     'w': () => {}, // [w] assigns the weight attribute, the higher value the more recent/relevant it will be in context/frontMemory/intermediateMemory etc.
     't': addTrailingEntry, // [t] adds the entry at a line relative to the activator in context. [t=2] will trail context two lines behind the activating word.
-    'l': () => {}
+    'l': () => {},
+    'x': () => {}, // [x] ignores the entry if not X amount of rounds have processed.
 }
 
 const getWhitelist = () => { const index = getEntryIndex('_whitelist.'); return index >= 0 ? worldEntries[index]["entry"].toLowerCase().split(/,|\n/g).map(e => e.trim()) : [] }
@@ -484,7 +485,8 @@ const getEWI = () =>
 const processEWI = () => sortObjects(getEWI());
 const execAttributes = (object) =>
 {
-    if (object["attributes"].length > 0)
+    const ignore = object["attributes"].find(e => e[0] == 'x');
+    if ((ignore ? ignore[1] < history.length : true ) && object["attributes"].length > 0)
     {
         try { object["attributes"].forEach(pair => { Attributes[pair[0]](object, pair[1]) })  }
         catch (error) { console.log(`${error.name}: ${error.message}`) }
