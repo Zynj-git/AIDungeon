@@ -25,16 +25,6 @@ const Expressions = {
     "expectFlags": /(?<=^\/.*\/)/
 }
 
-const track = (value, attribute) =>
-{
-    if (!Tracker.hasOwnProperty(attribute)) { Tracker[attribute] = []; }
-    const index = Tracker[attribute].findIndex(x => x.includes(value));
-    index >= 0 ? Tracker[attribute][index].push(value) : Tracker[attribute].push([value]);
-    const result = Tracker[attribute].find(e => e.includes(value)).length;
-    return result > 1 ? result - 1 : 0
-};
-const Tracker = {}
-
 state.config = {
     prefix: /^\n> You \/|^\n> You say "\/|^\/|^\n\//gi,
     prefixSymbol: '/',
@@ -77,7 +67,7 @@ const worldEntriesFromObject = (obj, root) =>
         if (typeof value != 'object')
         {
             const index = worldEntries.findIndex(e => e["keys"] == `${root}.${path}`.replace(/^\.*|\.$/g, ''));
-            index >= 0 ? updateWorldEntry(index, `${root}.${path}`.replace(/^\.*|\.$/g, ''), value.toString(), isNotHidden = true) : addWorldEntry(`${root}.${path}`.replace(/^\.*|\.$/g, ''), value.toString(), isNotHidden = true);
+            index >= 0 ? updateWorldEntry(index, `${root}.${path}`.replace(/^\.*|\.$/g, ''), value.toString(), isNotHidden = false) : addWorldEntry(`${root}.${path}`.replace(/^\.*|\.$/g, ''), value.toString(), isNotHidden = false);
         }
         return value;
     }));
@@ -127,7 +117,7 @@ const regExMatch = (keys) =>
             if (expressions.every(exp =>
                 {
                     const regExRaw = exp;
-                    const regExString = regExRaw.replace(/(^\/)|(\/.*)$/g, '').replace(/\\/g, '');
+                    const regExString = regExRaw.replace(/(^\/)|(\/.*)$/g, '').replace(/\\,/, '');
                     const regExFlags = Expressions["flags"].test(regExRaw) ? [...new Set([...regExRaw.match(Expressions["flags"]).join('').split(''), 'g'])].join('') : Expressions["expectFlags"].test(regExRaw) ? 'g' : 'gi';
                     const regEx = new RegExp(regExString, regExFlags);
                     return regEx.test(string);
@@ -136,7 +126,7 @@ const regExMatch = (keys) =>
             {
                 key = line;
                 const regExRawLast = expressions.pop();
-                const regExString = regExRawLast.replace(/(^\/)|(\/.*)$/g, '').replace(/\\/g, '');
+                const regExString = regExRawLast.replace(/(^\/)|(\/.*)$/g, '').replace(/\\,/, '');
                 const regExFlags = Expressions["flags"].test(regExRawLast) ? [...new Set([...regExRawLast.match(Expressions["flags"]).join('').split(''), 'g'])].join('') : Expressions["expectFlags"].test(regExRawLast) ? 'g' : 'gi'
                 const regEx = new RegExp(regExString, regExFlags);
                 result.push([...string.matchAll(regEx)].filter(Boolean).pop());
@@ -149,7 +139,7 @@ const regExMatch = (keys) =>
         state.message = `In regExMatch:\n${error.name}: ${error.message}`
 
     }
-    return [result.pop(), key]
+    return [result.length > 0 ? result.pop().filter(Boolean) : result, key]
 }
 
 
@@ -179,13 +169,13 @@ const addDescription = (entry, value = 0) =>
 
 // Reference to Object is severed during processing, so index it instead.
 const addAuthorsNote = (entry, value = 0) => { const index = getEntryIndex(entry["original"]); if (index >= 0) { state.memory.authorsNote = `${entry["entry"]}` } }
-const showWorldEntry = (entry, value = 0) => { const index = getEntryIndex(entry["original"]); if (index >= 0) { worldEntries[index].isNotHidden = true; } }
+const showWorldEntry = (entry, value = 0) => { const index = getEntryIndex(entry["original"]); if (index >= 0) { worldEntries[index].isNotHidden = false; } }
 const addPositionalEntry = (entry, value = 0) => { spliceContext((Boolean(value) ? -(value) : copyLines.length), entry["entry"]); }
 const addMemoryEntry = (entry, value = 0) =>
 {
     if ((info.memoryLength + contextMemoryLength + entry["entry"].length) < (info.maxChars / 2))
     {
-        spliceMemory(Boolean(value) ? -(value) : (copyMemoryLines.length - 1), entry["entry"]);
+        spliceMemory(Boolean(value) ? -(value) : (memoryLines.length - 1), entry["entry"]);
     }
 
 }
@@ -220,36 +210,20 @@ const getSlice = (string, mode = true) =>
 const getLineIndex = (find, range) =>
 {
     let result;
-    if (range > 0) { for (let i = copyLines.length - copyLines.slice(-range).length; i < copyLines.length; i++) { console.log(copyLines[i]); if (copyLines[i].includes(find)) { result = i;} } }
+    if (range > 0) { for (let i = copyLines.length - copyLines.slice(-range).length; i < copyLines.length; i++) { if (copyLines[i].includes(find)) { result = i;} } }
     else if (range < 0) { for (let i = 0; i < copyLines.length + range; i++) { if (copyLines[i].includes(find)) { result = i; } }  }
     else { copyLines.forEach((l,i) => { if (l.includes(find)) {result = i;}})}
     return result
 }
-
 
 const addTrailingEntry = (entry, value = 0) =>
 {
     const attributes = getAttributes(entry["original"]);
     
     const range = attributes ? attributes.find(e => e[0] == 'l') || [undefined, undefined] : [undefined, undefined];
-    console.log(entry["keys"][0], range);
+
     const find = entry["keys"][0];
     const index = getLineIndex(find, range[1]);
-
-/*     if (state.settings.mode)
-    {
-        for (let i = copyLines.length - 1; i >= 0; i--)
-        {
-            for (let j = range.length - 1; j >= 0; j--)
-            {
-                const action = range[j].split('\n');
-                if (action.some(e => copyLines[i].includes(e) && e.includes(entry["keys"][0]))) { finalIndex = i; break; }
-            }
-            if (finalIndex >= 0) { break; }
-        }
-    }
-    else { range.forEach((line, i) => { if (line.includes(entry["keys"][0])) { finalIndex = i + (lines.length - range.length); } }) }
- */
     if (index >= 0) { spliceContext((index - value) >= 0 ? index - value : 0, entry["entry"]) }
 
     return;
@@ -297,7 +271,7 @@ const updateListener = (value, display, visited) =>
         const setKeys = display.includes('.') ? keys : `${keys}.`;
         const setValue = result.join(',')
         const index = getEntryIndex(setKeys);
-        index >= 0 ? updateWorldEntry(index, setKeys, setValue, isNotHidden = true) : addWorldEntry(setKeys, setValue, isNotHidden = true)
+        index >= 0 ? updateWorldEntry(index, setKeys, setValue, isNotHidden = false) : addWorldEntry(setKeys, setValue, isNotHidden = false)
 
     }
 }
@@ -333,6 +307,7 @@ const globalReplacer = () =>
             if (dataStorage.hasOwnProperty(root) && dataStorage[root].hasOwnProperty(synonymsPath) && !visited.some(e => e[0].includes(root)))
             {
                 const match = regExMatch(getPlaceholder(dataStorage[root][synonymsPath]))
+
                 if (Boolean(match[0])) { visited.push([root, match[0][0]]) }
             }
 
@@ -410,7 +385,7 @@ const buildObjects = () =>
 }
 
 const sanitizeWhitelist = () => { const index = worldEntries.findIndex(e => e["keys"].includes(whitelistPath)); if (index >= 0) { worldEntries[index]["keys"] = whitelistPath + '.'; } }
-const trackRoots = () => { const list = Object.keys(dataStorage); const index = worldEntries.findIndex(e => e["keys"] == 'rootList'); if (index < 0) { addWorldEntry('rootList', list, isNotHidden = true) } else { updateWorldEntry(index, 'rootList', list, isNotHidden = true) } }
+const trackRoots = () => { const list = Object.keys(dataStorage); const index = worldEntries.findIndex(e => e["keys"] == 'rootList'); if (index < 0) { addWorldEntry('rootList', list, isNotHidden = false) } else { updateWorldEntry(index, 'rootList', list, isNotHidden = false) } }
 
 // spliceContext takes a position to insert a line into the full context (memoryLines and lines combined) then reconstructs it with 'memory' taking priority.
 // TODO: Sanitize and add counter, verify whether memory having priority is detrimental to the structure - 'Remember' should never be at risk of ommitance.
@@ -485,6 +460,7 @@ const getEWI = () =>
 const processEWI = () => sortObjects(getEWI());
 const execAttributes = (object) =>
 {
+    object.attributes = object.attributes.filter(e => { if (Attributes.hasOwnProperty(e[0])) {return true} else {state.message = `[${e[0]}] is an invalid attribute!`; return false} })
     const ignore = object["attributes"].find(e => e[0] == 'x');
     if ((ignore ? ignore[1] < history.length : true ) && object["attributes"].length > 0)
     {
@@ -497,7 +473,7 @@ const execAttributes = (object) =>
 // expects sortList to be populated by Objects with properties {"key": string, "entry": string}
 const sortObjects = (list) =>
 {
-    const search = lines.join('\n')
+    const search = copyLines.join('\n')
     list.map(e =>
         {
             if (e.hasOwnProperty("keys"))
@@ -591,7 +567,7 @@ state.commandList = {
             const setValue = args.slice(1).join(' ');
             const index = getEntryIndex(setKeys);
 
-            index >= 0 ? updateWorldEntry(index, setKeys, setValue, isNotHidden = true) : addWorldEntry(setKeys, setValue, isNotHidden = true)
+            index >= 0 ? updateWorldEntry(index, setKeys, setValue, isNotHidden = false) : addWorldEntry(setKeys, setValue, isNotHidden = false)
 
             state.message = `Set ${setKeys} to ${setValue}!`
             if (state.displayStats) { updateHUD(); }
@@ -643,7 +619,7 @@ state.commandList = {
         {
 
             const keys = args[0].toLowerCase()
-            worldEntries.forEach(e => { if (e["keys"].toLowerCase().startsWith(keys)) { e["isNotHidden"] = true; } })
+            worldEntries.forEach(e => { if (e["keys"].toLowerCase().startsWith(keys)) { e["isNotHidden"] = false; } })
             state.message = `Showing all entries starting with ${keys} in World Information!`;
             return
         }
@@ -658,7 +634,7 @@ state.commandList = {
         {
 
             const keys = args[0].toLowerCase()
-            worldEntries.forEach(e => { if (e["keys"].toLowerCase().startsWith(keys)) { e["isNotHidden"] = false; } })
+            worldEntries.forEach(e => { if (e["keys"].toLowerCase().startsWith(keys)) { e["isNotHidden"] = true; } })
             state.message = `Hiding all entries starting with ${keys} in World Information!`;
             return
         }
