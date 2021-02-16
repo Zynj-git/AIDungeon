@@ -112,8 +112,10 @@ const regExMatch = (keys) =>
         array.forEach(line =>
         {
             const string = getSlice(line, state.settings.mode).join('\n')
+      
 
             const expressions = line.slice(0, /#\[.*\]/.test(line) ? line.lastIndexOf('#') : line.length).split(/(?<!\\),/g);
+   
             if (expressions.every(exp =>
                 {
                     const regExRaw = exp;
@@ -139,7 +141,7 @@ const regExMatch = (keys) =>
         state.message = `In regExMatch:\n${error.name}: ${error.message}`
 
     }
-    return [result.length > 0 ? result.pop().filter(Boolean) : result, key]
+    return [result.length > 0 ? result.pop().filter(Boolean) : undefined, key]
 }
 
 
@@ -201,7 +203,7 @@ const getSlice = (string, mode = true) =>
             else { if (copyLines.some(l => history[i]["text"].includes(l))) { actions++ } break; }
         }
 
-        return slice = getHistoryText(length[1] > 0 ? -length[1] : -actions, length[1] >= 0 ? history.length : length[1])
+        return getHistoryText(length[1] > 0 ? -length[1] : -actions, length[1] >= 0 ? history.length : length[1])
     }
 
     else { return lines.slice(length[1] > 0 ? -length[1] : 0, length[1] >= 0 ? lines.length : length[1]); }
