@@ -112,10 +112,10 @@ const regExMatch = (keys) =>
         array.forEach(line =>
         {
             const string = getSlice(line, state.settings.mode).join('\n')
-      
+
 
             const expressions = line.slice(0, /#\[.*\]/.test(line) ? line.lastIndexOf('#') : line.length).split(/(?<!\\),/g);
-   
+
             if (expressions.every(exp =>
                 {
                     const regExRaw = exp;
@@ -154,7 +154,7 @@ const getContext = (text) => { return info.memoryLength ? text.slice(info.memory
 // Extract the last cluster in the RegEx' AND check then filter out non-word/non-whitespace symbols to TRY and assemble the intended words.
 const addDescription = (entry, value = 0) =>
 {
-    const result = entry["keys"].pop()
+    const result = entry.metadata.matches.pop()
     let search = lines.join('\n');
     // Find a match for the last expression and grab the most recent word for positioning. Filter out undefined/false values.
     if (search.includes(result) && result && !Boolean(value))
@@ -170,8 +170,8 @@ const addDescription = (entry, value = 0) =>
 }
 
 // Reference to Object is severed during processing, so index it instead.
-const addAuthorsNote = (entry, value = 0) => { const index = getEntryIndex(entry["original"]); if (index >= 0) { state.memory.authorsNote = `${entry["entry"]}` } }
-const showWorldEntry = (entry, value = 0) => { const index = getEntryIndex(entry["original"]); if (index >= 0) { worldEntries[index].isNotHidden = false; } }
+const addAuthorsNote = (entry, value = 0) => state.memory.authorsNote = `${entry["entry"]}`
+const showWorldEntry = (entry, value = 0) => entry.isNotHidden = false;
 const addPositionalEntry = (entry, value = 0) => { spliceContext((Boolean(value) ? -(value) : copyLines.length), entry["entry"]); }
 const addMemoryEntry = (entry, value = 0) =>
 {
@@ -181,10 +181,11 @@ const addMemoryEntry = (entry, value = 0) =>
     }
 
 }
+const getRange = (list) => list ? list.find(e => e[0] == 'l') || [undefined, undefined] : [undefined, undefined];
 const getSlice = (string, mode = true) =>
 {
     const attributes = getAttributes(string);
-    const length = attributes ? attributes.find(e => e[0] == 'l') || [undefined, undefined] : [undefined, undefined];
+    const length = getRange(attributes);
 
     if (mode)
     {
@@ -212,19 +213,20 @@ const getSlice = (string, mode = true) =>
 const getLineIndex = (find, range) =>
 {
     let result;
-    if (range > 0) { for (let i = copyLines.length - copyLines.slice(-range).length; i < copyLines.length; i++) { if (copyLines[i].includes(find)) { result = i;} } }
-    else if (range < 0) { for (let i = 0; i < copyLines.length + range; i++) { if (copyLines[i].includes(find)) { result = i; } }  }
-    else { copyLines.forEach((l,i) => { if (l.includes(find)) {result = i;}})}
+    if (range > 0) { for (let i = copyLines.length - copyLines.slice(-range).length; i < copyLines.length; i++) { if (copyLines[i].includes(find)) { result = i; } } }
+    else if (range < 0) { for (let i = 0; i < copyLines.length + range; i++) { if (copyLines[i].includes(find)) { result = i; } } }
+    else { copyLines.forEach((l, i) => { if (l.includes(find)) { result = i; } }) }
     return result
 }
 
+
 const addTrailingEntry = (entry, value = 0) =>
 {
-    const attributes = getAttributes(entry["original"]);
-    
-    const range = attributes ? attributes.find(e => e[0] == 'l') || [undefined, undefined] : [undefined, undefined];
 
-    const find = entry["keys"][0];
+    const { attributes, matches } = entry.metadata;
+
+    const range = getRange(attributes);
+    const find = matches[0];
     const index = getLineIndex(find, range[1]);
     if (index >= 0) { spliceContext((index - value) >= 0 ? index - value : 0, entry["entry"]) }
 
@@ -245,7 +247,7 @@ const Attributes = {
     'x': () => {}, // [x] ignores the entry if not X amount of rounds have processed.
 }
 
-const getWhitelist = () => { const index = getEntryIndex('_whitelist.'); return index >= 0 ? worldEntries[index]["entry"].toLowerCase().split(/,|\n/g).map(e => e.trim()) : [] }
+const getWhitelist = () => { const index = getEntryIndex('_whitelist.'); return index >= 0 ? worldEntries[index]["entry"].split(/,|\n/g).map(e => e.trim()) : [] }
 const getWildcard = (display, offset = 0) => { const wildcard = display.split('.').slice(offset != 0 ? 0 : 1).join('.'); const list = display.split('.'); const index = list.indexOf(wildcard.slice(wildcard.lastIndexOf('.') + 1)); return [list[index].replace(wildcardPath, ''), index + offset] }
 const getPlaceholder = (value) => typeof value == 'string' ? value.replace(Expressions["placeholder"], match => dataStorage[libraryPath][match.replace(/\$\{|\}/g, '')]) : value
 const updateListener = (value, display, visited) =>
@@ -418,7 +420,7 @@ const spliceMemory = (pos, string) =>
 
 }
 
-const cleanString = (string) => string.replace(/\\/g, '').replace(Expressions["listener"], '').replace(Expressions["invalid"], '').replace(Expressions["clean"], '');
+const cleanString = (string) => string.replace(/\\/g, ' ').replace(Expressions["listener"], '').replace(Expressions["invalid"], '').replace(Expressions["clean"], '');
 const insertJSON = () =>
 {
 
@@ -438,7 +440,7 @@ const insertJSON = () =>
 
             if (string.length > 4)
             {
-                const object = { "keys": dataStorage[data][synonymsPath].split('\n').map(e => !e.includes('#') ? e + '#[t]' : e).join('\n'), "entry": `[${string}]` }
+                const object = { "keys": dataStorage[data][synonymsPath].split('\n').map(e => !e.includes('#') ? e + '#[t]' : e).join('\n'), "entry": `[${string}]`, "metadata": { "isObject": true } }
                 list.push(object)
             }
 
@@ -462,11 +464,11 @@ const getEWI = () =>
 const processEWI = () => sortObjects(getEWI());
 const execAttributes = (object) =>
 {
-    object.attributes = object.attributes.filter(e => { if (Attributes.hasOwnProperty(e[0])) {return true} else {state.message = `[${e[0]}] is an invalid attribute!`; return false} })
-    const ignore = object["attributes"].find(e => e[0] == 'x');
-    if ((ignore ? ignore[1] < history.length : true ) && object["attributes"].length > 0)
+    const { attributes } = object.metadata;
+    const ignore = attributes.find(e => e[0] == 'x');
+    if ((ignore ? ignore[1] < history.length : true) && attributes.length > 0)
     {
-        try { object["attributes"].forEach(pair => { Attributes[pair[0]](object, pair[1]) })  }
+        try { attributes.forEach(pair => { Attributes[pair[0]](object, pair[1]) }) }
         catch (error) { console.log(`${error.name}: ${error.message}`) }
     }
 }
@@ -483,14 +485,19 @@ const sortObjects = (list) =>
                 const match = regExMatch(getPlaceholder(e["keys"]));
                 if (Boolean(match[0]))
                 {
-                    return { "index": search.lastIndexOf(match[0][match[0].length - 1]), "matches": match, "entry": e["entry"] };
+                    if (!e.hasOwnProperty('metadata')) {e.metadata = {};}
+                    e.metadata.index = search.lastIndexOf(match[0][match[0].length - 1]);
+                    e.metadata.qualifier = match[1]
+                    e.metadata.matches = match[0];
+                    e.metadata.attributes = getAttributes(match[1]).filter(a => { if (Attributes.hasOwnProperty(a[0])) { return true } else { state.message += `[${a[0]}] is an invalid attribute!\n`; return false } });
+                    return e;
                 }
             }
         })
     .filter(Boolean)
-    .filter(e => Expressions["EWI"].test(e["matches"][1]))
-    .sort((a, b) => b["index"] - a["index"])
-    .forEach(e => execAttributes({ "keys": e["matches"][0], "entry": e["entry"], "attributes": getAttributes(e["matches"][1]), "original": e["matches"][1] }))
+    .filter(e => Expressions["EWI"].test(e.metadata.qualifier))
+    .sort((a, b) => b.metadata.index - a.metadata.index)
+    .forEach(e => { execAttributes(e); })
 }
 // TEST
 const crossLines = () =>
