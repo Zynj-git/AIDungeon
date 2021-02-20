@@ -564,7 +564,7 @@ state.commandList = {
         execute: (args) =>
         {
 
-            const keys = args[0].toLowerCase().trim()
+            const keys = args[0].trim()
             const setKeys = keys.includes('.') ? keys : `${keys}.`;
             const setValue = args.slice(1).join(' ');
             const index = getEntryIndex(setKeys);
