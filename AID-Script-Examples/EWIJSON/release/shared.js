@@ -373,7 +373,7 @@ const buildObjects = () =>
                 worldEntriesFromObject(object, root);
                 // Re-process entries that begin with the exact root path.
                 state.message = `Built Objects from !${root}.`
-                worldEntries.filter(e => e["keys"].split('.')[0] == root).forEach(wEntry => setProperty(wEntry["keys"].toLowerCase().split(',').filter(e => e.includes('.')).map(e => e.trim()).join(''), wEntry["entry"], dataStorage))
+                worldEntries.filter(e => e["keys"].split('.')[0] == root).forEach(wEntry => setProperty(wEntry["keys"].split(',').filter(e => e.includes('.')).map(e => e.trim()).join(''), wEntry["entry"], dataStorage))
             }
             catch (error)
             {
@@ -381,7 +381,7 @@ const buildObjects = () =>
                 state.message = `Failed to parse implicit conversion of !${root}. Verify the entry's format!`
             }
         }
-        else { setProperty(wEntry["keys"].toLowerCase().split(',').filter(e => e.includes('.')).map(e => e.trim()).join(''), wEntry["entry"], dataStorage); }
+        else { setProperty(wEntry["keys"].split(',').filter(e => e.includes('.')).map(e => e.trim()).join(''), wEntry["entry"], dataStorage); }
 
     })
 }
