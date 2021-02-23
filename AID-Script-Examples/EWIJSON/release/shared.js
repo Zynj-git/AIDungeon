@@ -145,7 +145,7 @@ const regExMatch = (keys) =>
 }
 
 
-const getAttributes = (string) => { const index = string.search(Expressions["EWI"]); if (index >= 0) { const match = string.slice(index).match(Expressions["attributes"]); if (Boolean(match)) { return match.map(e => e.includes('=') ? e.split(Expressions["split"]) : [e, 0]).map(e => [e[0], Number(e[1])]) } } }
+const getAttributes = (string) => { const regEx = new RegExp(String.raw`(${Object.keys(Attributes).sort((a, b) => b.length - a.length).join('|')})(=+-*\d*)?`, 'g'); const index = string.search(Expressions["EWI"]); if (index >= 0) { const match = string.slice(index).match(regEx); if (Boolean(match)) { return match.map(e => e.includes('=') ? e.split(Expressions["split"]) : [e, 0]).map(e => [e[0], Number(e[1])]) } } }
 const lens = (obj, path) => path.split('.').reduce((o, key) => o && o[key] ? o[key] : null, obj);
 const replaceLast = (x, y, z) => { let a = x.split(""); let length = y.length; if (x.lastIndexOf(y) != -1) { for (let i = x.lastIndexOf(y); i < x.lastIndexOf(y) + length; i++) { if (i == x.lastIndexOf(y)) { a[i] = z; } else { delete a[i]; } } } return a.join(""); }
 const getMemory = (text) => { return info.memoryLength ? text.slice(0, info.memoryLength) : '' } // If memoryLength is set then slice of the beginning until the end of memoryLength, else return an empty string.
