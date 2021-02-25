@@ -600,8 +600,8 @@ state.commandList = {
         execute: (args) =>
         {
 
-            const path = args.join('').toLowerCase().trim();
-            if (dataStorage && dataStorage.hasOwnProperty(args[0].split('.')[0].toLowerCase().trim()))
+            const path = args.join('').trim();
+            if (dataStorage && dataStorage.hasOwnProperty(args[0].split('.')[0].trim()))
             {
                 state.message = `Data Sheet for ${path}:\n${JSON.stringify(lens(dataStorage, path), null)}`;
             }
