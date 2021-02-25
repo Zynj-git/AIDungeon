@@ -98,7 +98,7 @@ const worldEntriesFromObject = (obj, root) =>
     {
         if (typeof value != 'object')
         {
-            const index = worldEntries.findIndex(e => e["keys"] == `${root}.${path}`.replace(/^\.*|\.$/g, ''));
+            const index = worldInfo.findIndex(e => e["keys"] == `${root}.${path}`.replace(/^\.*|\.$/g, ''));
             index >= 0 ? updateWorldEntry(index, `${root}.${path}`.replace(/^\.*|\.$/g, ''), value.toString(), hidden = false) : addWorldEntry(`${root}.${path}`.replace(/^\.*|\.$/g, ''), value.toString(), hidden = false);
         }
         return value;
@@ -262,7 +262,7 @@ const Attributes = {
     'x': () => { }, // [x] ignores the entry if not X amount of rounds have processed.
 }
 
-const getWhitelist = () => { const index = getEntryIndex('_whitelist.'); return index >= 0 ? worldEntries[index]["entry"].split(/,|\n/g).map(e => e.trim()) : [] }
+const getWhitelist = () => { const index = getEntryIndex('_whitelist.'); return index >= 0 ? worldInfo[index]["entry"].split(/,|\n/g).map(e => e.trim()) : [] }
 const getWildcard = (display, offset = 0) => { const wildcard = display.split('.').slice(offset != 0 ? 0 : 1).join('.'); const list = display.split('.'); const index = list.indexOf(wildcard.slice(wildcard.lastIndexOf('.') + 1)); return [list[index].replace(wildcardPath, ''), index + offset] }
 const getPlaceholder = (value) => typeof value == 'string' ? value.replace(Expressions["placeholder"], match => dataStorage[libraryPath][match.replace(/\$\{|\}/g, '')]) : value
 const updateListener = (value, display, visited) =>
@@ -375,7 +375,7 @@ const buildObjects = () =>
 
     // Consume and process entries whose keys start with '!' or contains '.' and does not contain a '#'.
     const regEx = /(^!|\.)(?!.*#)/
-    worldEntries.filter(wEntry => regEx.test(wEntry["keys"])).forEach(wEntry =>
+    worldInfo.filter(wEntry => regEx.test(wEntry["keys"])).forEach(wEntry =>
     {
         if (wEntry["keys"].startsWith('!'))
         {
@@ -385,12 +385,12 @@ const buildObjects = () =>
                 // Parse the contents into an Object.
                 const object = JSON.parse(wEntry["entry"].match(/{.*}/)[0]);
                 // Remove the parsed entry to prevent further executions of this process.
-                removeWorldEntry(worldEntries.indexOf(wEntry));
+                removeWorldEntry(worldInfo.indexOf(wEntry));
                 // Build individual entries of the Object into worldEntries.
                 worldEntriesFromObject(object, root);
                 // Re-process entries that begin with the exact root path.
                 state.message = `Built Objects from !${root}.`
-                worldEntries.filter(e => e["keys"].split('.')[0] == root).forEach(wEntry => setProperty(wEntry["keys"].split(',').filter(e => e.includes('.')).map(e => e.trim()).join(''), wEntry["entry"], dataStorage))
+                worldInfo.filter(e => e["keys"].split('.')[0] == root).forEach(wEntry => setProperty(wEntry["keys"].split(',').filter(e => e.includes('.')).map(e => e.trim()).join(''), wEntry["entry"], dataStorage))
             }
             catch (error)
             {
@@ -403,8 +403,8 @@ const buildObjects = () =>
     })
 }
 
-const sanitizeWhitelist = () => { const index = worldEntries.findIndex(e => e["keys"].includes(whitelistPath)); if (index >= 0) { worldEntries[index]["keys"] = whitelistPath + '.'; } }
-const trackRoots = () => { const list = Object.keys(dataStorage); const index = worldEntries.findIndex(e => e["keys"] == 'rootList'); if (index < 0) { addWorldEntry('rootList', list, hidden = false) } else { updateWorldEntry(index, 'rootList', list, hidden = false) } }
+const sanitizeWhitelist = () => { const index = worldInfo.findIndex(e => e["keys"].includes(whitelistPath)); if (index >= 0) { worldInfo[index]["keys"] = whitelistPath + '.'; } }
+const trackRoots = () => { const list = Object.keys(dataStorage); const index = worldInfo.findIndex(e => e["keys"] == 'rootList'); if (index < 0) { addWorldEntry('rootList', list, hidden = false) } else { updateWorldEntry(index, 'rootList', list, hidden = false) } }
 
 // spliceContext takes a position to insert a line into the full context (memoryLines and lines combined) then reconstructs it with 'memory' taking priority.
 // TODO: Sanitize and add counter, verify whether memory having priority is detrimental to the structure - 'Remember' should never be at risk of ommitance.
@@ -466,7 +466,7 @@ const insertJSON = () =>
 
 const getEWI = () =>
 {
-    return worldEntries.filter(e => Expressions["EWI"].test(e["keys"]))
+    return worldInfo.filter(e => Expressions["EWI"].test(e["keys"]))
 }
 const processEWI = () => sortObjects(getEWI());
 const execAttributes = (object) =>
@@ -514,7 +514,7 @@ const crossLines = () =>
     const JSONString = JSONLines.join('\n');
     if (false)
     {
-        worldEntries.forEach(e =>
+        worldInfo.forEach(e =>
         {
             if (!e["keys"].includes('.')) // Handle regular entries - EWI likely fails test.
             {
@@ -563,7 +563,7 @@ const parseAsRoot = (text, root) =>
 
 
 
-const getEntryIndex = (keys) => worldEntries.findIndex(e => e["keys"].toLowerCase() == keys.toLowerCase())
+const getEntryIndex = (keys) => worldInfo.findIndex(e => e["keys"].toLowerCase() == keys.toLowerCase())
 const updateHUD = () =>
 {
     const { globalWhitelist } = state.settings;
@@ -622,7 +622,7 @@ state.commandList = {
 
             const keys = args[0].toLowerCase().trim();
             const setKeys = keys.includes('.') ? keys : `${keys}.`;
-            worldEntries.filter(e => e["keys"].toLowerCase().startsWith(setKeys)).forEach(e => removeWorldEntry(worldEntries.indexOf(e)))
+            worldInfo.filter(e => e["keys"].toLowerCase().startsWith(setKeys)).forEach(e => removeWorldEntry(worldInfo.indexOf(e)))
             state.message = `Deleted all entries matching: ${keys}`;
         }
     },
@@ -636,7 +636,7 @@ state.commandList = {
         {
 
             const keys = args[0].toLowerCase()
-            worldEntries.forEach(e => { if (e["keys"].toLowerCase().startsWith(keys)) { e["hidden"] = false; } })
+            worldInfo.forEach(e => { if (e["keys"].toLowerCase().startsWith(keys)) { e["hidden"] = false; } })
             state.message = `Showing all entries starting with ${keys} in World Information!`;
             return
         }
@@ -651,7 +651,7 @@ state.commandList = {
         {
 
             const keys = args[0].toLowerCase()
-            worldEntries.forEach(e => { if (e["keys"].toLowerCase().startsWith(keys)) { e["hidden"] = true; } })
+            worldInfo.forEach(e => { if (e["keys"].toLowerCase().startsWith(keys)) { e["hidden"] = true; } })
             state.message = `Hiding all entries starting with ${keys} in World Information!`;
             return
         }

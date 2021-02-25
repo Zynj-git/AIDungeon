@@ -52,11 +52,11 @@ const modifier = (text) =>
         },
         "Sort and execute the EWI Attribute entries.":
         {
-            "req": worldEntries.length > 0,
+            "req": worldInfo.length > 0,
             "args": null,
             "exec": processEWI
         },
-        "Check the inserted JSON- lines for the presence of worldEntries keywords.":
+        "Check the inserted JSON- lines for the presence of worldInfo keywords.":
         {
             "req": state.settings["cross"],
             "args": null,
