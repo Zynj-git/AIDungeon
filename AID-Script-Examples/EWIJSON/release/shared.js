@@ -39,54 +39,70 @@ state.config = {
 }
 let { cross } = state.settings;
 const { whitelistPath, synonymsPath, pathSymbol, wildcardPath, configPath, libraryPath, openListener, closeListener } = state.config;
-const Paths = [whitelistPath, synonymsPath, libraryPath]
-
-// https://www.tutorialspoint.com/group-by-e-in-array-javascript
-const groupElementsBy = arr =>
+const Paths = [whitelistPath, synonymsPath, libraryPath];
+const getRandomObjects = (arr) =>
 {
-    const hash = Object.create(null),
-        result = [];
+    const hash = {};
+    const result = [];
     arr.forEach(el =>
     {
-        const keys = el.keys.slice(0, el.keys.indexOf('#'))
-        if (!hash[keys])
+        const value = el.metadata?.attributes?.find(e => e[0] == 'r');
+        if (value)
         {
-            hash[keys] = [];
-            result.push(hash[keys]);
+
+            if (!hash[value[1]])
+            {
+                hash[value[1]] = [];
+                result.push(hash[value[1]]);
+            };
+            hash[value[1]].push(el);
+        } else
+        {
+            result.push([el])
         };
-        hash[keys].push(el);
     });
-    return result;
+
+    return result.map(e =>
+    {
+        const find = e.find(x => x.metadata?.random?.picked);
+
+        if (find && (find.metadata.random.action == info.actionCount || !getHistoryString(-1).includes(find.metadata.matches[0])))
+        {
+            console.log(getHistoryString(-1), find.metadata.matches)
+            return [find]
+        }
+        else
+        {
+            if (find) { find.metadata.random.picked = false; }
+            return e
+        };
+    }).map(e =>
+    {
+        if (e.length > 1)
+        {
+            const random = e[Math.floor(Math.random() * e.length)];
+            random.metadata.random = { "picked": true };
+            random.metadata.random.action = info.actionCount;
+            return random
+        }
+
+        else { return e[0] }
+    });
 };
+
 //https://stackoverflow.com/questions/61681176/json-stringify-replacer-how-to-get-full-path
-const replacerWithPath = (replacer) => { let m = new Map(); return function(field, value) { let path = m.get(this) + (Array.isArray(this) ? `[${field}]` : '.' + field); if (value === Object(value)) m.set(value, path); return replacer.call(this, field, value, path.replace(/undefined\.\.?/, '')); } }
+const replacerWithPath = (replacer) => { let m = new Map(); return function (field, value) { let path = m.get(this) + (Array.isArray(this) ? `[${field}]` : '.' + field); if (value === Object(value)) m.set(value, path); return replacer.call(this, field, value, path.replace(/undefined\.\.?/, '')); } }
 const worldEntriesFromObject = (obj, root) =>
 {
-    JSON.stringify(obj, replacerWithPath(function(field, value, path)
+    JSON.stringify(obj, replacerWithPath(function (field, value, path)
     {
         if (typeof value != 'object')
         {
             const index = worldEntries.findIndex(e => e["keys"] == `${root}.${path}`.replace(/^\.*|\.$/g, ''));
-            index >= 0 ? updateWorldEntry(index, `${root}.${path}`.replace(/^\.*|\.$/g, ''), value.toString(), isNotHidden = false) : addWorldEntry(`${root}.${path}`.replace(/^\.*|\.$/g, ''), value.toString(), isNotHidden = false);
+            index >= 0 ? updateWorldEntry(index, `${root}.${path}`.replace(/^\.*|\.$/g, ''), value.toString(), hidden = false) : addWorldEntry(`${root}.${path}`.replace(/^\.*|\.$/g, ''), value.toString(), hidden = false);
         }
         return value;
     }));
-}
-//https://stackoverflow.com/questions/273789/is-there-a-version-of-javascripts-string-indexof-that-allows-for-regular-expr#273810
-String.prototype.regexLastIndexOf = function(regex, startpos)
-{
-    regex = (regex.global) ? regex : new RegExp(regex.source, "g" + (regex.ignoreCase ? "i" : "") + (regex.multiLine ? "m" : ""));
-    if (typeof(startpos) == "undefined") { startpos = this.length; }
-    else if (startpos < 0) { startpos = 0; }
-    let stringToWorkWith = this.substring(0, startpos + 1);
-    let lastIndexOf = -1;
-    let nextStop = 0;
-    while ((result = regex.exec(stringToWorkWith)) != null)
-    {
-        lastIndexOf = result.index;
-        regex.lastIndex = ++nextStop;
-    }
-    return lastIndexOf;
 }
 const getHistoryString = (start, end = undefined) => history.slice(start, end).map(e => e["text"]).join('\n') // Returns a single string of the text.
 const getHistoryText = (start, end = undefined) => history.slice(start, end).map(e => e["text"]) // Returns an array of text.
@@ -97,7 +113,7 @@ const getActionTypes = (turns) => history.slice(turns).map(e => e["type"]) // Re
 const fixOrder = () =>
 {
     dataStorage = Object.assign({ "_whitelist": {}, "_synonyms": {} }, dataStorage);
-    state.data = dataStorage
+    state.data = dataStorage;
 }
 
 const regExMatch = (keys) =>
@@ -117,14 +133,13 @@ const regExMatch = (keys) =>
             const expressions = line.slice(0, /#\[.*\]/.test(line) ? line.lastIndexOf('#') : line.length).split(/(?<!\\),/g);
 
             if (expressions.every(exp =>
-                {
-                    const regExRaw = exp;
-                    const regExString = regExRaw.replace(/(^\/)|(\/.*)$/g, '').replace(/\\,/, '');
-                    const regExFlags = Expressions["flags"].test(regExRaw) ? [...new Set([...regExRaw.match(Expressions["flags"]).join('').split(''), 'g'])].join('') : Expressions["expectFlags"].test(regExRaw) ? 'g' : 'gi';
-                    const regEx = new RegExp(regExString, regExFlags);
-                    return regEx.test(string);
-                }))
-
+            {
+                const regExRaw = exp;
+                const regExString = regExRaw.replace(/(^\/)|(\/.*)$/g, '').replace(/\\,/, '');
+                const regExFlags = Expressions["flags"].test(regExRaw) ? [...new Set([...regExRaw.match(Expressions["flags"]).join('').split(''), 'g'])].join('') : Expressions["expectFlags"].test(regExRaw) ? 'g' : 'gi';
+                const regEx = new RegExp(regExString, regExFlags);
+                return regEx.test(string);
+            }))
             {
                 key = line;
                 const regExRawLast = expressions.pop();
@@ -171,7 +186,7 @@ const addDescription = (entry, value = 0) =>
 
 // Reference to Object is severed during processing, so index it instead.
 const addAuthorsNote = (entry, value = 0) => state.memory.authorsNote = `${entry["entry"]}`
-const showWorldEntry = (entry, value = 0) => entry.isNotHidden = false;
+const showWorldEntry = (entry, value = 0) => entry.hidden = false;
 const addPositionalEntry = (entry, value = 0) => { spliceContext((Boolean(value) ? -(value) : copyLines.length), entry["entry"]); }
 const addMemoryEntry = (entry, value = 0) =>
 {
@@ -236,15 +251,15 @@ const addTrailingEntry = (entry, value = 0) =>
 const Attributes = {
     'a': addAuthorsNote, // [a] adds it as authorsNote, only one authorsNote at a time.
     's': showWorldEntry, // [r] reveals the entry once mentioned, used in conjuction with [e] to only reveal if all keywords are mentioned at once.
-    'e': () => {}, // [e] tells the custom keyword check to only run the above functions if every keyword of the entry matches.
+    'e': () => { }, // [e] tells the custom keyword check to only run the above functions if every keyword of the entry matches.
     'd': addDescription, // [d] adds the first sentence of the entry as a short, parenthesized descriptor to the last mention of the revelant keyword(s) e.g John (a business man)
-    'r': () => {}, // [r] picks randomly between entries with the same matching keys. e.g 'you.*catch#[rp=1]' and 'you.*catch#[rd]' has 50% each to be picked.
+    'r': () => { }, // [r] picks randomly between entries with the same matching keys. e.g 'you.*catch#[rp=1]' and 'you.*catch#[rd]' has 50% each to be picked.
     'm': addMemoryEntry,
     'p': addPositionalEntry, // Inserts the <entry> <value> amount of lines into context, e.g [p=1] inserts it one line into context.
-    'w': () => {}, // [w] assigns the weight attribute, the higher value the more recent/relevant it will be in context/frontMemory/intermediateMemory etc.
+    'w': () => { }, // [w] assigns the weight attribute, the higher value the more recent/relevant it will be in context/frontMemory/intermediateMemory etc.
     't': addTrailingEntry, // [t] adds the entry at a line relative to the activator in context. [t=2] will trail context two lines behind the activating word.
-    'l': () => {},
-    'x': () => {}, // [x] ignores the entry if not X amount of rounds have processed.
+    'l': () => { },
+    'x': () => { }, // [x] ignores the entry if not X amount of rounds have processed.
 }
 
 const getWhitelist = () => { const index = getEntryIndex('_whitelist.'); return index >= 0 ? worldEntries[index]["entry"].split(/,|\n/g).map(e => e.trim()) : [] }
@@ -275,7 +290,7 @@ const updateListener = (value, display, visited) =>
         const setKeys = display.includes('.') ? keys : `${keys}.`;
         const setValue = result.join(',')
         const index = getEntryIndex(setKeys);
-        index >= 0 ? updateWorldEntry(index, setKeys, setValue, isNotHidden = false) : addWorldEntry(setKeys, setValue, isNotHidden = false)
+        index >= 0 ? updateWorldEntry(index, setKeys, setValue, hidden = false) : addWorldEntry(setKeys, setValue, hidden = false)
 
     }
 }
@@ -299,7 +314,7 @@ const globalReplacer = () =>
     function replacer(replace)
     {
         let m = new Map();
-        return function(key, value)
+        return function (key, value)
         {
             let path = m.get(this) + (Array.isArray(this) ? `[${key}]` : '.' + key);
             let display = path.replace(/undefined\.\.?/, '')
@@ -346,7 +361,7 @@ const globalReplacer = () =>
     }
 
 
-    JSON.stringify(dataStorage, replacer(function(key, value, path) { return value; }));
+    JSON.stringify(dataStorage, replacer(function (key, value, path) { return value; }));
     return [...new Set([...whitelist, ...paths.sort((a, b) => a[1] - b[1]).map(e => e[0]).flat()])].filter(e => !Paths.includes(e)).map(e => e.replace(wildcardPath, ''))
 }
 
@@ -389,7 +404,7 @@ const buildObjects = () =>
 }
 
 const sanitizeWhitelist = () => { const index = worldEntries.findIndex(e => e["keys"].includes(whitelistPath)); if (index >= 0) { worldEntries[index]["keys"] = whitelistPath + '.'; } }
-const trackRoots = () => { const list = Object.keys(dataStorage); const index = worldEntries.findIndex(e => e["keys"] == 'rootList'); if (index < 0) { addWorldEntry('rootList', list, isNotHidden = false) } else { updateWorldEntry(index, 'rootList', list, isNotHidden = false) } }
+const trackRoots = () => { const list = Object.keys(dataStorage); const index = worldEntries.findIndex(e => e["keys"] == 'rootList'); if (index < 0) { addWorldEntry('rootList', list, hidden = false) } else { updateWorldEntry(index, 'rootList', list, hidden = false) } }
 
 // spliceContext takes a position to insert a line into the full context (memoryLines and lines combined) then reconstructs it with 'memory' taking priority.
 // TODO: Sanitize and add counter, verify whether memory having priority is detrimental to the structure - 'Remember' should never be at risk of ommitance.
@@ -449,17 +464,9 @@ const insertJSON = () =>
     if (list.length > 0) { sortObjects(list) };
 }
 
-const pickRandom = () =>
-{
-    const lists = groupElementsBy(worldEntries.filter(e => /#.*\[.*r.*\]/.test(e.keys)));
-    const result = [worldEntries.filter(e => !/#.*\[.*r.*\]/.test(e.keys))];
-    lists.forEach(e => result.push(e[Math.floor(Math.random() * e.length)]))
-    return result.flat()
-}
 const getEWI = () =>
 {
-    const entries = pickRandom(); // Ensure unique assortment of entries that adhere to the [r] attribute if present.
-    return entries.filter(e => Expressions["EWI"].test(e["keys"]))
+    return worldEntries.filter(e => Expressions["EWI"].test(e["keys"]))
 }
 const processEWI = () => sortObjects(getEWI());
 const execAttributes = (object) =>
@@ -478,26 +485,27 @@ const execAttributes = (object) =>
 const sortObjects = (list) =>
 {
     const search = copyLines.join('\n')
-    list.map(e =>
+    const attributed = list.map(e =>
+    {
+
+        const match = regExMatch(getPlaceholder(e["keys"]));
+        if (!e.hasOwnProperty('metadata')) { e.metadata = {}; };
+        if (Boolean(match[0]))
         {
-            if (e.hasOwnProperty("keys"))
-            {
-                const match = regExMatch(getPlaceholder(e["keys"]));
-                if (Boolean(match[0]))
-                {
-                    if (!e.hasOwnProperty('metadata')) {e.metadata = {};}
-                    e.metadata.index = search.lastIndexOf(match[0][match[0].length - 1]);
-                    e.metadata.qualifier = match[1]
-                    e.metadata.matches = match[0];
-                    e.metadata.attributes = getAttributes(match[1]).filter(a => { if (Attributes.hasOwnProperty(a[0])) { return true } else { state.message += `[${a[0]}] is an invalid attribute!\n`; return false } });
-                    return e;
-                }
-            }
-        })
+            e.metadata.index = search.lastIndexOf(match[0][match[0].length - 1]);
+            e.metadata.qualifier = match[1];
+            e.metadata.matches = match[0];
+            e.metadata.attributes = getAttributes(match[1]).filter(a => { if (Attributes.hasOwnProperty(a[0])) { return true } else { state.message += `[${a[0]}] is an invalid attribute!\n`; return false } });
+            return e;
+        }
+
+    })
     .filter(Boolean)
+
+    getRandomObjects(attributed)
     .filter(e => Expressions["EWI"].test(e.metadata.qualifier))
     .sort((a, b) => b.metadata.index - a.metadata.index)
-    .forEach(e => { execAttributes(e); })
+    .forEach(e => { execAttributes(e); });
 }
 // TEST
 const crossLines = () =>
@@ -576,7 +584,7 @@ state.commandList = {
             const setValue = args.slice(1).join(' ');
             const index = getEntryIndex(setKeys);
 
-            index >= 0 ? updateWorldEntry(index, setKeys, setValue, isNotHidden = false) : addWorldEntry(setKeys, setValue, isNotHidden = false)
+            index >= 0 ? updateWorldEntry(index, setKeys, setValue, hidden = false) : addWorldEntry(setKeys, setValue, hidden = false)
 
             state.message = `Set ${setKeys} to ${setValue}!`
             if (state.displayStats) { updateHUD(); }
@@ -628,7 +636,7 @@ state.commandList = {
         {
 
             const keys = args[0].toLowerCase()
-            worldEntries.forEach(e => { if (e["keys"].toLowerCase().startsWith(keys)) { e["isNotHidden"] = false; } })
+            worldEntries.forEach(e => { if (e["keys"].toLowerCase().startsWith(keys)) { e["hidden"] = false; } })
             state.message = `Showing all entries starting with ${keys} in World Information!`;
             return
         }
@@ -643,7 +651,7 @@ state.commandList = {
         {
 
             const keys = args[0].toLowerCase()
-            worldEntries.forEach(e => { if (e["keys"].toLowerCase().startsWith(keys)) { e["isNotHidden"] = true; } })
+            worldEntries.forEach(e => { if (e["keys"].toLowerCase().startsWith(keys)) { e["hidden"] = true; } })
             state.message = `Hiding all entries starting with ${keys} in World Information!`;
             return
         }
