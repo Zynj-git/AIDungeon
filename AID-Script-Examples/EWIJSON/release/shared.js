@@ -116,7 +116,7 @@ const fixOrder = () =>
     state.data = dataStorage;
 }
 
-const regExMatch = (keys) =>
+const regExMatch = (keys, text = undefined) =>
 {
     if (typeof keys != 'string') { console.log(`Invalid Expressions: ${keys}`); return }
     // Test the multi-lines individually, last/bottom line qualifying becomes result.
@@ -127,11 +127,11 @@ const regExMatch = (keys) =>
     {
         array.forEach(line =>
         {
-            const string = getSlice(line, state.settings.mode).join('\n')
+            const string = text ? text : getSlice(line, state.settings.mode).join('\n')
 
 
             const expressions = line.slice(0, /#\[.*\]/.test(line) ? line.lastIndexOf('#') : line.length).split(/(?<!\\),/g);
-
+    
             if (expressions.every(exp =>
             {
                 const regExRaw = exp;
@@ -153,7 +153,7 @@ const regExMatch = (keys) =>
     catch (error)
     {
         console.log(`In regExMatch:\n${error.name}: ${error.message}`);
-        state.message = `In regExMatch:\n${error.name}: ${error.message}`
+        state.message = `In regExMatch:\n${error.name}: ${error.message}`;
 
     }
     return [result.length > 0 ? result.pop().filter(Boolean) : undefined, key]
@@ -500,52 +500,35 @@ const sortObjects = (list) =>
         }
 
     })
-    .filter(Boolean)
+        .filter(Boolean)
 
     getRandomObjects(attributed)
-    .filter(e => Expressions["EWI"].test(e.metadata.qualifier))
-    .sort((a, b) => b.metadata.index - a.metadata.index)
-    .forEach(e => { execAttributes(e); });
+        .filter(e => Expressions["EWI"].test(e.metadata.qualifier))
+        .sort((a, b) => b.metadata.index - a.metadata.index)
+        .forEach(e => { execAttributes(e); });
 }
 // TEST
 const crossLines = () =>
 {
     const JSONLines = lines.filter(line => /\[\{.*\}\]/.test(line));
     const JSONString = JSONLines.join('\n');
-    if (false)
+    worldInfo.forEach(e =>
     {
-        worldInfo.forEach(e =>
+        if (!Object.keys(dataStorage).includes(e["keys"].split('.')[0]) && !e["keys"].startsWith('!')) // Handle regular entries - EWI likely fails test.
         {
-            if (!e["keys"].includes('.')) // Handle regular entries - EWI likely fails test.
+            if (Boolean(regExMatch(e["keys"], JSONString)[0]) && !text.includes(e["entry"]))
             {
-                e["keys"].split(',').some(keyword =>
+                if (info.memoryLength + contextMemoryLength + e["entry"].length <= info.maxChars / 2)
                 {
-                    if (JSONString.toLowerCase().includes(keyword.toLowerCase()) && !text.includes(e["entry"]))
-                    {
-
-
-                        if (info.memoryLength + contextMemoryLength + e["entry"].length <= info.maxChars / 2)
-                        {
-                            spliceMemory(memoryLines.length - 1, e["entry"]);
-                            return true;
-                        }
-                    }
-                })
-            }
-            if (Expressions["EWI"].test(e["keys"])) // Handle EWI entries.
-            {
-                if (regExMatch(e["keys"]) && !text.includes(e["entry"]))
-                {
-                    if (info.memoryLength + contextMemoryLength + e["entry"].length <= info.maxChars / 2)
-                    {
-                        spliceMemory(memoryLines.length - 1, e["entry"]);
-                        return true;
-                    }
+                    spliceMemory(memoryLines.length - 1, e["entry"]);
+                    return true;
                 }
             }
-        })
-    }
+
+        }
+    })
 }
+
 
 const parseAsRoot = (text, root) =>
 {
