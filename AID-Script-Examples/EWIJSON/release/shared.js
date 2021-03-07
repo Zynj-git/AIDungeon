@@ -64,16 +64,14 @@ const getRandomObjects = (arr) =>
 
     return result.map(e =>
     {
-        const find = e.find(x => x.metadata?.random?.picked);
+        const find = e.filter(x => x.metadata?.random?.picked);
 
-        if (find && (find.metadata.random.action == info.actionCount || !getHistoryString(-1).includes(find.metadata.matches[0])))
-        {
-            console.log(getHistoryString(-1), find.metadata.matches)
-            return [find]
-        }
+        if (find.length == 1 && (find[0].metadata.random.action == info.actionCount || !getHistoryString(-1).includes(find[0].metadata.matches[0])))
+        {   return [find[0]] }
+        
         else
         {
-            if (find) { find.metadata.random.picked = false; }
+            if (find.length > 0) {find.forEach(e => e.metadata.random.picked = false);}
             return e
         };
     }).map(e =>
@@ -116,6 +114,7 @@ const fixOrder = () =>
     state.data = dataStorage;
 }
 
+// Consider implementing a negative 'every' check for 'do not match' instances, expression prefixed by '!'
 const regExMatch = (keys, text = undefined) =>
 {
     if (typeof keys != 'string') { console.log(`Invalid Expressions: ${keys}`); return }
@@ -128,8 +127,6 @@ const regExMatch = (keys, text = undefined) =>
         array.forEach(line =>
         {
             const string = text ? text : getSlice(line, state.settings.mode).join('\n')
-
-
             const expressions = line.slice(0, /#\[.*\]/.test(line) ? line.lastIndexOf('#') : line.length).split(/(?<!\\),/g);
     
             if (expressions.every(exp =>
@@ -234,7 +231,6 @@ const getLineIndex = (find, range) =>
     return result
 }
 
-
 const addTrailingEntry = (entry, value = 0) =>
 {
 
@@ -253,6 +249,7 @@ const Attributes = {
     's': showWorldEntry, // [r] reveals the entry once mentioned, used in conjuction with [e] to only reveal if all keywords are mentioned at once.
     'e': () => { }, // [e] tells the custom keyword check to only run the above functions if every keyword of the entry matches.
     'd': addDescription, // [d] adds the first sentence of the entry as a short, parenthesized descriptor to the last mention of the revelant keyword(s) e.g John (a business man)
+    'i': () => {}, // [i] Ignores the entry if present.
     'r': () => { }, // [r] picks randomly between entries with the same matching keys. e.g 'you.*catch#[rp=1]' and 'you.*catch#[rd]' has 50% each to be picked.
     'm': addMemoryEntry,
     'p': addPositionalEntry, // Inserts the <entry> <value> amount of lines into context, e.g [p=1] inserts it one line into context.
@@ -452,28 +449,23 @@ const insertJSON = () =>
             if (!dataStorage[data].hasOwnProperty(synonymsPath)) { dataStorage[data][synonymsPath] = `${data}#[t]` }
             let string = cleanString(JSON.stringify(dataStorage[data], globalWhitelist));
             if (state.settings["filter"]) { string = string.replace(/"|{|}/g, ''); }
-
             if (string.length > 4)
             {
                 const object = { "keys": dataStorage[data][synonymsPath].split('\n').map(e => !e.includes('#') ? e + '#[t]' : e).join('\n'), "entry": `[${string}]`, "metadata": { "isObject": true } }
                 list.push(object)
             }
-
         }
     }
-    if (list.length > 0) { sortObjects(list) };
+    if (list.length > 0) { preprocess(list) };
 }
 
-const getEWI = () =>
-{
-    return worldInfo.filter(e => Expressions["EWI"].test(e["keys"]))
-}
-const processEWI = () => sortObjects(getEWI());
+const getEWI = () => { return worldInfo.filter(e => Expressions["EWI"].test(e["keys"])) }
+const processEWI = () => preprocess(getEWI());
 const execAttributes = (object) =>
 {
     const { attributes } = object.metadata;
     const ignore = attributes.find(e => e[0] == 'x');
-    if ((ignore ? ignore[1] < history.length : true) && attributes.length > 0)
+    if (((ignore ? ignore[1] < history.length : true) && attributes.length > 0) && !attributes.find(e => e[0] == 'i'))
     {
         try { attributes.forEach(pair => { Attributes[pair[0]](object, pair[1]) }) }
         catch (error) { console.log(`${error.name}: ${error.message}`) }
@@ -482,7 +474,7 @@ const execAttributes = (object) =>
 
 // Sort all Objects/entries by the order of most-recent mention before processing.
 // expects sortList to be populated by Objects with properties {"key": string, "entry": string}
-const sortObjects = (list) =>
+const preprocess = (list) =>
 {
     const search = copyLines.join('\n')
     const attributed = list.map(e =>
@@ -507,7 +499,10 @@ const sortObjects = (list) =>
         .sort((a, b) => b.metadata.index - a.metadata.index)
         .forEach(e => { execAttributes(e); });
 }
-// TEST
+
+/*  Cross Lines pulls eligble World Information if its keywords are found within a JSON-line that is present in the context. 
+    Insertions are done strictly through the memoryLines section of the context.
+*/
 const crossLines = () =>
 {
     const JSONLines = lines.filter(line => /\[\{.*\}\]/.test(line));
