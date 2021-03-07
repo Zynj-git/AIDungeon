@@ -491,8 +491,8 @@ const preprocess = (list) =>
             const ignore = e.metadata.attributes.find(a => a[0] == 'i');
             if (ignore) // TODO: Refund ignore counter if actions are undone.
             {
-                if (!e.metadata.hasOwnProperty('ignore')) { e.metadata.ignore = {"original": ignore[1], "count": ignore[1]} }
-                if (ignore[1] != e.metadata.ignore.original) {e.metadata.ignore.original == ignore[1]; e.metadata.ignore.count = ignore[1];}
+                if (!e.metadata.hasOwnProperty('ignore')) { e.metadata.ignore = { "original": ignore[1], "count": ignore[1] } }
+                if (ignore[1] != e.metadata.ignore.original) { e.metadata.ignore.original == ignore[1]; e.metadata.ignore.count = ignore[1]; }
                 if ((e.metadata?.lastSeen != info.actionCount ?? false) && getHistoryString(-1).includes(e.metadata.matches[0])) { e.metadata.ignore.count-- }
             }
             e.metadata.lastSeen = info.actionCount;
