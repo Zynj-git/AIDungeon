@@ -465,7 +465,7 @@ const execAttributes = (object) =>
 {
     const { attributes } = object.metadata;
     const ignore = attributes.find(e => e[0] == 'x');
-    if (((ignore ? ignore[1] < history.length : true) && attributes.length > 0) && (object.metadata.hasOwnProperty('ignore') ? object.metadata.ignore > 0 : true))
+    if (((ignore ? ignore[1] < history.length : true) && attributes.length > 0) && (object.metadata.hasOwnProperty('ignore') ? object.metadata.ignore.count > 0 : true))
     {
         try { attributes.forEach(pair => { Attributes[pair[0]](object, pair[1]) }) }
         catch (error) { console.log(`${error.name}: ${error.message}`) }
@@ -491,8 +491,9 @@ const preprocess = (list) =>
             const ignore = e.metadata.attributes.find(a => a[0] == 'i');
             if (ignore) // TODO: Refund ignore counter if actions are undone.
             {
-                if (!e.metadata.hasOwnProperty('ignore')) { e.metadata.ignore = ignore[1] }
-                if ((e.metadata?.lastSeen != info.actionCount ?? false) && getHistoryString(-1).includes(e.metadata.matches[0])) { e.metadata.ignore-- }
+                if (!e.metadata.hasOwnProperty('ignore')) { e.metadata.ignore = {"original": ignore[1], "count": ignore[1]} }
+                if (ignore[1] != e.metadata.ignore.original) {e.metadata.ignore.original == ignore[1]; e.metadata.ignore.count = ignore[1];}
+                if ((e.metadata?.lastSeen != info.actionCount ?? false) && getHistoryString(-1).includes(e.metadata.matches[0])) { e.metadata.ignore.count-- }
             }
             e.metadata.lastSeen = info.actionCount;
             return e;
