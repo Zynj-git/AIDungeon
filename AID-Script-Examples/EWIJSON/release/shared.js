@@ -67,11 +67,11 @@ const getRandomObjects = (arr) =>
         const find = e.filter(x => x.metadata?.random?.picked);
 
         if (find.length == 1 && (find[0].metadata.random.action == info.actionCount || !getHistoryString(-1).includes(find[0].metadata.matches[0])))
-        {   return [find[0]] }
-        
+        { return [find[0]] }
+
         else
         {
-            if (find.length > 0) {find.forEach(e => e.metadata.random.picked = false);}
+            if (find.length > 0) { find.forEach(e => e.metadata.random.picked = false); }
             return e
         };
     }).map(e =>
@@ -128,7 +128,7 @@ const regExMatch = (keys, text = undefined) =>
         {
             const string = text ? text : getSlice(line, state.settings.mode).join('\n')
             const expressions = line.slice(0, /#\[.*\]/.test(line) ? line.lastIndexOf('#') : line.length).split(/(?<!\\),/g);
-    
+
             if (expressions.every(exp =>
             {
                 const regExRaw = exp;
@@ -249,7 +249,7 @@ const Attributes = {
     's': showWorldEntry, // [r] reveals the entry once mentioned, used in conjuction with [e] to only reveal if all keywords are mentioned at once.
     'e': () => { }, // [e] tells the custom keyword check to only run the above functions if every keyword of the entry matches.
     'd': addDescription, // [d] adds the first sentence of the entry as a short, parenthesized descriptor to the last mention of the revelant keyword(s) e.g John (a business man)
-    'i': () => {}, // [i] Ignores the entry if present.
+    'i': () => { }, // [i] Ignores the entry if present.
     'r': () => { }, // [r] picks randomly between entries with the same matching keys. e.g 'you.*catch#[rp=1]' and 'you.*catch#[rd]' has 50% each to be picked.
     'm': addMemoryEntry,
     'p': addPositionalEntry, // Inserts the <entry> <value> amount of lines into context, e.g [p=1] inserts it one line into context.
@@ -465,7 +465,7 @@ const execAttributes = (object) =>
 {
     const { attributes } = object.metadata;
     const ignore = attributes.find(e => e[0] == 'x');
-    if (((ignore ? ignore[1] < history.length : true) && attributes.length > 0) && !attributes.find(e => e[0] == 'i'))
+    if (((ignore ? ignore[1] < history.length : true) && attributes.length > 0) && (object.metadata.hasOwnProperty('ignore') ? object.metadata.ignore > 0 : true))
     {
         try { attributes.forEach(pair => { Attributes[pair[0]](object, pair[1]) }) }
         catch (error) { console.log(`${error.name}: ${error.message}`) }
@@ -488,11 +488,18 @@ const preprocess = (list) =>
             e.metadata.qualifier = match[1];
             e.metadata.matches = match[0];
             e.metadata.attributes = getAttributes(match[1]).filter(a => { if (Attributes.hasOwnProperty(a[0])) { return true } else { state.message += `[${a[0]}] is an invalid attribute!\n`; return false } });
+            const ignore = e.metadata.attributes.find(a => a[0] == 'i');
+            if (ignore) // TODO: Refund ignore counter if actions are undone.
+            {
+                if (!e.metadata.hasOwnProperty('ignore')) { e.metadata.ignore = ignore[1] }
+                if ((e.metadata?.lastSeen != info.actionCount ?? false) && getHistoryString(-1).includes(e.metadata.matches[0])) { e.metadata.ignore-- }
+            }
+            e.metadata.lastSeen = info.actionCount;
             return e;
         }
 
-    })
-        .filter(Boolean)
+    }).filter(Boolean)
+
 
     getRandomObjects(attributed)
         .filter(e => Expressions["EWI"].test(e.metadata.qualifier))
