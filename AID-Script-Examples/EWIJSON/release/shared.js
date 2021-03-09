@@ -65,15 +65,9 @@ const getRandomObjects = (arr) =>
     return result.map(e =>
     {
         const find = e.filter(x => x.metadata?.random?.picked);
-
-        if (find.length == 1 && (find[0].metadata.random.action == info.actionCount || !getHistoryString(-1).includes(find[0].metadata.matches[0])))
-        { return [find[0]] }
-
-        else
-        {
-            if (find.length > 0) { find.forEach(e => e.metadata.random.picked = false); }
-            return e
-        };
+        // If multiple previous picks are present, reset their status and re-roll from the batch.
+        if (find.length == 1 && (find[0].metadata.random.action == info.actionCount || !getHistoryString(-1).includes(find[0].metadata.matches[0]))) { return [find[0]] }
+        else { if (find.length > 0) { find.forEach(e => e.metadata.random.picked = false); } return e };
     }).map(e =>
     {
         if (e.length > 1)
@@ -83,7 +77,6 @@ const getRandomObjects = (arr) =>
             random.metadata.random.action = info.actionCount;
             return random
         }
-
         else { return e[0] }
     });
 };
@@ -510,6 +503,7 @@ const preprocess = (list) =>
 
 /*  Cross Lines pulls eligble World Information if its keywords are found within a JSON-line that is present in the context. 
     Insertions are done strictly through the memoryLines section of the context.
+    TODO: Enable attributes for the EWI entries.
 */
 const crossLines = () =>
 {
@@ -527,7 +521,6 @@ const crossLines = () =>
                     return true;
                 }
             }
-
         }
     })
 }
