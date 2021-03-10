@@ -46,33 +46,39 @@ const filter = (arr, by, restrict) =>
 
     const hash = {};
     const result = [];
-    arr.forEach(el => {
-      const value = el.metadata.attributes.find(e => e[0] == by);
-      const restricted = el.metadata.attributes.find(e => e[0] == restrict);
-  
-      if (value) {
-  
-        if (!hash[value[1]]) {
-          hash[value[1]] = {
-            "elements": []
-          };
-          result.push(hash[value[1]]);
+    arr.forEach(el =>
+    {
+        const value = el.metadata.attributes.find(e => e[0] == by);
+        const restricted = el.metadata.attributes.find(e => e[0] == restrict);
+
+        if (value)
+        {
+
+            if (!hash[value[1]])
+            {
+                hash[value[1]] = {
+                    "elements": []
+                };
+                result.push(hash[value[1]]);
+            };
+
+            if (restricted && !hash[value[1]].hasOwnProperty('limit'))
+            {
+                hash[value[1]].limit = restricted[1]
+            }
+            if (!hash[value[1]].hasOwnProperty('limit') || (hash[value[1]].elements.length < hash[value[1]].limit))
+            {
+                hash[value[1]].elements.push(el);
+            }
+        } else
+        {
+            result.push([el])
         };
-  
-        if (restricted && !hash[value[1]].hasOwnProperty('limit')) {
-          hash[value[1]].limit = restricted[1]
-        }
-        if (!hash[value[1]].hasOwnProperty('limit') || (hash[value[1]].elements.length < hash[value[1]].limit)) {
-          hash[value[1]].elements.push(el);
-        }
-      } else {
-        result.push([el])
-      };
     });
-  
+
     return result;
-  
-  }
+
+}
 const getRandomObjects = (arr) =>
 {
 
@@ -164,7 +170,7 @@ const regExMatch = (keys, text = undefined) =>
 }
 
 
-const getAttributes = (string) => { const regEx = new RegExp(String.raw`(${Object.keys(Attributes).sort((a, b) => b.length - a.length).join('|')})(=+-*\d*)?`, 'g'); const index = string.search(Expressions["EWI"]); if (index >= 0) { const match = string.slice(index).match(regEx); if (Boolean(match)) { const result = match.map(e => e.includes('=') ? e.split(Expressions["split"]) : [e, 0]).map(e => [e[0], Number(e[1])]); return result;} } }
+const getAttributes = (string) => { const regEx = new RegExp(String.raw`(${Object.keys(Attributes).sort((a, b) => b.length - a.length).join('|')})(=+-*\d*)?`, 'g'); const index = string.search(Expressions["EWI"]); if (index >= 0) { const match = string.slice(index).match(regEx); if (Boolean(match)) { const result = match.map(e => e.includes('=') ? e.split(Expressions["split"]) : [e, 0]).map(e => [e[0], Number(e[1])]); return result; } } }
 const lens = (obj, path) => path.split('.').reduce((o, key) => o && o[key] ? o[key] : null, obj);
 const replaceLast = (x, y, z) => { let a = x.split(""); let length = y.length; if (x.lastIndexOf(y) != -1) { for (let i = x.lastIndexOf(y); i < x.lastIndexOf(y) + length; i++) { if (i == x.lastIndexOf(y)) { a[i] = z; } else { delete a[i]; } } } return a.join(""); }
 const getMemory = (text) => { return info.memoryLength ? text.slice(0, info.memoryLength) : '' } // If memoryLength is set then slice of the beginning until the end of memoryLength, else return an empty string.
@@ -253,7 +259,7 @@ const addTrailingEntry = (entry, value = 0) =>
 
 const addAustralianKangaroo = (entry, value = 0) => spliceContext(-1, '[A polite Australian kangaroo pulls a top-hat out of its pouch before greeting you.]');
 
-    
+
 const Attributes = {
     'a': addAuthorsNote, // [a] adds it as authorsNote, only one authorsNote at a time.
     'd': addDescription, // [d] adds the first sentence of the entry as a short, parenthesized descriptor to the last mention of the revelant keyword(s) e.g John (a business man)
@@ -507,8 +513,8 @@ const preprocess = (list) =>
             {
                 if (!e.metadata.hasOwnProperty('ignore')) { e.metadata.ignore = { "original": ignore[1], "count": ignore[1], "turn": [] } }
                 if (ignore[1] != e.metadata.ignore.original) { e.metadata.ignore.original == ignore[1]; e.metadata.ignore.count = ignore[1]; }
-                if (!(e.metadata.ignore.turn.some(t => t == info.actionCount))  && getHistoryString(-1).includes(e.metadata.matches[0])) { e.metadata.ignore.count--; e.metadata.ignore.turn.push(info.actionCount) }
-                if (e.metadata.ignore.turn.some(t => t > info.actionCount)) { const refund = e.metadata.ignore.turn.filter(t => t > info.actionCount); e.metadata.ignore.count += refund.length; refund.forEach(t => e.metadata.ignore.turn.splice(e.metadata.ignore.turn.indexOf(t), 1))}
+                if (!(e.metadata.ignore.turn.some(t => t == info.actionCount)) && getHistoryString(-1).includes(e.metadata.matches[0])) { e.metadata.ignore.count--; e.metadata.ignore.turn.push(info.actionCount) }
+                if (e.metadata.ignore.turn.some(t => t > info.actionCount)) { const refund = e.metadata.ignore.turn.filter(t => t > info.actionCount); e.metadata.ignore.count += refund.length; refund.forEach(t => e.metadata.ignore.turn.splice(e.metadata.ignore.turn.indexOf(t), 1)) }
             }
             e.metadata.lastSeen = info.actionCount;
             return e;
