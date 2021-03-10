@@ -48,7 +48,7 @@ const filter = (arr, by, restrict) =>
     const result = [];
     arr.forEach(el =>
     {
-        const value = el.metadata.attributes.find(e => e[0] == by);
+        const value = el.metadata.attributes.find(e => by.some(b => b == e[0]));
         const restricted = el.metadata.attributes.find(e => e[0] == restrict);
 
         if (value)
@@ -76,13 +76,13 @@ const filter = (arr, by, restrict) =>
         };
     });
 
-    return result;
+    return result.map(e => e.elements || e);
 
 }
 const getRandomObjects = (arr) =>
 {
 
-    return filter(arr, 'r').map(e =>
+    return filter(arr, ['r']).map(e =>
     {
         const find = e.filter(x => x.metadata?.random?.picked);
         // If multiple previous picks are present, reset their status and re-roll from the batch.
@@ -486,7 +486,7 @@ const execAttributes = (object) =>
     const ignore = attributes.find(e => e[0] == 'x');
     if (((ignore ? ignore[1] < history.length : true) && attributes.length > 0) && (object.metadata.hasOwnProperty('ignore') ? object.metadata.ignore.count > 0 : true))
     {
-        console.log(`Success: ${attributes}`)
+
         try { attributes.forEach(pair => { Attributes[pair[0]](object, pair[1]) }) }
         catch (error) { console.log(`${error.name}: ${error.message}`) }
     }
@@ -525,7 +525,7 @@ const preprocess = (list) =>
     // TODO: Optimize this section.
     const randomized = getRandomObjects(attributed).filter(e => Expressions["EWI"].test(e.metadata.qualifier));
     const sorted = randomized.sort((a, b) => b.metadata.index - a.metadata.index);
-    const filtered = filter(sorted, 't', 'f').map(e => e.elements || e).flat();
+    const filtered = filter(sorted, Object.keys(Attributes).filter(a => Attributes[a].toString() != '() => {}'), 'f').flat();
     filtered.forEach(e => { execAttributes(e); });
 }
 
