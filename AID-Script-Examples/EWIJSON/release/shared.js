@@ -40,29 +40,43 @@ state.config = {
 let { cross } = state.settings;
 const { whitelistPath, synonymsPath, pathSymbol, wildcardPath, configPath, libraryPath, openListener, closeListener } = state.config;
 const Paths = [whitelistPath, synonymsPath, libraryPath];
-const getRandomObjects = (arr) =>
+
+const filter = (arr, by, restrict) =>
 {
+
     const hash = {};
     const result = [];
-    arr.forEach(el =>
-    {
-        const value = el.metadata?.attributes?.find(e => e[0] == 'r');
-        if (value)
-        {
-
-            if (!hash[value[1]])
-            {
-                hash[value[1]] = [];
-                result.push(hash[value[1]]);
-            };
-            hash[value[1]].push(el);
-        } else
-        {
-            result.push([el])
+    arr.forEach(el => {
+      const value = el.metadata.attributes.find(e => e[0] == by);
+      const restricted = el.metadata.attributes.find(e => e[0] == restrict);
+  
+      if (value) {
+  
+        if (!hash[value[1]]) {
+          hash[value[1]] = {
+            "elements": []
+          };
+          result.push(hash[value[1]]);
         };
+  
+        if (restricted && !hash[value[1]].hasOwnProperty('limit')) {
+          hash[value[1]].limit = restricted[1]
+        }
+        if (!hash[value[1]].hasOwnProperty('limit') || (hash[value[1]].elements.length < hash[value[1]].limit)) {
+          hash[value[1]].elements.push(el);
+        }
+      } else {
+        result.push([el])
+      };
     });
+  
+    return result;
+  
+  }
+const getRandomObjects = (arr) =>
+{
 
-    return result.map(e =>
+    return filter(arr, 'r').map(e =>
     {
         const find = e.filter(x => x.metadata?.random?.picked);
         // If multiple previous picks are present, reset their status and re-roll from the batch.
@@ -150,7 +164,7 @@ const regExMatch = (keys, text = undefined) =>
 }
 
 
-const getAttributes = (string) => { const regEx = new RegExp(String.raw`(${Object.keys(Attributes).sort((a, b) => b.length - a.length).join('|')})(=+-*\d*)?`, 'g'); const index = string.search(Expressions["EWI"]); if (index >= 0) { const match = string.slice(index).match(regEx); if (Boolean(match)) { return match.map(e => e.includes('=') ? e.split(Expressions["split"]) : [e, 0]).map(e => [e[0], Number(e[1])]) } } }
+const getAttributes = (string) => { const regEx = new RegExp(String.raw`(${Object.keys(Attributes).sort((a, b) => b.length - a.length).join('|')})(=+-*\d*)?`, 'g'); const index = string.search(Expressions["EWI"]); if (index >= 0) { const match = string.slice(index).match(regEx); if (Boolean(match)) { const result = match.map(e => e.includes('=') ? e.split(Expressions["split"]) : [e, 0]).map(e => [e[0], Number(e[1])]); return result;} } }
 const lens = (obj, path) => path.split('.').reduce((o, key) => o && o[key] ? o[key] : null, obj);
 const replaceLast = (x, y, z) => { let a = x.split(""); let length = y.length; if (x.lastIndexOf(y) != -1) { for (let i = x.lastIndexOf(y); i < x.lastIndexOf(y) + length; i++) { if (i == x.lastIndexOf(y)) { a[i] = z; } else { delete a[i]; } } } return a.join(""); }
 const getMemory = (text) => { return info.memoryLength ? text.slice(0, info.memoryLength) : '' } // If memoryLength is set then slice of the beginning until the end of memoryLength, else return an empty string.
@@ -237,19 +251,23 @@ const addTrailingEntry = (entry, value = 0) =>
     return;
 }
 
+const addAustralianKangaroo = (entry, value = 0) => spliceContext(-1, '[A polite Australian kangaroo pulls a top-hat out of its pouch before greeting you.]');
+
+    
 const Attributes = {
     'a': addAuthorsNote, // [a] adds it as authorsNote, only one authorsNote at a time.
-    's': showWorldEntry, // [r] reveals the entry once mentioned, used in conjuction with [e] to only reveal if all keywords are mentioned at once.
-    'e': () => { }, // [e] tells the custom keyword check to only run the above functions if every keyword of the entry matches.
     'd': addDescription, // [d] adds the first sentence of the entry as a short, parenthesized descriptor to the last mention of the revelant keyword(s) e.g John (a business man)
+    'f': () => { }, // [e] filters and limits the amount of simultaneous attribute activations.
     'i': () => { }, // [i] Ignores the entry if present.
-    'r': () => { }, // [r] picks randomly between entries with the same matching keys. e.g 'you.*catch#[rp=1]' and 'you.*catch#[rd]' has 50% each to be picked.
+    'l': () => { },
     'm': addMemoryEntry,
     'p': addPositionalEntry, // Inserts the <entry> <value> amount of lines into context, e.g [p=1] inserts it one line into context.
-    'w': () => { }, // [w] assigns the weight attribute, the higher value the more recent/relevant it will be in context/frontMemory/intermediateMemory etc.
+    'r': () => { }, // [r] picks randomly between entries with the same matching keys. e.g 'you.*catch#[rp=1]' and 'you.*catch#[rd]' has 50% each to be picked.
+    's': showWorldEntry, // [r] reveals the entry once mentioned, used in conjuction with [e] to only reveal if all keywords are mentioned at once.
     't': addTrailingEntry, // [t] adds the entry at a line relative to the activator in context. [t=2] will trail context two lines behind the activating word.
-    'l': () => { },
+    'w': () => { }, // [w] assigns the weight attribute, the higher value the more recent/relevant it will be in context/frontMemory/intermediateMemory etc.
     'x': () => { }, // [x] ignores the entry if not X amount of rounds have processed.
+    'australiankangaroo': addAustralianKangaroo
 }
 
 const getWhitelist = () => { const index = getEntryIndex('_whitelist.'); return index >= 0 ? worldInfo[index]["entry"].split(/,|\n/g).map(e => e.trim()) : [] }
@@ -284,6 +302,7 @@ const updateListener = (value, display, visited) =>
 
     }
 }
+
 const globalReplacer = () =>
 {
 
@@ -456,10 +475,12 @@ const getEWI = () => { return worldInfo.filter(e => Expressions["EWI"].test(e["k
 const processEWI = () => preprocess(getEWI());
 const execAttributes = (object) =>
 {
+
     const { attributes } = object.metadata;
     const ignore = attributes.find(e => e[0] == 'x');
     if (((ignore ? ignore[1] < history.length : true) && attributes.length > 0) && (object.metadata.hasOwnProperty('ignore') ? object.metadata.ignore.count > 0 : true))
     {
+        console.log(`Success: ${attributes}`)
         try { attributes.forEach(pair => { Attributes[pair[0]](object, pair[1]) }) }
         catch (error) { console.log(`${error.name}: ${error.message}`) }
     }
@@ -475,14 +496,14 @@ const preprocess = (list) =>
 
         const match = regExMatch(getPlaceholder(e["keys"]));
         if (!e.hasOwnProperty('metadata')) { e.metadata = {}; };
-        if (Boolean(match[0]))
+        if (Boolean(match[0])) // If match isn't found then return undefined and filter it out.
         {
             e.metadata.index = search.lastIndexOf(match[0][match[0].length - 1]);
             e.metadata.qualifier = match[1];
             e.metadata.matches = match[0];
             e.metadata.attributes = getAttributes(match[1]).filter(a => { if (Attributes.hasOwnProperty(a[0])) { return true } else { state.message += `[${a[0]}] is an invalid attribute!\n`; return false } });
             const ignore = e.metadata.attributes.find(a => a[0] == 'i');
-            if (ignore) // TODO: Refund ignore counter if actions are undone.
+            if (ignore)
             {
                 if (!e.metadata.hasOwnProperty('ignore')) { e.metadata.ignore = { "original": ignore[1], "count": ignore[1], "turn": [] } }
                 if (ignore[1] != e.metadata.ignore.original) { e.metadata.ignore.original == ignore[1]; e.metadata.ignore.count = ignore[1]; }
@@ -495,11 +516,11 @@ const preprocess = (list) =>
 
     }).filter(Boolean)
 
-
-    getRandomObjects(attributed)
-        .filter(e => Expressions["EWI"].test(e.metadata.qualifier))
-        .sort((a, b) => b.metadata.index - a.metadata.index)
-        .forEach(e => { execAttributes(e); });
+    // TODO: Optimize this section.
+    const randomized = getRandomObjects(attributed).filter(e => Expressions["EWI"].test(e.metadata.qualifier));
+    const sorted = randomized.sort((a, b) => b.metadata.index - a.metadata.index);
+    const filtered = filter(sorted, 't', 'f').map(e => e.elements || e).flat();
+    filtered.forEach(e => { execAttributes(e); });
 }
 
 /*  Cross Lines pulls eligble World Information if its keywords are found within a JSON-line that is present in the context. 
