@@ -87,7 +87,7 @@ const modifier = (text) =>
 
     let combinedMemory = memoryLines.join('\n')
     let combinedLines = lines.join('\n').slice(-(info.maxChars - combinedMemory.length - 1));
-    const finalText = [combinedMemory, combinedLines].join("\n");
+    const finalText = [combinedMemory, combinedLines].join("");
 
     // Debug to check if the context is intact and properly utilized, optimally the numbers should always match
     console.log(`Final Text: ${finalText.length}`, `Max Text: ${info.maxChars}`, `MemoryLength: ${info.memoryLength}`, `Total Memory: ${info.memoryLength + contextMemoryLength}`)
