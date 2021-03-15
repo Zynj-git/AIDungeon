@@ -41,6 +41,7 @@ let { cross } = state.settings;
 const { whitelistPath, synonymsPath, pathSymbol, wildcardPath, configPath, libraryPath, openListener, closeListener } = state.config;
 const Paths = [whitelistPath, synonymsPath, libraryPath];
 
+// Filter and group the array by the 'by' value to the limit of the 'restrict' value.
 const filter = (arr, by, restrict) =>
 {
 
@@ -257,7 +258,7 @@ const addTrailingEntry = (entry, value = 0) =>
     return;
 }
 
-const addAustralianKangaroo = (entry, value = 0) => spliceContext(-1, '[A polite Australian kangaroo pulls a top-hat out of its pouch before greeting you.]');
+const addAustralianKangaroo = () => spliceContext(-1, '[A polite Australian kangaroo pulls a top-hat out of its pouch before greeting you.]');
 
 
 const Attributes = {
@@ -270,6 +271,7 @@ const Attributes = {
     'p': addPositionalEntry, // Inserts the <entry> <value> amount of lines into context, e.g [p=1] inserts it one line into context.
     'r': () => { }, // [r] picks randomly between entries with the same matching keys. e.g 'you.*catch#[rp=1]' and 'you.*catch#[rd]' has 50% each to be picked.
     's': showWorldEntry, // [r] reveals the entry once mentioned, used in conjuction with [e] to only reveal if all keywords are mentioned at once.
+    'S': () => { }, // [S] functions as a 'sticky' entry, it'll stick to the context independent of its conditions once activated. Non- value (0) is indefinite while a value is duration.
     't': addTrailingEntry, // [t] adds the entry at a line relative to the activator in context. [t=2] will trail context two lines behind the activating word.
     'w': () => { }, // [w] assigns the weight attribute, the higher value the more recent/relevant it will be in context/frontMemory/intermediateMemory etc.
     'x': () => { }, // [x] ignores the entry if not X amount of rounds have processed.
@@ -484,7 +486,7 @@ const execAttributes = (object) =>
 
     const { attributes } = object.metadata;
     const ignore = attributes.find(e => e[0] == 'x');
-    if (((ignore ? ignore[1] < history.length : true) && attributes.length > 0) && (object.metadata.hasOwnProperty('ignore') ? object.metadata.ignore.count > 0 : true))
+    if (((ignore ? ignore[1] < history.length : true) && attributes.length > 0) && (object.metadata.hasOwnProperty('ignore') ? object.metadata.ignore.count > 0 || object.metadata.ignore.original != 0 : true))
     {
 
         try { attributes.forEach(pair => { Attributes[pair[0]](object, pair[1]) }) }
@@ -497,7 +499,7 @@ const execAttributes = (object) =>
 const preprocess = (list) =>
 {
     const search = copyLines.join('\n')
-    const attributed = list.map(e =>
+    const attributed = list.filter(e =>
     {
 
         const match = regExMatch(getPlaceholder(e["keys"]));
@@ -512,20 +514,41 @@ const preprocess = (list) =>
             if (ignore)
             {
                 if (!e.metadata.hasOwnProperty('ignore')) { e.metadata.ignore = { "original": ignore[1], "count": ignore[1], "turn": [] } }
-                if (ignore[1] != e.metadata.ignore.original) { e.metadata.ignore.original == ignore[1]; e.metadata.ignore.count = ignore[1]; }
-                if (!(e.metadata.ignore.turn.some(t => t == info.actionCount)) && getHistoryString(-1).includes(e.metadata.matches[0])) { e.metadata.ignore.count--; e.metadata.ignore.turn.push(info.actionCount) }
-                if (e.metadata.ignore.turn.some(t => t > info.actionCount)) { const refund = e.metadata.ignore.turn.filter(t => t > info.actionCount); e.metadata.ignore.count += refund.length; refund.forEach(t => e.metadata.ignore.turn.splice(e.metadata.ignore.turn.indexOf(t), 1)) }
+                if (ignore[1] != e.metadata.ignore.original) { e.metadata.ignore.original = ignore[1]; e.metadata.ignore.count = ignore[1]; }
+                if (!(e.metadata.ignore.turn.some(t => t == info.actionCount)) && getHistoryString(-1).includes(e.metadata.matches[0])) { if (e.metadata.ignore.count > 0) { e.metadata.ignore.count--; e.metadata.ignore.turn.push(info.actionCount) } }
+                if (e.metadata.ignore.turn.some(t => t > info.actionCount)) { const refund = e.metadata.ignore.turn.filter(t => t > info.actionCount); if (refund.length > 0) { e.metadata.ignore.count += refund.length; e.metadata.ignore.turn.splice(-refund.length) } }
+            }
+
+            const sticky = e.metadata.attributes.find(a => a[0] == 'S');
+            if (sticky)
+            {
+                if (!e.metadata.hasOwnProperty('sticky')) { e.metadata.sticky = { "original": sticky[1], "count": sticky[1], "turn": [] } }
+                
+                e.metadata.sticky.original = sticky[1]; 
+                e.metadata.sticky.count = sticky[1];
+
+                if (!e.metadata.sticky.turn.some(t => t == info.actionCount)) { if (e.metadata.sticky.count > 0) { e.metadata.sticky.count--; e.metadata.sticky.turn.push(info.actionCount) } }
+                if (e.metadata.sticky.turn.some(t => t > info.actionCount)) { const refund = e.metadata.sticky.turn.filter(t => t > info.actionCount); if (refund.length > 0) { e.metadata.sticky.count += refund.length; e.metadata.sticky.turn.splice(-refund.length) } }
             }
             e.metadata.lastSeen = info.actionCount;
-            return e;
+            return true;
         }
 
-    }).filter(Boolean)
+        // [S] - Sticky bypass.
+        else if (e.metadata.hasOwnProperty('sticky') && ((e.metadata.sticky.count > 0 && e.metadata.sticky.count != e.metadata.sticky.original) || e.metadata.sticky.original == 0))
+        {
+            if (!e.metadata.sticky.turn.some(t => t == info.actionCount)) { if (e.metadata.sticky.count > 0) { e.metadata.sticky.count--; e.metadata.sticky.turn.push(info.actionCount) } }
+            if (e.metadata.sticky.turn.some(t => t > info.actionCount)) { const refund = e.metadata.sticky.turn.filter(t => t > info.actionCount); if (refund.length > 0) { e.metadata.sticky.count += refund.length; e.metadata.sticky.turn.splice(-refund.length) } }
+            if (e.metadata.sticky.count == 0 && e.metadata.sticky.original != 0) {e.metadata.sticky.count = e.metadata.sticky.original;}
+            return true;
+        }
+
+    })
 
     // TODO: Optimize this section.
     const randomized = getRandomObjects(attributed).filter(e => Expressions["EWI"].test(e.metadata.qualifier));
     const sorted = randomized.sort((a, b) => b.metadata.index - a.metadata.index);
-    const filtered = filter(sorted, Object.keys(Attributes).filter(a => Attributes[a].toString() != '() => {}'), 'f').flat();
+    const filtered = filter(sorted, Object.keys(Attributes).filter(a => Attributes[a].toString() != '() => {}'), 'f').flat().sort((a, b) => { const A = a.metadata.attributes.find(e => e[0] == 't'); const B = b.metadata.attributes.find(e => e[0] == 't'); return (A ? A[1] : 0) - (B ? B[1] : 0)});
     filtered.forEach(e => { execAttributes(e); });
 }
 
