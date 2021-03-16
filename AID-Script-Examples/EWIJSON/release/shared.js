@@ -146,7 +146,7 @@ const regExMatch = (keys, text = undefined) =>
             if (expressions.every(exp =>
             {
                 const regExRaw = exp;
-                const regExString = regExRaw.replace(/(^\/)|(\/.*)$/g, '').replace(/\\,/, '');
+                const regExString = regExRaw.replace(/(^\/)|(\/.*)$/g, '').replace(/\\(?=,)/, '');
                 const regExFlags = Expressions["flags"].test(regExRaw) ? [...new Set([...regExRaw.match(Expressions["flags"]).join('').split(''), 'g'])].join('') : Expressions["expectFlags"].test(regExRaw) ? 'g' : 'gi';
                 const regEx = new RegExp(regExString, regExFlags);
                 return regEx.test(string);
@@ -154,7 +154,7 @@ const regExMatch = (keys, text = undefined) =>
             {
                 key = line;
                 const regExRawLast = expressions.pop();
-                const regExString = regExRawLast.replace(/(^\/)|(\/.*)$/g, '').replace(/\\,/, '');
+                const regExString = regExRawLast.replace(/(^\/)|(\/.*)$/g, '').replace(/\\(?=,)/, '');
                 const regExFlags = Expressions["flags"].test(regExRawLast) ? [...new Set([...regExRawLast.match(Expressions["flags"]).join('').split(''), 'g'])].join('') : Expressions["expectFlags"].test(regExRawLast) ? 'g' : 'gi'
                 const regEx = new RegExp(regExString, regExFlags);
                 result.push([...string.matchAll(regEx)].filter(Boolean).pop());
@@ -280,7 +280,15 @@ const Attributes = {
 
 const getWhitelist = () => { const index = getEntryIndex('_whitelist.'); return index >= 0 ? worldInfo[index]["entry"].split(/,|\n/g).map(e => e.trim()) : [] }
 const getWildcard = (display, offset = 0) => { const wildcard = display.split('.').slice(offset != 0 ? 0 : 1).join('.'); const list = display.split('.'); const index = list.indexOf(wildcard.slice(wildcard.lastIndexOf('.') + 1)); return [list[index].replace(wildcardPath, ''), index + offset] }
-const getPlaceholder = (value) => typeof value == 'string' ? value.replace(Expressions["placeholder"], match => dataStorage[libraryPath][match.replace(/\$\{|\}/g, '')]) : value
+const getPlaceholder = (value) =>
+{
+    if (typeof value == 'string')
+    {
+        let result = value;
+        while (Expressions["placeholder"].test(result)) { result = result.replace(Expressions["placeholder"], match => dataStorage[libraryPath][match.replace(/\$\{|\}/g, '')]) }
+        return result
+    } else {return value}
+};
 const updateListener = (value, display, visited) =>
 {
     // Check if it has previously qualified in 'visited' instead of running regExMatch on each node.
@@ -384,7 +392,7 @@ const globalReplacer = () =>
 
 // globalWhitelist - Should only make one call to it per turn in context modifiers. Other modifiers access it via state.
 const getGlobalWhitelist = () => state.settings.globalWhitelist = globalReplacer();
-const setProperty = (keys, value, obj) => { const property = keys.split('.').pop(); const path = keys.split('.')[1] ? keys.split('.').slice(0, -1).join('.') : keys.replace('.', ''); if (property[1]) { getKey(path, obj)[property] = value ? value : null; } else { dataStorage[path] = value; } }
+const setProperty = (keys, value, obj) => { const property = keys.split('.').pop(); const path = keys.split('.')[1] ? keys.split('.').slice(0, -1).join('.') : keys.replace('.', ''); if (property) { getKey(path, obj)[property] = value ? value : null; } else { dataStorage[path] = value; } }
 const getKey = (keys, obj) => { return keys.split('.').reduce((a, b) => { if (typeof a[b] != "object" || a[b] == null) { a[b] = {} } if (!a.hasOwnProperty(b)) { a[b] = {} } return a && a[b] }, obj) }
 
 const buildObjects = () =>
@@ -484,6 +492,7 @@ const processEWI = () => preprocess(getEWI());
 const execAttributes = (object) =>
 {
 
+
     const { attributes } = object.metadata;
     const ignore = attributes.find(e => e[0] == 'x');
     if (((ignore ? ignore[1] < history.length : true) && attributes.length > 0) && (object.metadata.hasOwnProperty('ignore') ? object.metadata.ignore.count > 0 || object.metadata.ignore.original != 0 : true))
@@ -523,8 +532,8 @@ const preprocess = (list) =>
             if (sticky)
             {
                 if (!e.metadata.hasOwnProperty('sticky')) { e.metadata.sticky = { "original": sticky[1], "count": sticky[1], "turn": [] } }
-                
-                e.metadata.sticky.original = sticky[1]; 
+
+                e.metadata.sticky.original = sticky[1];
                 e.metadata.sticky.count = sticky[1];
 
                 if (!e.metadata.sticky.turn.some(t => t == info.actionCount)) { if (e.metadata.sticky.count > 0) { e.metadata.sticky.count--; e.metadata.sticky.turn.push(info.actionCount) } }
@@ -539,7 +548,7 @@ const preprocess = (list) =>
         {
             if (!e.metadata.sticky.turn.some(t => t == info.actionCount)) { if (e.metadata.sticky.count > 0) { e.metadata.sticky.count--; e.metadata.sticky.turn.push(info.actionCount) } }
             if (e.metadata.sticky.turn.some(t => t > info.actionCount)) { const refund = e.metadata.sticky.turn.filter(t => t > info.actionCount); if (refund.length > 0) { e.metadata.sticky.count += refund.length; e.metadata.sticky.turn.splice(-refund.length) } }
-            if (e.metadata.sticky.count == 0 && e.metadata.sticky.original != 0) {e.metadata.sticky.count = e.metadata.sticky.original;}
+            if (e.metadata.sticky.count == 0 && e.metadata.sticky.original != 0) { e.metadata.sticky.count = e.metadata.sticky.original; }
             return true;
         }
 
@@ -548,7 +557,7 @@ const preprocess = (list) =>
     // TODO: Optimize this section.
     const randomized = getRandomObjects(attributed).filter(e => Expressions["EWI"].test(e.metadata.qualifier));
     const sorted = randomized.sort((a, b) => b.metadata.index - a.metadata.index);
-    const filtered = filter(sorted, Object.keys(Attributes).filter(a => Attributes[a].toString() != '() => {}'), 'f').flat().sort((a, b) => { const A = a.metadata.attributes.find(e => e[0] == 't'); const B = b.metadata.attributes.find(e => e[0] == 't'); return (A ? A[1] : 0) - (B ? B[1] : 0)});
+    const filtered = filter(sorted, Object.keys(Attributes).filter(a => Attributes[a].toString() != '() => {}'), 'f').flat().sort((a, b) => { const A = a.metadata.attributes.find(e => e[0] == 't'); const B = b.metadata.attributes.find(e => e[0] == 't'); return (A ? A[1] : 0) - (B ? B[1] : 0) });
     filtered.forEach(e => { execAttributes(e); });
 }
 
