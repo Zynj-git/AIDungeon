@@ -532,10 +532,7 @@ const preprocess = (list) =>
             if (sticky)
             {
                 if (!e.metadata.hasOwnProperty('sticky')) { e.metadata.sticky = { "original": sticky[1], "count": sticky[1], "turn": [] } }
-
-                e.metadata.sticky.original = sticky[1];
-                e.metadata.sticky.count = sticky[1];
-
+                if (getHistoryString(-1).includes(e.metadata.matches[0])) {e.metadata.sticky.original = sticky[1]; e.metadata.sticky.count = sticky[1];}
                 if (!e.metadata.sticky.turn.some(t => t == info.actionCount)) { if (e.metadata.sticky.count > 0) { e.metadata.sticky.count--; e.metadata.sticky.turn.push(info.actionCount) } }
                 if (e.metadata.sticky.turn.some(t => t > info.actionCount)) { const refund = e.metadata.sticky.turn.filter(t => t > info.actionCount); if (refund.length > 0) { e.metadata.sticky.count += refund.length; e.metadata.sticky.turn.splice(-refund.length) } }
             }
