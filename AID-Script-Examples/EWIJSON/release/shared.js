@@ -278,6 +278,7 @@ const Attributes = {
     'australiankangaroo': addAustralianKangaroo
 }
 
+const FunctionAttributes = Object.keys(Attributes).filter(a => Attributes[a].toString() != '() => {}');
 const getWhitelist = () => { const index = getEntryIndex('_whitelist.'); return index >= 0 ? worldInfo[index]["entry"].split(/,|\n/g).map(e => e.trim()) : [] }
 const getWildcard = (display, offset = 0) => { const wildcard = display.split('.').slice(offset != 0 ? 0 : 1).join('.'); const list = display.split('.'); const index = list.indexOf(wildcard.slice(wildcard.lastIndexOf('.') + 1)); return [list[index].replace(wildcardPath, ''), index + offset] }
 const getPlaceholder = (value) =>
@@ -532,10 +533,7 @@ const preprocess = (list) =>
             if (sticky)
             {
                 if (!e.metadata.hasOwnProperty('sticky')) { e.metadata.sticky = { "original": sticky[1], "count": sticky[1], "turn": [] } }
-
-                e.metadata.sticky.original = sticky[1];
-                e.metadata.sticky.count = sticky[1];
-
+                if (getHistoryString(-1).includes(e.metadata.matches[0])) {e.metadata.sticky.original = sticky[1]; e.metadata.sticky.count = sticky[1];}
                 if (!e.metadata.sticky.turn.some(t => t == info.actionCount)) { if (e.metadata.sticky.count > 0) { e.metadata.sticky.count--; e.metadata.sticky.turn.push(info.actionCount) } }
                 if (e.metadata.sticky.turn.some(t => t > info.actionCount)) { const refund = e.metadata.sticky.turn.filter(t => t > info.actionCount); if (refund.length > 0) { e.metadata.sticky.count += refund.length; e.metadata.sticky.turn.splice(-refund.length) } }
             }
@@ -557,7 +555,7 @@ const preprocess = (list) =>
     // TODO: Optimize this section.
     const randomized = getRandomObjects(attributed).filter(e => Expressions["EWI"].test(e.metadata.qualifier));
     const sorted = randomized.sort((a, b) => b.metadata.index - a.metadata.index);
-    const filtered = filter(sorted, Object.keys(Attributes).filter(a => Attributes[a].toString() != '() => {}'), 'f').flat().sort((a, b) => { const A = a.metadata.attributes.find(e => e[0] == 't'); const B = b.metadata.attributes.find(e => e[0] == 't'); return (A ? A[1] : 0) - (B ? B[1] : 0) });
+    const filtered = filter(sorted, FunctionAttributes, 'f').flat().sort((a, b) => { const A = a.metadata.attributes.find(e => FunctionAttributes.some(a => a == e[0])); const B = b.metadata.attributes.find(e => FunctionAttributes.some(a => a == e[0])); return (A ? A[1] : 0) - (B ? B[1] : 0) });
     filtered.forEach(e => { execAttributes(e); });
 }
 
