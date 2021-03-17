@@ -39,54 +39,82 @@ state.config = {
 }
 let { cross } = state.settings;
 const { whitelistPath, synonymsPath, pathSymbol, wildcardPath, configPath, libraryPath, openListener, closeListener } = state.config;
-const Paths = [whitelistPath, synonymsPath, libraryPath]
+const Paths = [whitelistPath, synonymsPath, libraryPath];
 
-// https://www.tutorialspoint.com/group-by-e-in-array-javascript
-const groupElementsBy = arr =>
+// Filter and group the array by the 'by' value to the limit of the 'restrict' value.
+const filter = (arr, by, restrict) =>
 {
-    const hash = Object.create(null),
-        result = [];
+
+    const hash = {};
+    const result = [];
     arr.forEach(el =>
     {
-        const keys = el.keys.slice(0, el.keys.indexOf('#'))
-        if (!hash[keys])
+        const value = el.metadata.attributes.find(e => by.some(b => b == e[0]));
+        const restricted = el.metadata.attributes.find(e => e[0] == restrict);
+
+        if (value)
         {
-            hash[keys] = [];
-            result.push(hash[keys]);
+
+            if (!hash[value[1]])
+            {
+                hash[value[1]] = {
+                    "elements": []
+                };
+                result.push(hash[value[1]]);
+            };
+
+            if (restricted && !hash[value[1]].hasOwnProperty('limit'))
+            {
+                hash[value[1]].limit = restricted[1]
+            }
+            if (!hash[value[1]].hasOwnProperty('limit') || (hash[value[1]].elements.length < hash[value[1]].limit))
+            {
+                hash[value[1]].elements.push(el);
+            }
+        } else
+        {
+            result.push([el])
         };
-        hash[keys].push(el);
     });
-    return result;
+
+    return result.map(e => e.elements || e);
+
+}
+const getRandomObjects = (arr) =>
+{
+
+    return filter(arr, ['r']).map(e =>
+    {
+        const find = e.filter(x => x.metadata?.random?.picked);
+        // If multiple previous picks are present, reset their status and re-roll from the batch.
+        if (find.length == 1 && (find[0].metadata.random.action == info.actionCount || !getHistoryString(-1).includes(find[0].metadata.matches[0]))) { return [find[0]] }
+        else { if (find.length > 0) { find.forEach(e => e.metadata.random.picked = false); } return e };
+    }).map(e =>
+    {
+        if (e.length > 1)
+        {
+            const random = e[Math.floor(Math.random() * e.length)];
+            random.metadata.random = { "picked": true };
+            random.metadata.random.action = info.actionCount;
+            return random
+        }
+        else { return e[0] }
+    });
 };
+
 //https://stackoverflow.com/questions/61681176/json-stringify-replacer-how-to-get-full-path
-const replacerWithPath = (replacer) => { let m = new Map(); return function(field, value) { let path = m.get(this) + (Array.isArray(this) ? `[${field}]` : '.' + field); if (value === Object(value)) m.set(value, path); return replacer.call(this, field, value, path.replace(/undefined\.\.?/, '')); } }
+const replacerWithPath = (replacer) => { let m = new Map(); return function (field, value) { let path = m.get(this) + (Array.isArray(this) ? `[${field}]` : '.' + field); if (value === Object(value)) m.set(value, path); return replacer.call(this, field, value, path.replace(/undefined\.\.?/, '')); } }
 const worldEntriesFromObject = (obj, root) =>
 {
-    JSON.stringify(obj, replacerWithPath(function(field, value, path)
+    JSON.stringify(obj, replacerWithPath(function (field, value, path)
     {
         if (typeof value != 'object')
         {
-            const index = worldEntries.findIndex(e => e["keys"] == `${root}.${path}`.replace(/^\.*|\.$/g, ''));
-            index >= 0 ? updateWorldEntry(index, `${root}.${path}`.replace(/^\.*|\.$/g, ''), value.toString(), isNotHidden = false) : addWorldEntry(`${root}.${path}`.replace(/^\.*|\.$/g, ''), value.toString(), isNotHidden = false);
+            const index = worldInfo.findIndex(e => e["keys"] == `${root}.${path}`.replace(/^\.*|\.$/g, ''));
+            index >= 0 ? updateWorldEntry(index, `${root}.${path}`.replace(/^\.*|\.$/g, ''), value.toString(), hidden = false) : addWorldEntry(`${root}.${path}`.replace(/^\.*|\.$/g, ''), value.toString(), hidden = false);
         }
         return value;
     }));
-}
-//https://stackoverflow.com/questions/273789/is-there-a-version-of-javascripts-string-indexof-that-allows-for-regular-expr#273810
-String.prototype.regexLastIndexOf = function(regex, startpos)
-{
-    regex = (regex.global) ? regex : new RegExp(regex.source, "g" + (regex.ignoreCase ? "i" : "") + (regex.multiLine ? "m" : ""));
-    if (typeof(startpos) == "undefined") { startpos = this.length; }
-    else if (startpos < 0) { startpos = 0; }
-    let stringToWorkWith = this.substring(0, startpos + 1);
-    let lastIndexOf = -1;
-    let nextStop = 0;
-    while ((result = regex.exec(stringToWorkWith)) != null)
-    {
-        lastIndexOf = result.index;
-        regex.lastIndex = ++nextStop;
-    }
-    return lastIndexOf;
 }
 const getHistoryString = (start, end = undefined) => history.slice(start, end).map(e => e["text"]).join('\n') // Returns a single string of the text.
 const getHistoryText = (start, end = undefined) => history.slice(start, end).map(e => e["text"]) // Returns an array of text.
@@ -97,10 +125,11 @@ const getActionTypes = (turns) => history.slice(turns).map(e => e["type"]) // Re
 const fixOrder = () =>
 {
     dataStorage = Object.assign({ "_whitelist": {}, "_synonyms": {} }, dataStorage);
-    state.data = dataStorage
+    state.data = dataStorage;
 }
 
-const regExMatch = (keys) =>
+// Consider implementing a negative 'every' check for 'do not match' instances, expression prefixed by '!'
+const regExMatch = (keys, text = undefined) =>
 {
     if (typeof keys != 'string') { console.log(`Invalid Expressions: ${keys}`); return }
     // Test the multi-lines individually, last/bottom line qualifying becomes result.
@@ -111,24 +140,21 @@ const regExMatch = (keys) =>
     {
         array.forEach(line =>
         {
-            const string = getSlice(line, state.settings.mode).join('\n')
-      
-
+            const string = text ? text : getSlice(line, state.settings.mode).join('\n')
             const expressions = line.slice(0, /#\[.*\]/.test(line) ? line.lastIndexOf('#') : line.length).split(/(?<!\\),/g);
-   
-            if (expressions.every(exp =>
-                {
-                    const regExRaw = exp;
-                    const regExString = regExRaw.replace(/(^\/)|(\/.*)$/g, '').replace(/\\,/, '');
-                    const regExFlags = Expressions["flags"].test(regExRaw) ? [...new Set([...regExRaw.match(Expressions["flags"]).join('').split(''), 'g'])].join('') : Expressions["expectFlags"].test(regExRaw) ? 'g' : 'gi';
-                    const regEx = new RegExp(regExString, regExFlags);
-                    return regEx.test(string);
-                }))
 
+            if (expressions.every(exp =>
+            {
+                const regExRaw = exp;
+                const regExString = regExRaw.replace(/(^\/)|(\/.*)$/g, '').replace(/\\(?=,)/, '');
+                const regExFlags = Expressions["flags"].test(regExRaw) ? [...new Set([...regExRaw.match(Expressions["flags"]).join('').split(''), 'g'])].join('') : Expressions["expectFlags"].test(regExRaw) ? 'g' : 'gi';
+                const regEx = new RegExp(regExString, regExFlags);
+                return regEx.test(string);
+            }))
             {
                 key = line;
                 const regExRawLast = expressions.pop();
-                const regExString = regExRawLast.replace(/(^\/)|(\/.*)$/g, '').replace(/\\,/, '');
+                const regExString = regExRawLast.replace(/(^\/)|(\/.*)$/g, '').replace(/\\(?=,)/, '');
                 const regExFlags = Expressions["flags"].test(regExRawLast) ? [...new Set([...regExRawLast.match(Expressions["flags"]).join('').split(''), 'g'])].join('') : Expressions["expectFlags"].test(regExRawLast) ? 'g' : 'gi'
                 const regEx = new RegExp(regExString, regExFlags);
                 result.push([...string.matchAll(regEx)].filter(Boolean).pop());
@@ -138,14 +164,14 @@ const regExMatch = (keys) =>
     catch (error)
     {
         console.log(`In regExMatch:\n${error.name}: ${error.message}`);
-        state.message = `In regExMatch:\n${error.name}: ${error.message}`
+        state.message = `In regExMatch:\n${error.name}: ${error.message}`;
 
     }
     return [result.length > 0 ? result.pop().filter(Boolean) : undefined, key]
 }
 
 
-const getAttributes = (string) => { const index = string.search(Expressions["EWI"]); if (index >= 0) { const match = string.slice(index).match(Expressions["attributes"]); if (Boolean(match)) { return match.map(e => e.includes('=') ? e.split(Expressions["split"]) : [e, 0]).map(e => [e[0], Number(e[1])]) } } }
+const getAttributes = (string) => { const regEx = new RegExp(String.raw`(${Object.keys(Attributes).sort((a, b) => b.length - a.length).join('|')})(=+-*\d*)?`, 'g'); const index = string.search(Expressions["EWI"]); if (index >= 0) { const match = string.slice(index).match(regEx); if (Boolean(match)) { const result = match.map(e => e.includes('=') ? e.split(Expressions["split"]) : [e, 0]).map(e => [e[0], Number(e[1])]); return result; } } }
 const lens = (obj, path) => path.split('.').reduce((o, key) => o && o[key] ? o[key] : null, obj);
 const replaceLast = (x, y, z) => { let a = x.split(""); let length = y.length; if (x.lastIndexOf(y) != -1) { for (let i = x.lastIndexOf(y); i < x.lastIndexOf(y) + length; i++) { if (i == x.lastIndexOf(y)) { a[i] = z; } else { delete a[i]; } } } return a.join(""); }
 const getMemory = (text) => { return info.memoryLength ? text.slice(0, info.memoryLength) : '' } // If memoryLength is set then slice of the beginning until the end of memoryLength, else return an empty string.
@@ -154,7 +180,7 @@ const getContext = (text) => { return info.memoryLength ? text.slice(info.memory
 // Extract the last cluster in the RegEx' AND check then filter out non-word/non-whitespace symbols to TRY and assemble the intended words.
 const addDescription = (entry, value = 0) =>
 {
-    const result = entry["keys"].pop()
+    const result = entry.metadata.matches.pop()
     let search = lines.join('\n');
     // Find a match for the last expression and grab the most recent word for positioning. Filter out undefined/false values.
     if (search.includes(result) && result && !Boolean(value))
@@ -170,8 +196,8 @@ const addDescription = (entry, value = 0) =>
 }
 
 // Reference to Object is severed during processing, so index it instead.
-const addAuthorsNote = (entry, value = 0) => { const index = getEntryIndex(entry["original"]); if (index >= 0) { state.memory.authorsNote = `${entry["entry"]}` } }
-const showWorldEntry = (entry, value = 0) => { const index = getEntryIndex(entry["original"]); if (index >= 0) { worldEntries[index].isNotHidden = false; } }
+const addAuthorsNote = (entry, value = 0) => state.memory.authorsNote = `${entry["entry"]}`
+const showWorldEntry = (entry, value = 0) => entry.hidden = false;
 const addPositionalEntry = (entry, value = 0) => { spliceContext((Boolean(value) ? -(value) : copyLines.length), entry["entry"]); }
 const addMemoryEntry = (entry, value = 0) =>
 {
@@ -181,10 +207,11 @@ const addMemoryEntry = (entry, value = 0) =>
     }
 
 }
+const getRange = (list) => list ? list.find(e => e[0] == 'l') || [undefined, undefined] : [undefined, undefined];
 const getSlice = (string, mode = true) =>
 {
     const attributes = getAttributes(string);
-    const length = attributes ? attributes.find(e => e[0] == 'l') || [undefined, undefined] : [undefined, undefined];
+    const length = getRange(attributes);
 
     if (mode)
     {
@@ -212,42 +239,56 @@ const getSlice = (string, mode = true) =>
 const getLineIndex = (find, range) =>
 {
     let result;
-    if (range > 0) { for (let i = copyLines.length - copyLines.slice(-range).length; i < copyLines.length; i++) { if (copyLines[i].includes(find)) { result = i;} } }
-    else if (range < 0) { for (let i = 0; i < copyLines.length + range; i++) { if (copyLines[i].includes(find)) { result = i; } }  }
-    else { copyLines.forEach((l,i) => { if (l.includes(find)) {result = i;}})}
+    if (range > 0) { for (let i = copyLines.length - copyLines.slice(-range).length; i < copyLines.length; i++) { if (copyLines[i].includes(find)) { result = i; } } }
+    else if (range < 0) { for (let i = 0; i < copyLines.length + range; i++) { if (copyLines[i].includes(find)) { result = i; } } }
+    else { copyLines.forEach((l, i) => { if (l.includes(find)) { result = i; } }) }
     return result
 }
 
 const addTrailingEntry = (entry, value = 0) =>
 {
-    const attributes = getAttributes(entry["original"]);
-    
-    const range = attributes ? attributes.find(e => e[0] == 'l') || [undefined, undefined] : [undefined, undefined];
 
-    const find = entry["keys"][0];
+    const { attributes, matches } = entry.metadata;
+
+    const range = getRange(attributes);
+    const find = matches[0];
     const index = getLineIndex(find, range[1]);
     if (index >= 0) { spliceContext((index - value) >= 0 ? index - value : 0, entry["entry"]) }
 
     return;
 }
 
+const addAustralianKangaroo = () => spliceContext(-1, '[A polite Australian kangaroo pulls a top-hat out of its pouch before greeting you.]');
+
+
 const Attributes = {
     'a': addAuthorsNote, // [a] adds it as authorsNote, only one authorsNote at a time.
-    's': showWorldEntry, // [r] reveals the entry once mentioned, used in conjuction with [e] to only reveal if all keywords are mentioned at once.
-    'e': () => {}, // [e] tells the custom keyword check to only run the above functions if every keyword of the entry matches.
     'd': addDescription, // [d] adds the first sentence of the entry as a short, parenthesized descriptor to the last mention of the revelant keyword(s) e.g John (a business man)
-    'r': () => {}, // [r] picks randomly between entries with the same matching keys. e.g 'you.*catch#[rp=1]' and 'you.*catch#[rd]' has 50% each to be picked.
+    'f': () => { }, // [e] filters and limits the amount of simultaneous attribute activations.
+    'i': () => { }, // [i] Ignores the entry if present.
+    'l': () => { },
     'm': addMemoryEntry,
     'p': addPositionalEntry, // Inserts the <entry> <value> amount of lines into context, e.g [p=1] inserts it one line into context.
-    'w': () => {}, // [w] assigns the weight attribute, the higher value the more recent/relevant it will be in context/frontMemory/intermediateMemory etc.
+    'r': () => { }, // [r] picks randomly between entries with the same matching keys. e.g 'you.*catch#[rp=1]' and 'you.*catch#[rd]' has 50% each to be picked.
+    's': showWorldEntry, // [r] reveals the entry once mentioned, used in conjuction with [e] to only reveal if all keywords are mentioned at once.
+    'S': () => { }, // [S] functions as a 'sticky' entry, it'll stick to the context independent of its conditions once activated. Non- value (0) is indefinite while a value is duration.
     't': addTrailingEntry, // [t] adds the entry at a line relative to the activator in context. [t=2] will trail context two lines behind the activating word.
-    'l': () => {},
-    'x': () => {}, // [x] ignores the entry if not X amount of rounds have processed.
+    'w': () => { }, // [w] assigns the weight attribute, the higher value the more recent/relevant it will be in context/frontMemory/intermediateMemory etc.
+    'x': () => { }, // [x] ignores the entry if not X amount of rounds have processed.
+    'australiankangaroo': addAustralianKangaroo
 }
 
-const getWhitelist = () => { const index = getEntryIndex('_whitelist.'); return index >= 0 ? worldEntries[index]["entry"].toLowerCase().split(/,|\n/g).map(e => e.trim()) : [] }
+const getWhitelist = () => { const index = getEntryIndex('_whitelist.'); return index >= 0 ? worldInfo[index]["entry"].split(/,|\n/g).map(e => e.trim()) : [] }
 const getWildcard = (display, offset = 0) => { const wildcard = display.split('.').slice(offset != 0 ? 0 : 1).join('.'); const list = display.split('.'); const index = list.indexOf(wildcard.slice(wildcard.lastIndexOf('.') + 1)); return [list[index].replace(wildcardPath, ''), index + offset] }
-const getPlaceholder = (value) => typeof value == 'string' ? value.replace(Expressions["placeholder"], match => dataStorage[libraryPath][match.replace(/\$\{|\}/g, '')]) : value
+const getPlaceholder = (value) =>
+{
+    if (typeof value == 'string')
+    {
+        let result = value;
+        while (Expressions["placeholder"].test(result)) { result = result.replace(Expressions["placeholder"], match => dataStorage[libraryPath][match.replace(/\$\{|\}/g, '')]) }
+        return result
+    } else {return value}
+};
 const updateListener = (value, display, visited) =>
 {
     // Check if it has previously qualified in 'visited' instead of running regExMatch on each node.
@@ -273,10 +314,11 @@ const updateListener = (value, display, visited) =>
         const setKeys = display.includes('.') ? keys : `${keys}.`;
         const setValue = result.join(',')
         const index = getEntryIndex(setKeys);
-        index >= 0 ? updateWorldEntry(index, setKeys, setValue, isNotHidden = false) : addWorldEntry(setKeys, setValue, isNotHidden = false)
+        index >= 0 ? updateWorldEntry(index, setKeys, setValue, hidden = false) : addWorldEntry(setKeys, setValue, hidden = false)
 
     }
 }
+
 const globalReplacer = () =>
 {
 
@@ -297,7 +339,7 @@ const globalReplacer = () =>
     function replacer(replace)
     {
         let m = new Map();
-        return function(key, value)
+        return function (key, value)
         {
             let path = m.get(this) + (Array.isArray(this) ? `[${key}]` : '.' + key);
             let display = path.replace(/undefined\.\.?/, '')
@@ -344,13 +386,13 @@ const globalReplacer = () =>
     }
 
 
-    JSON.stringify(dataStorage, replacer(function(key, value, path) { return value; }));
+    JSON.stringify(dataStorage, replacer(function (key, value, path) { return value; }));
     return [...new Set([...whitelist, ...paths.sort((a, b) => a[1] - b[1]).map(e => e[0]).flat()])].filter(e => !Paths.includes(e)).map(e => e.replace(wildcardPath, ''))
 }
 
 // globalWhitelist - Should only make one call to it per turn in context modifiers. Other modifiers access it via state.
 const getGlobalWhitelist = () => state.settings.globalWhitelist = globalReplacer();
-const setProperty = (keys, value, obj) => { const property = keys.split('.').pop(); const path = keys.split('.')[1] ? keys.split('.').slice(0, -1).join('.') : keys.replace('.', ''); if (property[1]) { getKey(path, obj)[property] = value ? value : null; } else { dataStorage[path] = value; } }
+const setProperty = (keys, value, obj) => { const property = keys.split('.').pop(); const path = keys.split('.')[1] ? keys.split('.').slice(0, -1).join('.') : keys.replace('.', ''); if (property) { getKey(path, obj)[property] = value ? value : null; } else { dataStorage[path] = value; } }
 const getKey = (keys, obj) => { return keys.split('.').reduce((a, b) => { if (typeof a[b] != "object" || a[b] == null) { a[b] = {} } if (!a.hasOwnProperty(b)) { a[b] = {} } return a && a[b] }, obj) }
 
 const buildObjects = () =>
@@ -358,7 +400,7 @@ const buildObjects = () =>
 
     // Consume and process entries whose keys start with '!' or contains '.' and does not contain a '#'.
     const regEx = /(^!|\.)(?!.*#)/
-    worldEntries.filter(wEntry => regEx.test(wEntry["keys"])).forEach(wEntry =>
+    worldInfo.filter(wEntry => regEx.test(wEntry["keys"])).forEach(wEntry =>
     {
         if (wEntry["keys"].startsWith('!'))
         {
@@ -368,12 +410,12 @@ const buildObjects = () =>
                 // Parse the contents into an Object.
                 const object = JSON.parse(wEntry["entry"].match(/{.*}/)[0]);
                 // Remove the parsed entry to prevent further executions of this process.
-                removeWorldEntry(worldEntries.indexOf(wEntry));
+                removeWorldEntry(worldInfo.indexOf(wEntry));
                 // Build individual entries of the Object into worldEntries.
                 worldEntriesFromObject(object, root);
                 // Re-process entries that begin with the exact root path.
                 state.message = `Built Objects from !${root}.`
-                worldEntries.filter(e => e["keys"].split('.')[0] == root).forEach(wEntry => setProperty(wEntry["keys"].toLowerCase().split(',').filter(e => e.includes('.')).map(e => e.trim()).join(''), wEntry["entry"], dataStorage))
+                worldInfo.filter(e => e["keys"].split('.')[0] == root).forEach(wEntry => setProperty(wEntry["keys"].split(',').filter(e => e.includes('.')).map(e => e.trim()).join(''), wEntry["entry"], dataStorage))
             }
             catch (error)
             {
@@ -381,13 +423,13 @@ const buildObjects = () =>
                 state.message = `Failed to parse implicit conversion of !${root}. Verify the entry's format!`
             }
         }
-        else { setProperty(wEntry["keys"].toLowerCase().split(',').filter(e => e.includes('.')).map(e => e.trim()).join(''), wEntry["entry"], dataStorage); }
+        else { setProperty(wEntry["keys"].split(',').filter(e => e.includes('.')).map(e => e.trim()).join(''), wEntry["entry"], dataStorage); }
 
     })
 }
 
-const sanitizeWhitelist = () => { const index = worldEntries.findIndex(e => e["keys"].includes(whitelistPath)); if (index >= 0) { worldEntries[index]["keys"] = whitelistPath + '.'; } }
-const trackRoots = () => { const list = Object.keys(dataStorage); const index = worldEntries.findIndex(e => e["keys"] == 'rootList'); if (index < 0) { addWorldEntry('rootList', list, isNotHidden = false) } else { updateWorldEntry(index, 'rootList', list, isNotHidden = false) } }
+const sanitizeWhitelist = () => { const index = worldInfo.findIndex(e => e["keys"].includes(whitelistPath)); if (index >= 0) { worldInfo[index]["keys"] = whitelistPath + '.'; } }
+const trackRoots = () => { const list = Object.keys(dataStorage); const index = worldInfo.findIndex(e => e["keys"] == 'rootList'); if (index < 0) { addWorldEntry('rootList', list, hidden = false) } else { updateWorldEntry(index, 'rootList', list, hidden = false) } }
 
 // spliceContext takes a position to insert a line into the full context (memoryLines and lines combined) then reconstructs it with 'memory' taking priority.
 // TODO: Sanitize and add counter, verify whether memory having priority is detrimental to the structure - 'Remember' should never be at risk of ommitance.
@@ -418,7 +460,7 @@ const spliceMemory = (pos, string) =>
 
 }
 
-const cleanString = (string) => string.replace(/\\/g, '').replace(Expressions["listener"], '').replace(Expressions["invalid"], '').replace(Expressions["clean"], '');
+const cleanString = (string) => string.replace(/\\/g, ' ').replace(Expressions["listener"], '').replace(Expressions["invalid"], '').replace(Expressions["clean"], '');
 const insertJSON = () =>
 {
 
@@ -435,102 +477,111 @@ const insertJSON = () =>
             if (!dataStorage[data].hasOwnProperty(synonymsPath)) { dataStorage[data][synonymsPath] = `${data}#[t]` }
             let string = cleanString(JSON.stringify(dataStorage[data], globalWhitelist));
             if (state.settings["filter"]) { string = string.replace(/"|{|}/g, ''); }
-
             if (string.length > 4)
             {
-                const object = { "keys": dataStorage[data][synonymsPath].split('\n').map(e => !e.includes('#') ? e + '#[t]' : e).join('\n'), "entry": `[${string}]` }
+                const object = { "keys": dataStorage[data][synonymsPath].split('\n').map(e => !e.includes('#') ? e + '#[t]' : e).join('\n'), "entry": `[${string}]`, "metadata": { "isObject": true } }
                 list.push(object)
             }
-
         }
     }
-    if (list.length > 0) { sortObjects(list) };
+    if (list.length > 0) { preprocess(list) };
 }
 
-const pickRandom = () =>
-{
-    const lists = groupElementsBy(worldEntries.filter(e => /#.*\[.*r.*\]/.test(e.keys)));
-    const result = [worldEntries.filter(e => !/#.*\[.*r.*\]/.test(e.keys))];
-    lists.forEach(e => result.push(e[Math.floor(Math.random() * e.length)]))
-    return result.flat()
-}
-const getEWI = () =>
-{
-    const entries = pickRandom(); // Ensure unique assortment of entries that adhere to the [r] attribute if present.
-    return entries.filter(e => Expressions["EWI"].test(e["keys"]))
-}
-const processEWI = () => sortObjects(getEWI());
+const getEWI = () => { return worldInfo.filter(e => Expressions["EWI"].test(e["keys"])) }
+const processEWI = () => preprocess(getEWI());
 const execAttributes = (object) =>
 {
-    object.attributes = object.attributes.filter(e => { if (Attributes.hasOwnProperty(e[0])) {return true} else {state.message = `[${e[0]}] is an invalid attribute!`; return false} })
-    const ignore = object["attributes"].find(e => e[0] == 'x');
-    if ((ignore ? ignore[1] < history.length : true ) && object["attributes"].length > 0)
+
+
+    const { attributes } = object.metadata;
+    const ignore = attributes.find(e => e[0] == 'x');
+    if (((ignore ? ignore[1] < history.length : true) && attributes.length > 0) && (object.metadata.hasOwnProperty('ignore') ? object.metadata.ignore.count > 0 || object.metadata.ignore.original != 0 : true))
     {
-        try { object["attributes"].forEach(pair => { Attributes[pair[0]](object, pair[1]) })  }
+
+        try { attributes.forEach(pair => { Attributes[pair[0]](object, pair[1]) }) }
         catch (error) { console.log(`${error.name}: ${error.message}`) }
     }
 }
 
 // Sort all Objects/entries by the order of most-recent mention before processing.
 // expects sortList to be populated by Objects with properties {"key": string, "entry": string}
-const sortObjects = (list) =>
+const preprocess = (list) =>
 {
     const search = copyLines.join('\n')
-    list.map(e =>
+    const attributed = list.filter(e =>
+    {
+
+        const match = regExMatch(getPlaceholder(e["keys"]));
+        if (!e.hasOwnProperty('metadata')) { e.metadata = {}; };
+        if (Boolean(match[0])) // If match isn't found then return undefined and filter it out.
         {
-            if (e.hasOwnProperty("keys"))
+            e.metadata.index = search.lastIndexOf(match[0][match[0].length - 1]);
+            e.metadata.qualifier = match[1];
+            e.metadata.matches = match[0];
+            e.metadata.attributes = getAttributes(match[1]).filter(a => { if (Attributes.hasOwnProperty(a[0])) { return true } else { state.message += `[${a[0]}] is an invalid attribute!\n`; return false } });
+            const ignore = e.metadata.attributes.find(a => a[0] == 'i');
+            if (ignore)
             {
-                const match = regExMatch(getPlaceholder(e["keys"]));
-                if (Boolean(match[0]))
-                {
-                    return { "index": search.lastIndexOf(match[0][match[0].length - 1]), "matches": match, "entry": e["entry"] };
-                }
+                if (!e.metadata.hasOwnProperty('ignore')) { e.metadata.ignore = { "original": ignore[1], "count": ignore[1], "turn": [] } }
+                if (ignore[1] != e.metadata.ignore.original) { e.metadata.ignore.original = ignore[1]; e.metadata.ignore.count = ignore[1]; }
+                if (!(e.metadata.ignore.turn.some(t => t == info.actionCount)) && getHistoryString(-1).includes(e.metadata.matches[0])) { if (e.metadata.ignore.count > 0) { e.metadata.ignore.count--; e.metadata.ignore.turn.push(info.actionCount) } }
+                if (e.metadata.ignore.turn.some(t => t > info.actionCount)) { const refund = e.metadata.ignore.turn.filter(t => t > info.actionCount); if (refund.length > 0) { e.metadata.ignore.count += refund.length; e.metadata.ignore.turn.splice(-refund.length) } }
             }
-        })
-    .filter(Boolean)
-    .filter(e => Expressions["EWI"].test(e["matches"][1]))
-    .sort((a, b) => b["index"] - a["index"])
-    .forEach(e => execAttributes({ "keys": e["matches"][0], "entry": e["entry"], "attributes": getAttributes(e["matches"][1]), "original": e["matches"][1] }))
+
+            const sticky = e.metadata.attributes.find(a => a[0] == 'S');
+            if (sticky)
+            {
+                if (!e.metadata.hasOwnProperty('sticky')) { e.metadata.sticky = { "original": sticky[1], "count": sticky[1], "turn": [] } }
+                if (getHistoryString(-1).includes(e.metadata.matches[0])) {e.metadata.sticky.original = sticky[1]; e.metadata.sticky.count = sticky[1];}
+                if (!e.metadata.sticky.turn.some(t => t == info.actionCount)) { if (e.metadata.sticky.count > 0) { e.metadata.sticky.count--; e.metadata.sticky.turn.push(info.actionCount) } }
+                if (e.metadata.sticky.turn.some(t => t > info.actionCount)) { const refund = e.metadata.sticky.turn.filter(t => t > info.actionCount); if (refund.length > 0) { e.metadata.sticky.count += refund.length; e.metadata.sticky.turn.splice(-refund.length) } }
+            }
+            e.metadata.lastSeen = info.actionCount;
+            return true;
+        }
+
+        // [S] - Sticky bypass.
+        else if (e.metadata.hasOwnProperty('sticky') && ((e.metadata.sticky.count > 0 && e.metadata.sticky.count != e.metadata.sticky.original) || e.metadata.sticky.original == 0))
+        {
+            if (!e.metadata.sticky.turn.some(t => t == info.actionCount)) { if (e.metadata.sticky.count > 0) { e.metadata.sticky.count--; e.metadata.sticky.turn.push(info.actionCount) } }
+            if (e.metadata.sticky.turn.some(t => t > info.actionCount)) { const refund = e.metadata.sticky.turn.filter(t => t > info.actionCount); if (refund.length > 0) { e.metadata.sticky.count += refund.length; e.metadata.sticky.turn.splice(-refund.length) } }
+            if (e.metadata.sticky.count == 0 && e.metadata.sticky.original != 0) { e.metadata.sticky.count = e.metadata.sticky.original; }
+            return true;
+        }
+
+    })
+
+    // TODO: Optimize this section.
+    const randomized = getRandomObjects(attributed).filter(e => Expressions["EWI"].test(e.metadata.qualifier));
+    const sorted = randomized.sort((a, b) => b.metadata.index - a.metadata.index);
+    const filtered = filter(sorted, Object.keys(Attributes).filter(a => Attributes[a].toString() != '() => {}'), 'f').flat().sort((a, b) => { const A = a.metadata.attributes.find(e => e[0] == 't'); const B = b.metadata.attributes.find(e => e[0] == 't'); return (A ? A[1] : 0) - (B ? B[1] : 0) });
+    filtered.forEach(e => { execAttributes(e); });
 }
-// TEST
+
+/*  Cross Lines pulls eligble World Information if its keywords are found within a JSON-line that is present in the context. 
+    Insertions are done strictly through the memoryLines section of the context.
+    TODO: Enable attributes for the EWI entries.
+*/
 const crossLines = () =>
 {
     const JSONLines = lines.filter(line => /\[\{.*\}\]/.test(line));
     const JSONString = JSONLines.join('\n');
-    if (false)
+    worldInfo.forEach(e =>
     {
-        worldEntries.forEach(e =>
+        if (!Object.keys(dataStorage).includes(e["keys"].split('.')[0]) && !e["keys"].startsWith('!')) // Handle regular entries - EWI likely fails test.
         {
-            if (!e["keys"].includes('.')) // Handle regular entries - EWI likely fails test.
+            if (Boolean(regExMatch(e["keys"], JSONString)[0]) && !text.includes(e["entry"]))
             {
-                e["keys"].split(',').some(keyword =>
+                if (info.memoryLength + contextMemoryLength + e["entry"].length <= info.maxChars / 2)
                 {
-                    if (JSONString.toLowerCase().includes(keyword.toLowerCase()) && !text.includes(e["entry"]))
-                    {
-
-
-                        if (info.memoryLength + contextMemoryLength + e["entry"].length <= info.maxChars / 2)
-                        {
-                            spliceMemory(memoryLines.length - 1, e["entry"]);
-                            return true;
-                        }
-                    }
-                })
-            }
-            if (Expressions["EWI"].test(e["keys"])) // Handle EWI entries.
-            {
-                if (regExMatch(e["keys"]) && !text.includes(e["entry"]))
-                {
-                    if (info.memoryLength + contextMemoryLength + e["entry"].length <= info.maxChars / 2)
-                    {
-                        spliceMemory(memoryLines.length - 1, e["entry"]);
-                        return true;
-                    }
+                    spliceMemory(memoryLines.length - 1, e["entry"]);
+                    return true;
                 }
             }
-        })
-    }
+        }
+    })
 }
+
 
 const parseAsRoot = (text, root) =>
 {
@@ -548,7 +599,7 @@ const parseAsRoot = (text, root) =>
 
 
 
-const getEntryIndex = (keys) => worldEntries.findIndex(e => e["keys"].toLowerCase() == keys.toLowerCase())
+const getEntryIndex = (keys) => worldInfo.findIndex(e => e["keys"].toLowerCase() == keys.toLowerCase())
 const updateHUD = () =>
 {
     const { globalWhitelist } = state.settings;
@@ -564,12 +615,12 @@ state.commandList = {
         execute: (args) =>
         {
 
-            const keys = args[0].toLowerCase().trim()
+            const keys = args[0].trim()
             const setKeys = keys.includes('.') ? keys : `${keys}.`;
             const setValue = args.slice(1).join(' ');
             const index = getEntryIndex(setKeys);
 
-            index >= 0 ? updateWorldEntry(index, setKeys, setValue, isNotHidden = false) : addWorldEntry(setKeys, setValue, isNotHidden = false)
+            index >= 0 ? updateWorldEntry(index, setKeys, setValue, hidden = false) : addWorldEntry(setKeys, setValue, hidden = false)
 
             state.message = `Set ${setKeys} to ${setValue}!`
             if (state.displayStats) { updateHUD(); }
@@ -585,8 +636,8 @@ state.commandList = {
         execute: (args) =>
         {
 
-            const path = args.join('').toLowerCase().trim();
-            if (dataStorage && dataStorage.hasOwnProperty(args[0].split('.')[0].toLowerCase().trim()))
+            const path = args.join('').trim();
+            if (dataStorage && dataStorage.hasOwnProperty(args[0].split('.')[0].trim()))
             {
                 state.message = `Data Sheet for ${path}:\n${JSON.stringify(lens(dataStorage, path), null)}`;
             }
@@ -607,7 +658,7 @@ state.commandList = {
 
             const keys = args[0].toLowerCase().trim();
             const setKeys = keys.includes('.') ? keys : `${keys}.`;
-            worldEntries.filter(e => e["keys"].toLowerCase().startsWith(setKeys)).forEach(e => removeWorldEntry(worldEntries.indexOf(e)))
+            worldInfo.filter(e => e["keys"].toLowerCase().startsWith(setKeys)).forEach(e => removeWorldEntry(worldInfo.indexOf(e)))
             state.message = `Deleted all entries matching: ${keys}`;
         }
     },
@@ -621,7 +672,7 @@ state.commandList = {
         {
 
             const keys = args[0].toLowerCase()
-            worldEntries.forEach(e => { if (e["keys"].toLowerCase().startsWith(keys)) { e["isNotHidden"] = false; } })
+            worldInfo.forEach(e => { if (e["keys"].toLowerCase().startsWith(keys)) { e["hidden"] = false; } })
             state.message = `Showing all entries starting with ${keys} in World Information!`;
             return
         }
@@ -636,7 +687,7 @@ state.commandList = {
         {
 
             const keys = args[0].toLowerCase()
-            worldEntries.forEach(e => { if (e["keys"].toLowerCase().startsWith(keys)) { e["isNotHidden"] = true; } })
+            worldInfo.forEach(e => { if (e["keys"].toLowerCase().startsWith(keys)) { e["hidden"] = true; } })
             state.message = `Hiding all entries starting with ${keys} in World Information!`;
             return
         }
