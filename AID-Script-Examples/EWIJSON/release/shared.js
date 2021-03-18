@@ -253,8 +253,7 @@ const addTrailingEntry = (entry, value = 0) =>
     const range = getRange(attributes);
     const find = matches[0];
     const index = getLineIndex(find, range[1]);
-    if (index >= 0) { spliceContext((index - value) >= 0 ? index - value : 0, entry["entry"]) }
-
+    spliceContext((index - value) >= 0 ? index - value : 0, entry["entry"])
     return;
 }
 
