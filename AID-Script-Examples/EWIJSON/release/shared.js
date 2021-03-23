@@ -1,16 +1,18 @@
+// EWIJSON - START.
 console.log(`Turn: ${info.actionCount}`)
-if (!state.data) { state.data = {} }
-let dataStorage = state.data;
+if (!state.EWI) {state.EWI = {}};
+if (!state.EWI.data) { state.EWI.data = {} }
+let dataStorage = state.EWI.data;
 let contextMemoryLength = 0; // Keep count of additional context added.
-if (!state.generate) { state.generate = {} }
-if (!state.settings) { state.settings = {} }
-if (!state.settings.globalWhitelist) { state.settings.globalWhitelist = [] }
+if (!state.EWI.generate) { state.EWI.generate = {} }
+if (!state.EWI.settings) { state.EWI.settings = {} }
+if (!state.EWI.settings.globalWhitelist) { state.EWI.settings.globalWhitelist = [] }
 const DefaultSettings = {
     'cross': false,
     'filter': false,
     'mode': true,
 }
-for (const setting in DefaultSettings) { if (!state.settings.hasOwnProperty(setting)) { state.settings[setting] = DefaultSettings[setting] } }
+for (const setting in DefaultSettings) { if (!state.EWI.settings.hasOwnProperty(setting)) { state.EWI.settings[setting] = DefaultSettings[setting] } }
 
 const Expressions = {
 
@@ -25,7 +27,7 @@ const Expressions = {
     "expectFlags": /(?<=^\/.*\/)/
 }
 
-state.config = {
+state.EWI.config = {
     prefix: /^\n> You \/|^\n> You say "\/|^\/|^\n\//gi,
     prefixSymbol: '/',
     libraryPath: '_exp',
@@ -37,14 +39,13 @@ state.config = {
     openListener: '<l',
     closeListener: '</l>'
 }
-let { cross } = state.settings;
-const { whitelistPath, synonymsPath, pathSymbol, wildcardPath, configPath, libraryPath, openListener, closeListener } = state.config;
+let { cross } = state.EWI.settings;
+const { whitelistPath, synonymsPath, pathSymbol, wildcardPath, configPath, libraryPath, openListener, closeListener } = state.EWI.config;
 const Paths = [whitelistPath, synonymsPath, libraryPath];
 
 // Filter and group the array by the 'by' value to the limit of the 'restrict' value.
-const filter = (arr, by, restrict) =>
+const filterArrayBy = (arr, by, restrict) =>
 {
-
     const hash = {};
     const result = [];
     arr.forEach(el =>
@@ -57,24 +58,14 @@ const filter = (arr, by, restrict) =>
 
             if (!hash[value[1]])
             {
-                hash[value[1]] = {
-                    "elements": []
-                };
+                hash[value[1]] = { "elements": [] };
                 result.push(hash[value[1]]);
             };
+            if (restricted && !hash[value[1]].hasOwnProperty('limit')) { hash[value[1]].limit = restricted[1] }
+            if (!hash[value[1]].hasOwnProperty('limit') || (hash[value[1]].elements.length < hash[value[1]].limit)) { hash[value[1]].elements.push(el); }
 
-            if (restricted && !hash[value[1]].hasOwnProperty('limit'))
-            {
-                hash[value[1]].limit = restricted[1]
-            }
-            if (!hash[value[1]].hasOwnProperty('limit') || (hash[value[1]].elements.length < hash[value[1]].limit))
-            {
-                hash[value[1]].elements.push(el);
-            }
-        } else
-        {
-            result.push([el])
-        };
+        }
+        else { result.push([el]) };
     });
 
     return result.map(e => e.elements || e);
@@ -83,7 +74,7 @@ const filter = (arr, by, restrict) =>
 const getRandomObjects = (arr) =>
 {
 
-    return filter(arr, ['r']).map(e =>
+    return filterArrayBy(arr, ['r']).map(e =>
     {
         const find = e.filter(x => x.metadata?.random?.picked);
         // If multiple previous picks are present, reset their status and re-roll from the batch.
@@ -125,7 +116,7 @@ const getActionTypes = (turns) => history.slice(turns).map(e => e["type"]) // Re
 const fixOrder = () =>
 {
     dataStorage = Object.assign({ "_whitelist": {}, "_synonyms": {} }, dataStorage);
-    state.data = dataStorage;
+    state.EWI.data = dataStorage;
 }
 
 // Consider implementing a negative 'every' check for 'do not match' instances, expression prefixed by '!'
@@ -140,7 +131,7 @@ const regExMatch = (keys, text = undefined) =>
     {
         array.forEach(line =>
         {
-            const string = text ? text : getSlice(line, state.settings.mode).join('\n')
+            const string = text ? text : getSlice(line, state.EWI.settings.mode).join('\n')
             const expressions = line.slice(0, /#\[.*\]/.test(line) ? line.lastIndexOf('#') : line.length).split(/(?<!\\),/g);
 
             if (expressions.every(exp =>
@@ -288,7 +279,7 @@ const getPlaceholder = (value) =>
         let result = value;
         while (Expressions["placeholder"].test(result)) { result = result.replace(Expressions["placeholder"], match => dataStorage[libraryPath][match.replace(/\$\{|\}/g, '')]) }
         return result
-    } else {return value}
+    } else { return value }
 };
 const updateListener = (value, display, visited) =>
 {
@@ -392,7 +383,7 @@ const globalReplacer = () =>
 }
 
 // globalWhitelist - Should only make one call to it per turn in context modifiers. Other modifiers access it via state.
-const getGlobalWhitelist = () => state.settings.globalWhitelist = globalReplacer();
+const getGlobalWhitelist = () => state.EWI.settings.globalWhitelist = globalReplacer();
 const setProperty = (keys, value, obj) => { const property = keys.split('.').pop(); const path = keys.split('.')[1] ? keys.split('.').slice(0, -1).join('.') : keys.replace('.', ''); if (property) { getKey(path, obj)[property] = value ? value : null; } else { dataStorage[path] = value; } }
 const getKey = (keys, obj) => { return keys.split('.').reduce((a, b) => { if (typeof a[b] != "object" || a[b] == null) { a[b] = {} } if (!a.hasOwnProperty(b)) { a[b] = {} } return a && a[b] }, obj) }
 
@@ -466,7 +457,7 @@ const insertJSON = () =>
 {
 
     // Cleanup edge-cases of empty Objects in the presented string.
-    const { globalWhitelist } = state.settings;
+    const { globalWhitelist } = state.EWI.settings;
     console.log(`Global Whitelist: ${globalWhitelist}`)
 
     const list = []
@@ -477,7 +468,7 @@ const insertJSON = () =>
         {
             if (!dataStorage[data].hasOwnProperty(synonymsPath)) { dataStorage[data][synonymsPath] = `${data}#[t]` }
             let string = cleanString(JSON.stringify(dataStorage[data], globalWhitelist));
-            if (state.settings["filter"]) { string = string.replace(/"|{|}/g, ''); }
+            if (state.EWI.settings["filter"]) { string = string.replace(/"|{|}/g, ''); }
             if (string.length > 4)
             {
                 const object = { "keys": dataStorage[data][synonymsPath].split('\n').map(e => !e.includes('#') ? e + '#[t]' : e).join('\n'), "entry": `[${string}]`, "metadata": { "isObject": true } }
@@ -533,7 +524,7 @@ const preprocess = (list) =>
             if (sticky)
             {
                 if (!e.metadata.hasOwnProperty('sticky')) { e.metadata.sticky = { "original": sticky[1], "count": sticky[1], "turn": [] } }
-                if (getHistoryString(-1).includes(e.metadata.matches[0])) {e.metadata.sticky.original = sticky[1]; e.metadata.sticky.count = sticky[1];}
+                if (getHistoryString(-1).includes(e.metadata.matches[0])) { e.metadata.sticky.original = sticky[1]; e.metadata.sticky.count = sticky[1]; }
                 if (!e.metadata.sticky.turn.some(t => t == info.actionCount)) { if (e.metadata.sticky.count > 0) { e.metadata.sticky.count--; e.metadata.sticky.turn.push(info.actionCount) } }
                 if (e.metadata.sticky.turn.some(t => t > info.actionCount)) { const refund = e.metadata.sticky.turn.filter(t => t > info.actionCount); if (refund.length > 0) { e.metadata.sticky.count += refund.length; e.metadata.sticky.turn.splice(-refund.length) } }
             }
@@ -555,7 +546,7 @@ const preprocess = (list) =>
     // TODO: Optimize this section.
     const randomized = getRandomObjects(attributed).filter(e => Expressions["EWI"].test(e.metadata.qualifier));
     const sorted = randomized.sort((a, b) => b.metadata.index - a.metadata.index);
-    const filtered = filter(sorted, FunctionAttributes, 'f').flat().sort((a, b) => { const A = a.metadata.attributes.find(e => FunctionAttributes.some(a => a == e[0])); const B = b.metadata.attributes.find(e => FunctionAttributes.some(a => a == e[0])); return (A ? A[1] : 0) - (B ? B[1] : 0) });
+    const filtered = filterArrayBy(sorted, FunctionAttributes, 'f').flat().sort((a, b) => { const A = a.metadata.attributes.find(e => FunctionAttributes.some(a => a == e[0])); const B = b.metadata.attributes.find(e => FunctionAttributes.some(a => a == e[0])); return (A ? A[1] : 0) - (B ? B[1] : 0) });
     filtered.forEach(e => { execAttributes(e); });
 }
 
@@ -603,10 +594,47 @@ const parseAsRoot = (text, root) =>
 const getEntryIndex = (keys) => worldInfo.findIndex(e => e["keys"].toLowerCase() == keys.toLowerCase())
 const updateHUD = () =>
 {
-    const { globalWhitelist } = state.settings;
+    const { globalWhitelist } = state.EWI.settings;
     state.displayStats.forEach((e, i) => { if (dataStorage.hasOwnProperty(e["key"].trim())) { state.displayStats[i] = { "key": `${e["key"].trim()}`, "value": `${cleanString(JSON.stringify(dataStorage[e["key"].trim()], globalWhitelist)).replace(/\{|\}/g, '')}    ` } } })
 }
-state.commandList = {
+
+const CommandHandler = (text) =>
+{
+    const { commandList } = state.EWI;
+    const { prefix, prefixSymbol } = state.EWI.config;
+    const commandPrefix = text.match(prefix);
+
+    if (commandPrefix && commandPrefix[0])
+    {
+        //state.message = `Text startsWith: ${commandPrefix[0]}`;
+        const args = text.slice(commandPrefix[0].length).replace(/"\n$|.\n$/, '').split(/ +/); // Create a list of the words provided, remove symbols from pre-processing polution.
+
+        const commandName = args.shift().replace(/\W*/gi, ''); // Fetch and remove the actual command from the list.
+
+        // NOTE: Commands are required to be whitelisted in the state.EWI.commandList.
+        // Lazy workaround is to declare e.g `testCommand: () => {}` or `state.EWI.commandList.testCommand = () => {}`
+        if (!(commandName in commandList)) { state.message = "Invalid Command!"; return { text: '', stop: true }; }
+
+        const command = commandList[commandName];
+
+        if (command.args && !args.length) //If the command expects to be passed arguments, but none are present then
+        {
+            let reply = `You didn't provide any arguments!\n`
+            if (command.usage) { reply += `Example: ${prefixSymbol}${command.name} ${command.usage}\n`; } // Provide instructions for how to use the command if provided.
+            if (command.description) { reply += `${command.description}`; }
+            state.message = reply;
+            return { text: '', stop: true };
+        }
+
+        if (command.execute)
+        {
+            try { command.execute(args); return { text: '', stop: state.stop } }
+            catch (error) { state.message = `There was an error!\n${error}`; console.log(`There was an error!\n${error}`); }
+        }
+
+    }
+}
+state.EWI.commandList = {
     set: // Identifier and name of function
     {
         name: 'set',
@@ -696,25 +724,25 @@ state.commandList = {
     cross:
     {
         name: 'cross',
-        description: `Toggles fetching of World Information from JSON Lines: ${state.settings["cross"]}`,
+        description: `Toggles fetching of World Information from JSON Lines: ${state.EWI.settings["cross"]}`,
         args: false,
         execute: (args) =>
         {
 
-            state.settings["cross"] = !state.settings["cross"];
-            state.message = `World Information from JSON Lines: ${state.settings["cross"]}`
+            state.EWI.settings["cross"] = !state.EWI.settings["cross"];
+            state.message = `World Information from JSON Lines: ${state.EWI.settings["cross"]}`
             return
         }
     },
     filter:
     {
         name: 'filter',
-        description: `Toggles the filtering of quotation and curly-brackets within JSON lines: ${state.settings["filter"]}\nSaves character count, but may have detrimental effects.`,
+        description: `Toggles the filtering of quotation and curly-brackets within JSON lines: ${state.EWI.settings["filter"]}\nSaves character count, but may have detrimental effects.`,
         args: false,
         execute: (args) =>
         {
-            state.settings["filter"] = !state.settings["filter"];
-            state.message = `'"{}' filter set to ${state.settings["filter"]}`
+            state.EWI.settings["filter"] = !state.EWI.settings["filter"];
+            state.message = `'"{}' filter set to ${state.EWI.settings["filter"]}`
             return
         }
     },
@@ -744,7 +772,7 @@ state.commandList = {
 
             if (!state.displayStats) { state.displayStats = [] }
             //getGlobalWhitelist(getHistoryString(-10).slice(-info.maxChars))
-            const { globalWhitelist } = state.settings;
+            const { globalWhitelist } = state.EWI.settings;
             const root = args[0].trim();
             const index = state.displayStats.findIndex(e => e["key"].trim() == root)
 
@@ -765,10 +793,78 @@ state.commandList = {
         usage: '',
         execute: (args) =>
         {
-            state.settings.mode = !state.settings.mode
-            state.message = `Conditions now search amount of ${state.settings.mode == true ? 'actions' : 'lines'}.`
+            state.EWI.settings.mode = !state.EWI.settings.mode
+            state.message = `Conditions now search amount of ${state.EWI.settings.mode == true ? 'actions' : 'lines'}.`
         }
     }
 
 
 };
+
+// Position the various attribute tags, push them into temporary lists etc.
+state.EWI.execute = {
+
+    "Sanitize the whitelist.":
+    {
+        "req": true,
+        "args": null,
+        "exec": sanitizeWhitelist
+    },
+    "Build qualified entries as Objects in dataStorage.":
+    {
+        "req": true,
+        "args": null,
+        "exec": buildObjects
+    },
+
+    "Ensure _synonyms is handled first when creating the globalWhitelist.":
+    {
+        "req": Object.keys(dataStorage)[1] != synonymsPath || Object.keys(dataStorage)[0] != whitelistPath,
+        "args": null,
+        "exec": fixOrder
+    },
+    "Build a global whitelist based on context and wildcards.":
+    {
+        "req": true,
+        "args": null,
+        "exec": getGlobalWhitelist
+    },
+    "Sort and execute the Object entries.":
+    {
+        "req": true,
+        "args": null,
+        "exec": insertJSON
+    },
+    "Sort and execute the EWI Attribute entries.":
+    {
+        "req": worldInfo.length > 0,
+        "args": null,
+        "exec": processEWI
+    },
+    "Check the inserted JSON- lines for the presence of worldInfo keywords.":
+    {
+        "req": state.EWI.settings["cross"],
+        "args": null,
+        "exec": crossLines
+    },
+   /*  "Add the Stacks":
+    {
+        "req": Stacks,
+        "args": null,
+        "exec": addStacks
+    }, */
+    "Create an always visible entry that displays all created roots for Objects.":
+    {
+        "req": true,
+        "args": null,
+        "exec": trackRoots
+    },
+    "Refresh the variables presented in the HUD.":
+    {
+        "req": state.displayStats,
+        "args": null,
+        "exec": updateHUD
+    }
+
+}
+// EWIJSON - END.
